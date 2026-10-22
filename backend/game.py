@@ -4,6 +4,7 @@ Ações que alteram saldo/itens usam transações serializadas. O browser só pe
 operações; nunca escolhe resultado de sorteio, saldo, recompensa ou tempo.
 """
 from __future__ import annotations
+import logging
 
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -1756,6 +1757,32 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
     # 0.1.2: operações administrativas de manutenção, inclusive no PWA mobile.
     # Não expor simulações de desenvolvimento nem restauração de catálogos em produção.
     # O usuário é autenticado via sessão Discord e conferido na lista de administradores.
+    # 0.1.12: ajuste manual de saldo para testes, restrito a administradores autenticados.
+    @app.post('/api/admin/wallet/adjust')
+    async def admin_adjust_wallet(request: Request):
+        admin_id = only_admin(request)
+        data = json_body(await request.json(), ('discord_id', 'amount', 'action'))
+        target = str(data['discord_id']).strip()
+        amount = integer(data['amount'])
+        action = str(data['action'])
+        if not target.isdecimal() or not 15 <= len(target) <= 22:
+            raise HTTPException(422, detail='ID do usuário Discord inválido')
+        if amount < 1 or amount > 100000:
+            raise HTTPException(422, detail='Quantidade deve ser entre 1 e 100.000')
+        if action not in ('add', 'remove'):
+            raise HTTPException(422, detail='Operação inválida')
+        with writing() as db:
+            if db.get(User, target) is None:
+                raise HTTPException(404, detail='O usuário ainda não entrou no Recanto')
+            balance = wallet(db, target)
+            if action == 'remove' and balance.coins < amount:
+                raise HTTPException(409, detail='Saldo insuficiente para retirar esta quantia')
+            balance.coins += amount if action == 'add' else -amount
+            new_balance = balance.coins
+        logger = logging.getLogger('recanto.admin')
+        logger.info('Ajuste administrativo de moedas: admin=%s usuario=%s acao=%s quantidade=%s', admin_id, target, action, amount)
+        return {'ok': True, 'balance': new_balance, 'discord_id': target}
+
     @app.post('/api/admin/reset-daily')
     def admin_reset_daily(request: Request):
         uid = only_admin(request)

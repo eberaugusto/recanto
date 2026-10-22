@@ -59,7 +59,7 @@
   const block=(title,body)=>{const div=h('div','game-box');if(title)div.append(h('h3','',title));if(body)div.append(h('p','',body));return div;};
   const safeRun=async(action,success)=>{try {const result=await action();resetCachedData();if(success)toast(typeof success==='function'?success(result):success);await refreshProfile();if($('adminModal').hidden)await refreshActive(true);return result;}catch(err){toast('⚠ '+err.message);return null;}};
   function countdown(iso){if(!iso)return '—';const delta=new Date(iso).getTime()-Date.now();if(delta<=0)return 'Disponível agora';let s=Math.ceil(delta/1000);const d=Math.floor(s/86400);s%=86400;const hour=Math.floor(s/3600);s%=3600;const minute=Math.floor(s/60);const sec=s%60;return (d?`${d}d `:'')+`${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;}
-  function updateCountdowns(){if(state.reset){const t=countdown(state.reset);$('cardCountdown').textContent=$('dailyCard').disabled?'Novo card em '+countdown(state.cardReset):'Disponível agora (a cada 5h)!';$('coinCountdown').textContent=$('dailyCoins').disabled?'Próximo resgate: '+t:'Resgate disponível!';}if(state.missionReset)$('missionTimer').textContent='Missões reiniciam em: '+countdown(state.missionReset);}
+  function updateCountdowns(){if(state.reset){const t=countdown(state.reset);$('cardCountdown').textContent=$('dailyCard').disabled?'Novo card em '+countdown(state.cardReset):'Disponível agora (a cada 5h)!';$('coinCountdown').textContent=$('dailyCoins').disabled?'Próximo resgate: '+t:'Resgate disponível!';}if(state.missionReset)$('missionTimer').textContent='Resetam em: '+countdown(state.missionReset);}
   function avatar(el,name,url){el.replaceChildren();if(url){const img=h('img');img.src=url;img.alt='Foto de '+name;img.onerror=()=>{img.remove();el.textContent='◉';};el.append(img);}else el.textContent='◉';}
 
   function applyTheme(mode){
@@ -776,7 +776,7 @@
     }catch(_){state.notification=false;}
     updateNotificationUI();
   }
-  function updateNotificationUI(message){const permitted=window.isSecureContext&&'Notification' in window;const active=state.notification&&permitted&&Notification.permission==='granted';$('notificationsToggle').classList.toggle('on',!!active);$('notificationsToggle').setAttribute('aria-checked',String(!!active));$('notificationsStatus').textContent=message||(!permitted?'Notificações exigem HTTPS e navegador compatível.':active?'Notificações Web Push ativadas.':'Ative para receber avisos de pets, cards e novidades.');}
+  function updateNotificationUI(message){const permitted=window.isSecureContext&&'Notification' in window;const active=state.notification&&permitted&&Notification.permission==='granted';$('notificationsToggle').classList.toggle('on',!!active);$('notificationsToggle').setAttribute('aria-checked',String(!!active));$('notificationsStatus').textContent=message||(!permitted?'Notificações exigem HTTPS e navegador compatível.':'');$('notificationsStatus').hidden=!$('notificationsStatus').textContent;}
   function vapidBytes(key){
     const normalized=(key+'='.repeat((4-key.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/');
     const decoded=atob(normalized);return Uint8Array.from(decoded,c=>c.charCodeAt(0));
@@ -1113,6 +1113,25 @@
       if(result)await openAdmin(true);
     }));
     pane.append(tools);
+    // Ajuste manual de moedas: permitido apenas para administradores no backend.
+    const coinTool=block('Ajustar moedas de um usuário','Para testes: utilize o ID numérico do Discord. Nenhuma outra conta será alterada.');
+    const [userIdRow,userIdInput]=adminField('ID do usuário no Discord','');
+    userIdInput.inputMode='numeric';userIdInput.autocomplete='off';
+    const [amountRow,amountInput]=adminField('Quantidade de moedas','100','number');
+    amountInput.min='1';amountInput.max='100000';amountInput.step='1';
+    const coinActions=h('div','admin-action-row');
+    async function adjustCoins(action){
+      const discord_id=userIdInput.value.trim();
+      const amount=Number(amountInput.value);
+      if(!/^\d{15,22}$/.test(discord_id)){toast('Informe o ID numérico do Discord (15 a 22 dígitos).');return;}
+      if(!Number.isSafeInteger(amount)||amount<1||amount>100000){toast('Informe entre 1 e 100.000 moedas.');return;}
+      if(!window.confirm((action==='add'?'Adicionar ':'Remover ')+amount+' moedas '+(action==='add'?'para':'de')+' '+discord_id+'?'))return;
+      const result=await safeRun(()=>API('/api/admin/wallet/adjust',{discord_id,amount,action}),action==='add'?'Moedas adicionadas.':'Moedas removidas.');
+      if(result){coinStatus.textContent='Saldo atualizado: '+result.balance+' moedas.'; if(state.account?.id===discord_id||state.account?.discord_id===discord_id){state.account.coins=result.balance;$('desktopWallet').textContent=money(result.balance);$('valMoedas').textContent=money(result.balance);}}
+    }
+    coinActions.append(button('Adicionar moedas',()=>adjustCoins('add')),button('Remover moedas',()=>adjustCoins('remove'),'danger-action'));
+    const coinStatus=h('p','admin-entry-status','');
+    coinTool.append(userIdRow,amountRow,coinActions,coinStatus);pane.append(coinTool);
     const reset=block('Limpar progresso para testes','ATENÇÃO: apaga o progresso de TODOS os usuários (cards obtidos, moedas, pets, trocas, selos e missões). As contas Discord e os catálogos permanecem. A operação não pode ser desfeita.');
     const [field,confirmation]=adminField('Digite LIMPAR TUDO para confirmar','');
     const resetButton=button('Apagar progresso de todos os usuários',async()=>{
@@ -1134,7 +1153,7 @@
       if(x.includes('missões do recanto'))return 'Missões';
       if(x.includes('selo'))return 'Selos';
       if(x.includes('assets'))return 'Assets';
-      if(x.includes('administrador')||x.includes('ids autorizados'))return 'Usuários';
+      if(x.includes('administrador')||x.includes('ids autorizados')||x.includes('ajustar moedas'))return 'Usuários';
       if(x.includes('integrações'))return 'Integrações';
       return 'Geral';
     };

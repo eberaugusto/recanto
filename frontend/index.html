@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=0.1.11">
+  <link rel="stylesheet" href="/styles.css?v=0.1.12">
 </head>
 <body>
 <!-- Recanto 0.1.2 — layout responsivo e gestão com carregamento progressivo. -->
@@ -116,14 +116,14 @@
     <section class="full-page admin-page" id="adminModal" hidden aria-label="Gestão do Recanto"><div class="admin-dialog"><header class="modal-header"><h2>Gestão do Recanto</h2><div class="admin-header-actions"><button class="admin-refresh" type="button" id="refreshAdmin" title="Atualizar dados da gestão">↻ Atualizar</button><button class="modal-close" id="closeAdmin" aria-label="Fechar gestão">✕</button></div></header><div class="admin-scroll" id="adminContent"></div></div></section>
     <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
     <div class="modal-backdrop" id="modal" hidden><section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title"><header class="modal-header"><h2 id="settings-title">Configurações</h2><button class="modal-close" type="button" id="closeSettings" aria-label="Fechar">✕</button></header>
-      <div class="setting-row"><div class="setting-label"><svg><use href="#bell"/></svg><div><strong>Habilitar notificações</strong><span>Avisos e recompensas no futuro</span></div></div><button class="switch" type="button" role="switch" aria-label="Habilitar notificações" aria-checked="false" id="notificationsToggle"><span></span></button></div>
+      <div class="setting-row"><div class="setting-label"><svg><use href="#bell"/></svg><div><strong>Habilitar notificações</strong><span>Ative para receber avisos de pets, cards e novidades.</span></div></div><button class="switch" type="button" role="switch" aria-label="Habilitar notificações" aria-checked="false" id="notificationsToggle"><span></span></button></div>
       <div class="setting-row"><div class="setting-label"><svg><use href="#inventory"/></svg><div><strong>Modo escuro</strong><span>Deixa o aplicativo com visual mais escuro</span></div></div><button class="switch" type="button" role="switch" aria-label="Ativar modo escuro" aria-checked="false" id="darkModeToggle"><span></span></button></div>
-      <p class="notifications-status" id="notificationsStatus" role="status" aria-live="polite">Avisos automáticos ainda não estão disponíveis.</p>
+      <p class="notifications-status" id="notificationsStatus" role="status" aria-live="polite" hidden></p>
       <button type="button" class="soft-action settings-admin" id="settingsAdmin" hidden aria-label="Abrir Gestão do Recanto"><svg aria-hidden="true"><use href="#gear"/></svg><span>Gestão do Recanto</span></button>
       <button type="button" class="soft-action settings-update-check" id="checkUpdates">↻ Verificar atualizações</button>
-      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.1.11</p></section></div>
+      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.1.12</p></section></div>
   </main>
 </div>
-<script src="/app.js?v=0.1.11" defer></script>
+<script src="/app.js?v=0.1.12" defer></script>
 </body>
 </html>

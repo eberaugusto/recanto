@@ -1457,3 +1457,47 @@ body.dark-mode .discord-widget-help{color:#bac6f2;}
 }
 /* O detalhe do card deve ficar acima da pagina de outro usuario. */
 #cardModal:not([hidden]){position:fixed!important;inset:0!important;z-index:99999!important;}
+
+/* RECANTO 0.1.12 — ajustes restritos ao PC; mobile preservado. */
+@media(min-width:768px){
+  /* Identidade do perfil sem contato com a foto */
+  #profileContent .desktop-identity{
+    left:clamp(244px,21vw,300px)!important;
+    right:clamp(164px,17vw,235px)!important;
+    top:112px!important;
+  }
+  #profileContent .desktop-identity h2{line-height:1.18!important;}
+  /* Selos e jogos ocupam as mesmas seis posicoes circulares */
+  #profileContent .profile-games .game-icons{
+    display:grid!important;
+    grid-template-columns:repeat(6,minmax(0,1fr))!important;
+    justify-items:center!important;
+    align-items:center!important;
+    gap:10px!important;
+  }
+  #profileContent .profile-games .game-icon{
+    width:clamp(48px,5vw,76px)!important;
+    height:clamp(48px,5vw,76px)!important;
+    border-radius:50%!important;
+  }
+  #profileContent .profile-games .game-icon img{border-radius:50%!important;}
+  #missionPane .mission-category-title{
+    background:#f7f8ff!important;
+    border:1px solid #cbd4ff!important;
+    border-radius:14px!important;
+    color:#283f96!important;
+    min-height:48px!important;
+    margin:0!important;
+    padding:11px 8px!important;
+    display:flex!important;
+    justify-content:center!important;
+    align-items:center!important;
+  }
+  #profileContent .discord-widget-frame{height:360px!important;}
+  #profileContent .profile-discord-widget{min-height:540px!important;}
+  #shopScreen .shop-daily-coins{margin-left:0!important;margin-right:auto!important;align-self:flex-start!important;justify-self:start!important;}
+}
+@media(min-width:768px) and (max-width:1160px){
+  #profileContent .desktop-identity{left:clamp(170px,19vw,244px)!important;right:135px!important;top:106px!important;}
+  #profileContent .desktop-identity h2{font-size:clamp(20px,2.4vw,27px)!important;}
+}
