@@ -251,8 +251,8 @@
       list=list.slice().sort((a,b)=>(ranks[b.rarity]||0)-(ranks[a.rarity]||0)||a.name.localeCompare(b.name,'pt-BR'));
     }
     if(!list.length)container.append(block('Nenhum card encontrado','Altere os filtros para encontrar outros cards.'));
-    const isDesktop=matchMedia('(min-width:768px)').matches;
-    const pageSize=isDesktop?state.cardPageSize:Math.max(1,list.length);
+    // Uma mesma paginacao leve no PC e no celular: nao montar todo o catalogo de uma vez.
+    const pageSize=state.cardPageSize;
     const pages=Math.max(1,Math.ceil(list.length/pageSize));
     state.cardPage=Math.min(Math.max(1,state.cardPage),pages);
     const start=(state.cardPage-1)*pageSize;
@@ -264,9 +264,19 @@
     container.append(grid);
     if(list.length>pageSize){
       const nav=h('nav','card-pagination');nav.setAttribute('aria-label','Páginas de cards');
-      const previous=button('← Anterior',()=>{state.cardPage--;paintCardGrid(items,ownedIds,tab,container);},'soft-action');previous.disabled=state.cardPage===1;
+      const changePage=(nextPage)=>{
+        state.cardPage=nextPage;
+        paintCardGrid(items,ownedIds,tab,container);
+        // Avanca para os cards da pagina nova, preservando os filtros acima.
+        const scrollArea=container.closest('.scroll-content');
+        if(scrollArea){
+          const top=scrollArea.scrollTop+container.getBoundingClientRect().top-scrollArea.getBoundingClientRect().top-10;
+          scrollArea.scrollTo({top:Math.max(0,top),behavior:'auto'});
+        }
+      };
+      const previous=button('← Anterior',()=>changePage(state.cardPage-1),'soft-action');previous.disabled=state.cardPage===1;
       const caption=h('span','card-pagination-label',`Página ${state.cardPage} de ${pages} · ${list.length} cards`);
-      const next=button('Próxima →',()=>{state.cardPage++;paintCardGrid(items,ownedIds,tab,container);},'soft-action');next.disabled=state.cardPage===pages;
+      const next=button('Próxima →',()=>changePage(state.cardPage+1),'soft-action');next.disabled=state.cardPage===pages;
       nav.append(previous,caption,next);container.append(nav);
     }
   }

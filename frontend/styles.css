@@ -1277,3 +1277,45 @@ body.dark-mode .discord-widget-help{color:#bac6f2;}
   /* Linhas max-content evitam que a coluna do pet passe por baixo dos selos. */
   #profileContent{grid-template-rows:max-content max-content!important;grid-auto-rows:max-content!important;}
 }
+
+/* ===============================================================
+   RECANTO 0.1.8 — espacamento e paginacao de cards no celular.
+   O desktop mantem suas regras de 0.1.6.
+   =============================================================== */
+@media (max-width:767px){
+  #cardsScreen .scroll-content{gap:22px;}
+  #cardsPane{gap:20px;min-width:0;}
+  #cardsPane .catalog-highlights{
+    display:flex;flex-direction:column;gap:20px;
+    margin:0 0 4px;align-items:stretch;width:100%;
+  }
+  #cardsPane .catalog-highlights>.catalog-summary,
+  #cardsPane .catalog-highlights>.featured-collection-banner{
+    flex:none;margin:0;width:100%;min-width:0;
+  }
+  #cardsPane .catalog-highlights>.catalog-summary{padding:20px;border-radius:20px;}
+  #cardsPane .catalog-highlights>.featured-collection-banner{
+    min-height:154px;max-height:154px;height:154px;
+  }
+  #cardsPane .filtered-cards{display:flex;flex-direction:column;gap:20px;min-width:0;}
+  #cardsPane .card-grid{gap:14px;}
+  #cardsPane .card-pagination{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    align-items:center;gap:10px 12px;
+    margin:10px 0 24px;padding:16px;
+    background:#fff;border-radius:18px;
+    box-shadow:0 6px 20px #29319f12;
+  }
+  #cardsPane .card-pagination-label{
+    grid-column:1/-1;grid-row:1;
+    font-size:15px;font-weight:800;color:#2d408b;
+    line-height:1.4;text-align:center;
+  }
+  #cardsPane .card-pagination .soft-action{
+    grid-row:2;min-width:0;width:100%;min-height:44px;
+    padding:11px 10px;border-radius:12px;
+    font-size:14px;font-weight:800;
+    background:#5865f2;color:#fff;
+  }
+  #cardsPane .card-pagination .soft-action:disabled{background:#e9ecfa;color:#7d85ac;opacity:1;}
+}
