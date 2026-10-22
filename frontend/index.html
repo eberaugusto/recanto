@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=0.1">
+  <link rel="stylesheet" href="/styles.css?v=0.1.1">
 </head>
 <body>
 <!-- Recanto 0.1. A tela de login já aparece mesmo se JavaScript falhar. -->
@@ -32,11 +32,11 @@
     <button type="button" id="updateNow">Atualizar</button>
     <button type="button" id="updateLater" aria-label="Lembrar depois">✕</button>
   </div>
-  <main class="screen login-screen" id="loginScreen">
+  <main class="screen login-screen" id="loginScreen" hidden>
     <img class="brand-logo" src="/recanto-logo.png" alt="Recanto">
     <div class="login-actions"><button type="button" class="discord-login" id="login"><svg class="discord-mark"><use href="#discord"/></svg><span>Login</span></button><button type="button" class="install-app" id="installApp"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 17v3h16v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Instalar</span></button><p class="system-message" id="message" role="status" aria-live="polite"></p></div>
   </main>
-  <main class="screen splash-screen" id="splashScreen" hidden aria-live="polite"><img src="/recanto-logo.png" alt="Recanto" class="splash-logo"></main>
+  <main class="screen splash-screen" id="splashScreen" aria-live="polite"><img src="/recanto-logo.png" alt="Recanto" class="splash-logo"></main>
   <main class="screen home-screen" id="homeScreen" hidden>
     <div id="profileContent">
       <header class="profile-header"><div class="greeting"><svg class="discord-mark"><use href="#discord"/></svg><span id="userName">Olá, Fulano</span></div><div class="header-actions"><button type="button" class="settings-button search-icon-button" id="searchUsers" aria-label="Buscar perfis" title="Buscar perfis"><svg><use href="#person"/></svg></button><button type="button" class="settings-button" id="settings" aria-label="Configurações"><svg><use href="#gear"/></svg></button></div></header>
@@ -95,6 +95,6 @@
       <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.1</p></section></div>
   </main>
 </div>
-<script src="/app.js?v=0.1" defer></script>
+<script src="/app.js?v=0.1.1" defer></script>
 </body>
 </html>

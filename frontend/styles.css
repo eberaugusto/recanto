@@ -650,3 +650,32 @@ body.page-open { overflow:hidden; }
   .admin-page .admin-scroll { display:flex; flex-direction:column; }
   .admin-page .modal-header h2 { font-size:21px; }
 }
+
+/* Recanto 0.1.1 — viewport estável no Android, iOS e desktop */
+html,body {height:100%; overflow:hidden; overscroll-behavior:none;}
+#root,.app-frame {height:var(--recanto-height,100dvh);min-height:0;max-height:var(--recanto-height,100dvh);overflow:hidden;}
+.screen {height:100%;min-height:0;max-height:100%;overflow:hidden;}
+.home-screen {position:relative;contain:layout;}
+#profileContent {height:100%!important;min-height:0!important;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;}
+.bottom-nav {bottom:calc(3.6% + env(safe-area-inset-bottom,0px));}
+.content-page {overflow:hidden;}
+.content-page .scroll-content {flex:1;min-height:0;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;}
+/* Evita transformações da tela inteira que cortavam o topo após alternar abas. */
+#profileContent.page-enter,.content-page.page-enter {animation:none!important;transform:none!important;}
+.splash-screen:not([hidden]) {height:var(--recanto-height,100dvh);min-height:0;max-height:var(--recanto-height,100dvh);}
+@media (min-width:768px){.app-frame{height:var(--recanto-height,100dvh);}}
+
+/* 0.1.1 — navegação administrativa fora da área rolável */
+.admin-page .admin-dialog { min-width:0; }
+.admin-page .admin-dialog > .admin-tabs {
+  position:relative; top:auto; flex:0 0 auto; width:100%; min-width:0;
+  height:auto; min-height:56px; align-items:center;
+  padding:8px 2px 12px; margin:0 0 8px;
+  overflow-x:auto; overflow-y:hidden;
+  overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch;
+  scrollbar-width:none; border-bottom:1px solid #dfe3f5;
+}
+.admin-page .admin-dialog > .admin-tabs::-webkit-scrollbar { display:none; }
+.admin-page .admin-dialog > .admin-tabs .admin-tab { display:inline-flex; align-items:center; justify-content:center; min-height:38px; }
+.admin-page .admin-scroll { padding-top:10px; }
+body.dark-mode .admin-page .admin-dialog > .admin-tabs {background:#192444;border-color:#46588c;}

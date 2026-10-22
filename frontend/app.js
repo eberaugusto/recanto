@@ -1,7 +1,7 @@
 "use strict";
 (() => {
   const $ = id => document.getElementById(id);
-  const PREFETCH_TTL=25000;
+  const PREFETCH_TTL=45000;
   const getCache=new Map();
   const cacheable=url=>/^(\/api\/(game\/config|achievements|games\/preferences|shop|daily\/status|catalog|cards|inventory|pets|missions|collections\/featured|assets|community\/profiles))(\?|$|\/)/.test(url);
   function resetCachedData(){getCache.clear();}
@@ -19,7 +19,10 @@
   const fetchJson=async (url, data) => {
     const options = { credentials: 'same-origin', headers: {Accept:'application/json'} };
     if (data !== undefined) {options.method='POST';options.headers['Content-Type']='application/json';options.body=JSON.stringify(data);}
-    const response=await fetch(url,options);
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),18000);
+    let response;
+    try{response=await fetch(url,{...options,signal:controller.signal});}finally{clearTimeout(timeout);}
     let result;try{result=await response.json();}catch(_){result={detail:'O servidor não respondeu corretamente.'};}
     if(!response.ok)throw Error(result.detail||`Erro HTTP ${response.status}`);
     return result;
@@ -94,17 +97,15 @@
   async function chooseTab(tab,focusSku=null){
     if(!labels[tab]||!state.account)return;
     const pages={perfil:$('profileContent'),cards:$('cardsScreen'),inventario:$('inventoryScreen'),pet:$('petScreen'),loja:$('shopScreen'),missoes:$('missionsScreen')};
-    const oldPage=pages[state.tab];const nextPage=pages[tab];const changed=state.tab!==tab;
+    const nextPage=pages[tab];const changed=state.tab!==tab;
     const seq=++state.tabTransition;
     state.tab=tab;if(tab==='loja'&&focusSku)state.focusShop=focusSku;
     document.querySelectorAll('[data-tab]').forEach(b=>{b.classList.toggle('nav-active',b.dataset.tab===tab);b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false');});
-    if(changed&&oldPage&&!oldPage.hidden&&typeof oldPage.animate==='function'&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
-      await oldPage.animate([{opacity:1,transform:'translateX(0)'},{opacity:0,transform:'translateX(-7px)'}],{duration:105,easing:'ease-in'}).finished.catch(()=>{});
-      if(seq!==state.tabTransition)return;
-    }
+    // Alternar imediatamente: animações de saída deixavam telas deslocadas no PWA mobile.
     Object.entries(pages).forEach(([key,node])=>{node.hidden=key!==tab;node.classList.remove('page-enter');});
-    if(changed){void nextPage.offsetWidth;nextPage.classList.add('page-enter');}
-    try{await refreshActive();applyUiAssets();}catch(err){if(seq===state.tabTransition)toast('⚠ Não foi possível carregar esta aba. Tente novamente.');}
+    // Preservar a rolagem interna de cada aba sem transformar o contêiner da tela.
+    if(changed && nextPage && nextPage.dataset.firstVisit!=='yes'){nextPage.dataset.firstVisit='yes';nextPage.scrollTop=0;}
+    try{await refreshActive();if(seq===state.tabTransition)applyUiAssets();}catch(err){if(seq===state.tabTransition)toast('⚠ Não foi possível carregar esta aba. Tente novamente.');}
   }
   async function loadProfileExtras(){
     const [ach,game]=await Promise.all([API('/api/achievements'),API('/api/game/config')]);state.game=game;
@@ -725,7 +726,9 @@
     const showGroup=group=>{for(const box of boxes)box.hidden=box.dataset.adminGroup!==group;
       for(const btn of nav.querySelectorAll('button'))btn.classList.toggle('selected',btn.dataset.group===group);};
     for(const group of groups){const btn=button(group,()=>showGroup(group),'admin-tab');btn.dataset.group=group;nav.append(btn);}
-    pane.prepend(nav);showGroup('Geral');
+    const adminDialog=$('adminModal').querySelector('.admin-dialog');
+    adminDialog.querySelector('.admin-tabs')?.remove();
+    adminDialog.insertBefore(nav,pane);showGroup('Geral');
     $('adminModal').hidden=false;document.body.classList.add('page-open');$('adminContent').scrollTop=0;}catch(err){toast('⚠ '+err.message);}}
   $('login').onclick=login;
   $('settings').onclick=()=>{
@@ -780,13 +783,25 @@
     $('loginScreen').hidden=true;$('homeScreen').hidden=true;
     const splash=$('splashScreen');splash.hidden=false;splash.classList.remove('splash-fade');
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-    await new Promise(resolve=>setTimeout(resolve,reduced?100:1050));
-    renderProfile(me);await chooseTab('perfil');
+    renderProfile(me);
+    // Renderizar o perfil imediatamente; carregar detalhes em segundo plano.
+    const firstTab=chooseTab('perfil');
+    await Promise.race([firstTab,sleep(550)]);
     // Trabalho secundário só depois da primeira tela pronta.
     setTimeout(()=>{prefetchTabs();loadUiAssets().catch(()=>{});},300);
-    if(!reduced){splash.classList.add('splash-fade');await new Promise(resolve=>setTimeout(resolve,550));}
+    if(!reduced){splash.classList.add('splash-fade');await sleep(220);}
     splash.hidden=true;splash.classList.remove('splash-fade');
   }
+  // iOS/Android: usar a altura real visível, sem permitir que o body role e desloque a tela.
+  function syncViewport(){
+    const viewport=window.visualViewport;
+    const height=viewport ? viewport.height : window.innerHeight;
+    if(height>200)document.documentElement.style.setProperty('--recanto-height',`${Math.round(height)}px`);
+  }
+  syncViewport();
+  window.addEventListener('resize',syncViewport,{passive:true});
+  window.visualViewport?.addEventListener('resize',syncViewport,{passive:true});
+  window.addEventListener('pageshow',syncViewport,{passive:true});
   loadTheme();
   updateInstallButton();
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();state.installEvent=e;updateInstallButton();});
@@ -794,16 +809,19 @@
   window.matchMedia('(display-mode: standalone)').addEventListener?.('change',updateInstallButton);
   setInterval(updateCountdowns,1000);
   (async()=>{
+    // Enquanto a sessão é verificada, não exibir o botão de login para quem já está autenticado.
+    $('loginScreen').hidden=true;
+    $('splashScreen').hidden=false;
     const params=new URLSearchParams(location.search);
     if(params.has('login_error')){report('Não foi possível concluir o login Discord: '+params.get('login_error'));history.replaceState(null,'',location.pathname);}
     try{
-      const results=await Promise.allSettled([retryBootstrap('/api/config'),retryBootstrap('/api/me')]);
-      if(results[0].status==='fulfilled')state.config=results[0].value;
-      const me=results[1].status==='fulfilled'?results[1].value:null;
+      // /api/config não deve bloquear a sessão nem a primeira renderização.
+      const configTask=retryBootstrap('/api/config').then(c=>{state.config=c;}).catch(()=>{});
+      const me=await retryBootstrap('/api/me');
       if(me?.authenticated){report('');await showWelcome(me);return;}
-      if(results[1].status==='rejected')report('Conexão temporariamente indisponível. Reabra o Recanto ou tente novamente.');
-      else if(results[0].status==='rejected')report('Não foi possível consultar a configuração do servidor.');
-    }catch(err){if(!state.account)report('Não foi possível carregar o Recanto. Tente novamente.');}
+      showLogin();
+      await configTask;
+    }catch(err){if(!state.account){showLogin();report('Conexão temporariamente indisponível. Tente novamente em instantes.');}}
   })();
   // Atualizações do PWA: nunca reinstalar; confirmar no próprio app.
   // Não interrompe a abertura de pacotes nem formulários em andamento.
