@@ -608,3 +608,9 @@ body.dark-mode .badge-chip.locked {opacity:.66;}
 body.dark-mode .admin-tabs {background:#192444;}
 body.dark-mode .admin-tab {background:#273766;color:#e9edff;border-color:#46588c;}
 body.dark-mode .admin-tab.selected {background:#5865f2;color:white;}
+
+/* v1.2.0 revisada: administração somente nas Configurações */
+.settings-admin {display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:12px;margin-top:16px;border-radius:13px;font-size:13px;font-weight:700;}
+.settings-admin svg {width:18px;height:18px;flex:none;}
+.settings-admin[hidden] {display:none!important;}
+body.dark-mode .settings-admin {background:#354573!important;color:#f5f7ff!important;}

@@ -82,7 +82,7 @@
   function renderProfile(me){state.account=me;$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);avatar($('userAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.toggle('has-card',!!me.last_card);recent.setAttribute('aria-label',me.last_card?'Ampliar último card: '+me.last_card.name:'Nenhum card obtido ainda');recent.onclick=me.last_card?()=>showCard(me.last_card,'Último card recebido'):null;if(me.last_card&&me.last_card.image_url){const img=h('img');img.src=me.last_card.image_url;img.alt=me.last_card.name;recent.append(img);}else recent.textContent=me.last_card?me.last_card.name:'?';}
   $('latestCard').addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&state.account?.last_card){e.preventDefault();showCard(state.account.last_card,'Último card recebido');}});
   async function refreshProfile(){if(!state.account)return;const me=await API('/api/me');if(me.authenticated)renderProfile(me);else showLogin();}
-  function showLogin(){resetCachedData();state.account=null;$('loginScreen').hidden=false;$('splashScreen').hidden=true;$('homeScreen').hidden=true;$('modal').hidden=true;}
+  function showLogin(){resetCachedData();$('settingsAdmin').hidden=true;state.account=null;$('loginScreen').hidden=false;$('splashScreen').hidden=true;$('homeScreen').hidden=true;$('modal').hidden=true;}
   async function refreshActive(){if(!state.account)return;
     if(state.tab==='perfil')await loadProfileExtras();
     if(state.tab==='cards')await loadCards();
@@ -123,7 +123,8 @@
       toggle.setAttribute('aria-expanded',String(expanded));
       b.append(toggle);
     }
-    if(game.admin){const admin=button('⚙ Gestão do Recanto',()=>openAdmin(),'soft-action admin-open');admin.id='openAdmin';b.append(admin);}
+    // Gestão fica exclusivamente em Configurações; o servidor valida o acesso.
+    $('settingsAdmin').hidden=!game.admin;
     let gamesSection=$('gamesSection');if(!gamesSection){gamesSection=h('section','profile-games');gamesSection.id='gamesSection';b.after(gamesSection);}
     const prefs=await API('/api/games/preferences');gamesSection.replaceChildren();
     const head=h('div','badge-title');head.append(h('strong','','🎮 Jogos favoritos'),button('Editar',()=>editFavoriteGames(prefs),'game-edit'));gamesSection.append(head);
@@ -725,7 +726,24 @@
     for(const group of groups){const btn=button(group,()=>showGroup(group),'admin-tab');btn.dataset.group=group;nav.append(btn);}
     pane.prepend(nav);showGroup('Geral');
     $('adminModal').hidden=false;}catch(err){toast('⚠ '+err.message);}}
-  $('login').onclick=login;$('settings').onclick=()=>{$('modal').hidden=false;loadNotification();};$('closeSettings').onclick=()=>{$('modal').hidden=true;};$('logout').onclick=async()=>{try{await API('/api/auth/logout',{});showLogin();}catch(err){toast(err.message);}};
+  $('login').onclick=login;
+  $('settings').onclick=()=>{
+    $('modal').hidden=false;
+    $('settingsAdmin').hidden=!(state.game?.admin===true);
+    loadNotification();
+    // Atualiza a permissão sem exibir o painel a quem não é administrador.
+    API('/api/game/config').then(game=>{
+      state.game=game;
+      if(!$('modal').hidden)$('settingsAdmin').hidden=!game.admin;
+    }).catch(()=>{$('settingsAdmin').hidden=true;});
+  };
+  $('settingsAdmin').onclick=()=>{
+    if($('settingsAdmin').hidden)return;
+    $('modal').hidden=true;
+    openAdmin(); // Validação real do ID continua no backend.
+  };
+  $('closeSettings').onclick=()=>{$('modal').hidden=true;};
+  $('logout').onclick=async()=>{try{await API('/api/auth/logout',{});showLogin();}catch(err){toast(err.message);}};
   $('notificationsToggle').onclick=toggleNotifications;
   $('darkModeToggle').onclick=toggleDarkMode;
   $('checkUpdates').onclick=async()=>{
