@@ -414,66 +414,151 @@
     const result=await safeRun(()=>API('/api/pets/visit/'+encodeURIComponent(owner),{action,treat_sku:sku}),d=>`+${d.visitor_coins} moedas para você e +${d.owner_coins} para o dono!`);
     if(result)await openPublicProfile(owner);
   }
+  // 0.1.4 — Cena do pet: apenas a animacao de repouso (Idle), sem emotes especiais.
+  // Khada usa seu embed oficial. Para GLB, model-viewer carrega somente quando visivel.
+  const KHADA_EMBED_ORIGIN='https://modelviewer.lol';
+  function khadaTftUrl(id){
+    const value=String(id||'').trim();
+    if(!/^\d{2,12}$/.test(value))throw Error('Informe um ID numérico válido do Khada (TFT).');
+    return `${KHADA_EMBED_ORIGIN}/embed?id=${value}&group=tft`;
+  }
+  function khadaEmbedUrl(value){
+    try{
+      const u=new URL(String(value||''),location.href);
+      if(u.origin!==KHADA_EMBED_ORIGIN || u.pathname!=='/embed' || !/^\d{2,12}$/.test(u.searchParams.get('id')||''))return null;
+      const group=u.searchParams.get('group')||'tft';
+      if(!['tft','lol','extras'].includes(group))return null;
+      // Permitimos somente parametros documentados; emotes/animacoes Pro nao sao usados.
+      const safe=new URL('/embed',KHADA_EMBED_ORIGIN);
+      safe.searchParams.set('id',u.searchParams.get('id'));
+      safe.searchParams.set('group',group);
+      safe.searchParams.set('shadow','false');
+      return safe.href;
+    }catch(_){return null;}
+  }
+  function khadaIdFromUrl(value){
+    const url=khadaEmbedUrl(value);
+    return url ? new URL(url).searchParams.get('id') : '';
+  }
   let modelViewerLoad=null;
   function load3DViewer(){
     if(window.customElements?.get('model-viewer'))return Promise.resolve(true);
     if(!modelViewerLoad){
-      // Somente importa WebGL quando ha um GLB. Tenta CDN secundaria se a primeira falhar.
       modelViewerLoad=import('https://cdn.jsdelivr.net/npm/@google/model-viewer@4.1.0/dist/model-viewer.min.js')
         .catch(()=>import('https://unpkg.com/@google/model-viewer@4.1.0/dist/model-viewer.min.js'))
         .then(()=>window.customElements.whenDefined('model-viewer').then(()=>true))
-        .catch(()=>false);
+        .catch(()=>{modelViewerLoad=null;return false;});
     }
     return modelViewerLoad;
   }
-  function petVisual(species,large=false){
+  function bestIdleClip(clips,requested){
+    const names=Array.isArray(clips)?clips:[];
+    const isIdle=name=>/idle|stand|breath|parad/i.test(name);
+    const match=names.find(name=>name===requested && isIdle(name));
+    if(match)return match;
+    return names.find(isIdle)||(names.length===1?names[0]:null);
+  }
+  function petVisual(species,large=false,thumbnail=false){
     const wrap=h('div','pet-visual'+(large?' pet-visual-large':''));
     const fallback=mediaCover(species.image_url,species.emoji||'🐾',species.name,'pet-fallback');
     wrap.append(fallback);
-    // Enquanto o 3D nao carrega, exibe arte animada suavemente (sem simular animacao interna do GLB).
-    if(!matchMedia('(prefers-reduced-motion: reduce)').matches)wrap.classList.add('pet-preview-moving');
     const model=String(species.model_url||'').trim();
-    if(!model)return wrap;
-    const view=h('model-viewer','pet-model');
-    view.setAttribute('src',model);view.setAttribute('alt','Modelo 3D de '+species.name);
-    view.setAttribute('camera-controls','');view.setAttribute('shadow-intensity','0.7');
-    view.setAttribute('exposure','1.12');view.setAttribute('environment-image','neutral');
-    view.setAttribute('interaction-prompt','none');view.setAttribute('loading','eager');
-    view.setAttribute('reveal','auto');view.setAttribute('autoplay','');
-    view.setAttribute('animation-crossfade-duration','350');
-    if(species.idle_animation)view.setAttribute('animation-name',species.idle_animation);
-    view.addEventListener('load',()=>{
-      view.classList.add('model-loaded');fallback.classList.add('fallback-hidden');
-      wrap.classList.remove('pet-preview-moving');
-      const available=Array.isArray(view.availableAnimations)?view.availableAnimations:[];
-      let idle=species.idle_animation;
-      if(!idle || !available.includes(idle)){
-        idle=available.find(name=>/idle|parad|stand|breath|loop|walk/i.test(name))||available[0];
+    const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Muitos modelos simultaneos na lista de adocao esgotam WebGL em celulares.
+    if(!model || thumbnail){
+      if(!model && !reduced)wrap.classList.add('pet-preview-moving');
+      return wrap;
+    }
+    const khada=khadaEmbedUrl(model);
+    if(!khada && !/^(https:\/\/|\/models\/)/i.test(model)){
+      wrap.dataset.modelError='invalid-url';return wrap;
+    }
+    let visible=false,started=false,loaded=false;
+    let view=null;
+    const syncVisibility=(show)=>{
+      visible=show && document.visibilityState!=='hidden';
+      if(visible && !started){started=true;startViewer();}
+      if(!view || khada || !loaded)return;
+      if(visible && !reduced && view.dataset.idleAnimation){
+        try{view.play();}catch(_){/* O componente ainda pode estar inicializando. */}
+      }else if(typeof view.pause==='function')view.pause();
+    };
+    function startViewer(){
+      if(khada){
+        const iframe=h('iframe','pet-khada-embed');
+        iframe.title='Pequena Lenda animada em repouso: '+species.name;
+        iframe.loading='lazy';iframe.referrerPolicy='strict-origin-when-cross-origin';
+        iframe.setAttribute('allow','autoplay; fullscreen');
+        iframe.src=khada;
+        // O embed gratuito inclui rodape e marca do Khada; nunca os ocultamos.
+        iframe.addEventListener('load',()=>fallback.classList.add('fallback-hidden'),{once:true});
+        wrap.append(iframe);
+        return;
       }
-      if(idle){view.animationName=idle;view.play();view.dataset.idleAnimation=idle;}
-    });
-    view.addEventListener('error',()=>{
-      view.classList.remove('model-loaded');fallback.classList.remove('fallback-hidden');
-      wrap.classList.add('pet-preview-moving');
-      if(large && !wrap.querySelector('.model-error')){
-        const msg=h('small','model-error','Modelo 3D indisponível: confira a URL .glb pública e as permissões de acesso.');wrap.append(msg);
-      }
-    });
-    view.addEventListener('finished',()=>{
-      const idle=view.dataset.idleAnimation;
-      if(idle && view.animationName!==idle){view.animationName=idle;view.play();}
-    });
-    wrap.append(view);
-    load3DViewer().then(ready=>{if(!ready)view.dispatchEvent(new Event('error'));});
+      view=h('model-viewer','pet-model');
+      view.setAttribute('alt','Modelo 3D de '+species.name);
+      view.setAttribute('camera-controls','');
+      view.setAttribute('shadow-intensity','0.65');
+      view.setAttribute('exposure','1.1');view.setAttribute('environment-image','neutral');
+      view.setAttribute('interaction-prompt','none');
+      view.setAttribute('loading','eager');view.setAttribute('reveal','auto');
+      view.setAttribute('animation-crossfade-duration','300');
+      // Nao ativar autoplay antes de descobrir a animacao correta: isso disparava Walk/Dance.
+      view.addEventListener('load',()=>{
+        loaded=true;
+        view.classList.add('model-loaded');fallback.classList.add('fallback-hidden');
+        wrap.classList.remove('pet-preview-moving');
+        const idle=bestIdleClip(view.availableAnimations,species.idle_animation);
+        if(idle){
+          view.dataset.idleAnimation=idle;
+          view.animationName=idle;
+          // model-viewer reproduz em loop por padrao; ao pausar fora da tela economizamos GPU.
+          if(visible && !reduced)view.play();
+        }else{
+          view.dataset.idleAnimation='';
+          // Modelo sem Idle: posicao estatica; nao executar outra acao involuntariamente.
+          view.pause?.();
+          wrap.title='Este GLB não contém uma animação Idle identificável.';
+        }
+      });
+      view.addEventListener('error',()=>{
+        loaded=false;view.classList.remove('model-loaded');fallback.classList.remove('fallback-hidden');
+        if(!reduced)wrap.classList.add('pet-preview-moving');
+        if(large && !wrap.querySelector('.model-error'))wrap.append(h('small','model-error','3D indisponível. Verifique o arquivo .glb e o acesso HTTPS/CORS.'));
+      });
+      view.addEventListener('finished',()=>{
+        if(visible && !reduced && view.dataset.idleAnimation){view.animationName=view.dataset.idleAnimation;view.play();}
+      });
+      wrap.append(view);
+      load3DViewer().then(ready=>{
+        if(ready)view.src=model;
+        else view.dispatchEvent(new Event('error'));
+      });
+    }
+    if('IntersectionObserver' in window){
+      const observer=new IntersectionObserver(entries=>{
+        if(!wrap.isConnected){observer.disconnect();return;}
+        syncVisibility(entries.some(e=>e.isIntersecting));
+      },{threshold:0.01,rootMargin:'100px 0px'});
+      observer.observe(wrap);
+    }else syncVisibility(true);
     return wrap;
   }
+  // Economiza GPU ao minimizar/alternar para outro aplicativo.
+  document.addEventListener('visibilitychange',()=>{
+    for(const view of document.querySelectorAll('model-viewer.pet-model')){
+      if(document.hidden){view.pause?.();continue;}
+      const rect=view.getBoundingClientRect();
+      if(view.dataset.idleAnimation && rect.width && rect.height && rect.bottom>0 && rect.top<innerHeight){
+        try{view.play();}catch(_){/* Modelo ainda inicializando. */}
+      }
+    }
+  });
   function petReaction(action){
+    // O pet permanece em Idle: alimentacao e carinho modificam apenas status/feedback.
     const visual=$('petPane').querySelector('.pet-visual-large');if(!visual)return;
-    visual.classList.remove('pet-react');void visual.offsetWidth;visual.classList.add('pet-react');
-    const view=visual.querySelector('model-viewer.model-loaded');
-    const pet=state.activePet;const name=action==='feed'?pet?.feed_animation:pet?.pet_animation;
-    if(view && name && view.availableAnimations?.includes(name)){view.animationName=name;view.play({repetitions:1});}
-    const symbol=h('span','pet-spark',action==='feed'?'🍪':'💖');visual.append(symbol);setTimeout(()=>{symbol.remove();visual.classList.remove('pet-react');},850);
+    const symbol=h('span','pet-spark',action==='feed'?'🍪':'💖');visual.append(symbol);
+    setTimeout(()=>symbol.remove(),850);
   }
   async function petCare(action,sku='biscoito'){
     const result=await safeRun(()=>API('/api/pets/care',{action,treat_sku:sku}),action==='feed'?'Pet alimentado!':'Seu pet recebeu carinho!');
@@ -486,7 +571,7 @@
     if(!pet||pet.status==='morto'){
       pane.append(block(pet?'Seu pet faleceu':'Escolha sua Pequena Lenda',pet?'O prazo de resgate terminou. Você pode adotar outra Pequena Lenda.':'Você pode adotar apenas uma Pequena Lenda por vez. Cuide dela diariamente.'));
       const grid=h('div','pet-grid');data.species.forEach(s=>{
-        const row=block(s.name,'Pequena Lenda disponível para adoção');row.prepend(petVisual(s));
+        const row=block(s.name,'Pequena Lenda disponível para adoção');row.prepend(petVisual(s,false,true));
         row.append(button('Adotar',()=>safeRun(()=>API('/api/pets/adopt',{species_id:s.id}),'Pequena Lenda adotada!')));grid.append(row);
       });pane.append(grid);return;
     }
@@ -654,7 +739,7 @@
       }
       field.append(input);inputs[key]=input;form.append(field);
     }
-    let imageFile=null,modelFile=null;
+    let imageFile=null,modelFile=null,khadaInput=null;
     if(['cards','pets','achievements','items'].includes(group)){
       const label=h('label','admin-field','Substituir imagem (opcional)');
       imageFile=h('input','text-input');imageFile.type='file';imageFile.accept='image/png,image/jpeg,image/webp';label.append(imageFile);form.append(label);
@@ -662,7 +747,10 @@
     if(group==='pets'){
       const label=h('label','admin-field','Substituir GLB animado (opcional; em produção requer Cloudinary ou URL pública .glb)');
       modelFile=h('input','text-input');modelFile.type='file';modelFile.accept='.glb,model/gltf-binary';label.append(modelFile);form.append(label);
-      form.append(h('small','','Se o GLB contém animações, o visualizador usa a primeira automaticamente. Nomes personalizados devem corresponder aos nomes internos do arquivo.'));
+      const khadaLabel=h('label','admin-field','ID do modelo no Khada (TFT, opcional)');
+      khadaInput=h('input','text-input');khadaInput.type='text';khadaInput.inputMode='numeric';khadaInput.placeholder='Ex.: 103086';khadaLabel.append(khadaInput);form.append(khadaLabel);
+      inputs.model_url.addEventListener('input',()=>{khadaInput.value='';});
+      form.append(h('small','','Somente Idle: o GLB deve conter a animação Idle ou um único clipe. Alternativamente, informe um ID de Pequena Lenda no Khada TFT.'));
     }
     const actions=h('div','admin-action-row');
     const save=button('Salvar alterações',async()=>{
@@ -673,6 +761,7 @@
       const result=await safeRun(async()=>{
         if(imageFile?.files.length)data.image_url=await uploadArtwork(imageFile.files[0]);
         if(modelFile?.files.length)data.model_url=await uploadModel(modelFile.files);
+        else if(khadaInput?.value.trim())data.model_url=khadaTftUrl(khadaInput.value);
         return API('/api/admin/catalog-management/'+group+'/'+encodeURIComponent(current.id),data);
       },'Alterações salvas.');
       if(result)await refresh(current.id);
@@ -702,6 +791,7 @@
       status.classList.toggle('off',!current.active);
       archive.hidden=!current.active;restore.hidden=!!current.active;
       if(imageFile)imageFile.value='';if(modelFile)modelFile.value='';
+      if(khadaInput)khadaInput.value=khadaIdFromUrl(current.model_url);
     };
     chooser.addEventListener('change',updateForm);
     const load=data=>{
@@ -768,7 +858,7 @@
     ],existingCatalog));
     pane.append(adminCatalogEditor('pets','Gerenciar Pequenas Lendas',[
       ['name','Nome','text'],['emoji','Emoji','text'],['image_url','Capa HTTPS (vazio remove)','text'],
-      ['model_url','Modelo 3D .glb HTTPS (vazio remove)','text'],
+      ['model_url','URL do modelo .glb OU embed Khada (vazio remove)','text'],
       ['idle_animation','Animação idle (opcional)','text'],['pet_animation','Animação de carinho (opcional)','text'],
       ['feed_animation','Animação de alimentação (opcional)','text'],['vet_animation','Animação de veterinário (opcional)','text']
     ],existingCatalog));
@@ -785,16 +875,18 @@
     const pet=block('Cadastrar Pequena Lenda','Aceita imagem, modelo 3D GLB/GLTF e nomes de animações do arquivo.');
     const [pn,pni]=adminField('Nome da Pequena Lenda','');const [pe,pei]=adminField('Emoji para fallback','🐾');const [pu,pui]=adminField('Imagem de capa (HTTPS ou /uploads/...)','');
     const petFile=h('input','text-input');petFile.type='file';petFile.accept='image/png,image/jpeg,image/webp';
-    const [modelurl,mui]=adminField('URL de modelo .glb ou .gltf (opcional)','');
+    const [modelurl,mui]=adminField('URL do modelo .glb ou embed Khada (opcional)','');
+    const [khadaRow,khadaId]=adminField('ID do Khada (Pequena Lenda TFT, opcional)','');khadaId.inputMode='numeric';khadaId.placeholder='ID numérico do Khada';
     const modelFile=h('input','text-input');modelFile.type='file';modelFile.multiple=true;modelFile.accept='.glb,.gltf,.bin,.png,.jpg,.jpeg,.webp';
     const animKeys=[['idle_animation','Parado / idle'],['pet_animation','Carinho'],['feed_animation','Alimentação'],['vet_animation','Veterinário']];
     const animInputs={};const fields=[];
     for(const [key,label] of animKeys){const [container,inp]=adminField('Nome exato da animação: '+label,'');fields.push(container);animInputs[key]=inp;}
     pet.append(pn,pe,pu,h('label','','Ou envie uma capa PNG/JPG/WEBP (até 4 MB)'),petFile,modelurl,
+      khadaRow,h('small','','Para modelos TFT do Khada: encontre o ID em modelviewer.lol e cole acima. O embed gratuito conserva marca e barra do Khada.'),
       h('label','','Ou selecione .glb; para .gltf, selecione também .bin e texturas (até 40 MB no total)'),modelFile,...fields,
       button('Cadastrar Pequena Lenda',()=>safeRun(async()=>{
         const image_url=petFile.files.length?await uploadArtwork(petFile.files[0]):pui.value;
-        const model_url=modelFile.files.length?await uploadModel(modelFile.files):mui.value;
+        const model_url=modelFile.files.length?await uploadModel(modelFile.files):(khadaId.value.trim()?khadaTftUrl(khadaId.value):mui.value);
         const animations=Object.fromEntries(Object.entries(animInputs).map(([key,inp])=>[key,inp.value]));
         return API('/api/admin/pets',{name:pni.value,emoji:pei.value,image_url,model_url,...animations});
       },'Pequena Lenda cadastrada!')));pane.append(pet);

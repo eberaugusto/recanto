@@ -122,7 +122,7 @@ class OAuthAttempt(Base):
 
 
 Base.metadata.create_all(engine)
-app = FastAPI(title='Recanto API', version='0.1.3', docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title='Recanto API', version='0.1.4', docs_url=None, redoc_url=None, openapi_url=None)
 
 
 def utcnow() -> datetime:
@@ -219,7 +219,7 @@ async def safety_headers(request: Request, call_next):
 
 @app.get('/api/health')
 def health():
-    return {'status': 'ok', 'version': '0.1.2'}
+    return {'status': 'ok', 'version': '0.1.4'}
 
 
 @app.get('/api/config')
@@ -227,7 +227,7 @@ def public_config(request: Request):
     return {'demo_enabled': DEMO_ENABLED and dev_request(request),
             'discord_configured': auth_configured(),
             'login_required_guild': bool(REQUIRED_GUILD_ID),
-            'version': '0.1.2'}
+            'version': '0.1.4'}
 
 
 @app.get('/api/me')
@@ -437,7 +437,7 @@ def manifest():
 
 @app.get('/api/version', include_in_schema=False)
 def version():
-    return JSONResponse({'version': '0.1.2'}, headers={'Cache-Control': 'no-store'})
+    return JSONResponse({'version': '0.1.4'}, headers={'Cache-Control': 'no-store'})
 
 
 @app.get('/favicon.ico', include_in_schema=False)
