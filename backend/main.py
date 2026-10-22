@@ -16,7 +16,7 @@ from urllib.parse import urlencode
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, create_engine, func, select
@@ -121,7 +121,7 @@ class OAuthAttempt(Base):
 
 
 Base.metadata.create_all(engine)
-app = FastAPI(title='Recanto API', version='1.0.0', docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title='Recanto API', version='1.1.0', docs_url=None, redoc_url=None, openapi_url=None)
 
 
 def utcnow() -> datetime:
@@ -218,7 +218,7 @@ async def safety_headers(request: Request, call_next):
 
 @app.get('/api/health')
 def health():
-    return {'status': 'ok', 'version': '1.0.0'}
+    return {'status': 'ok', 'version': '1.1.0'}
 
 
 @app.get('/api/config')
@@ -226,14 +226,23 @@ def public_config(request: Request):
     return {'demo_enabled': DEMO_ENABLED and dev_request(request),
             'discord_configured': auth_configured(),
             'login_required_guild': bool(REQUIRED_GUILD_ID),
-            'version': '1.0.0'}
+            'version': '1.1.0'}
 
 
 @app.get('/api/me')
-def me(request: Request):
+def me(request: Request, response: Response):
     uid = current_user_id(request)
     if uid is None:
         return {'authenticated': False}
+    # Renovação deslizante com validação no servidor. Mantém a conta logada
+    # após reabrir o PWA, sem expor tokens ao JavaScript.
+    token = request.cookies.get(COOKIE_NAME)
+    if token:
+        with SessionLocal.begin() as authdb:
+            active = authdb.get(Session, sha(token))
+            if active and naive_to_utc(active.expires_at) < utcnow() + timedelta(days=7):
+                active.expires_at = utcnow() + timedelta(days=SESSION_DAYS)
+                cookie(response, COOKIE_NAME, token, SESSION_DAYS * 86400)
     with SessionLocal() as db:
         user = db.get(User, uid)
         if user is None:
@@ -427,7 +436,7 @@ def manifest():
 
 @app.get('/api/version', include_in_schema=False)
 def version():
-    return JSONResponse({'version': '1.0.0'}, headers={'Cache-Control': 'no-store'})
+    return JSONResponse({'version': '1.1.0'}, headers={'Cache-Control': 'no-store'})
 
 
 @app.get('/favicon.ico', include_in_schema=False)

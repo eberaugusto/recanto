@@ -1,7 +1,22 @@
 "use strict";
 (() => {
   const $ = id => document.getElementById(id);
+  const PREFETCH_TTL=25000;
+  const getCache=new Map();
+  const cacheable=url=>/^(\/api\/(game\/config|achievements|games\/preferences|shop|daily\/status|catalog|cards|inventory|pets|missions|collections\/featured|assets|community\/profiles))(\?|$|\/)/.test(url);
+  function resetCachedData(){getCache.clear();}
   const API = async (url, data) => {
+    if(data===undefined && cacheable(url)){
+      const prev=getCache.get(url);
+      if(prev && prev.until>Date.now())return prev.promise;
+      const task=fetchJson(url,data);
+      getCache.set(url,{until:Date.now()+PREFETCH_TTL,promise:task});
+      task.catch(()=>{if(getCache.get(url)?.promise===task)getCache.delete(url);});
+      return task;
+    }
+    return fetchJson(url,data);
+  };
+  const fetchJson=async (url, data) => {
     const options = { credentials: 'same-origin', headers: {Accept:'application/json'} };
     if (data !== undefined) {options.method='POST';options.headers['Content-Type']='application/json';options.body=JSON.stringify(data);}
     const response=await fetch(url,options);
@@ -9,6 +24,23 @@
     if(!response.ok)throw Error(result.detail||`Erro HTTP ${response.status}`);
     return result;
   };
+  let prefetchPromise=null;
+  function prefetchTabs(){
+    if(prefetchPromise)return prefetchPromise;
+    const urls=['/api/game/config','/api/achievements','/api/games/preferences','/api/daily/status','/api/catalog','/api/shop','/api/inventory','/api/pets','/api/missions','/api/collections/featured'];
+    prefetchPromise=Promise.allSettled(urls.map(url=>API(url)));
+    prefetchPromise.finally(()=>{prefetchPromise=null;});
+    return prefetchPromise;
+  }
+  const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  async function retryBootstrap(url){
+    let last;
+    for(let attempt=0;attempt<3;attempt++){
+      try{return await API(url);}catch(err){last=err;if(attempt<2)await sleep(350*(attempt+1));}
+    }
+    throw last;
+  }
+
   const h = (tag, className='', content='') => {const el=document.createElement(tag);if(className)el.className=className;if(content!==undefined&&content!==null)el.textContent=String(content);return el;};
   const money = n=>Number(n||0).toLocaleString('pt-BR');
   const labels={perfil:'Perfil',cards:'Cards',inventario:'Inventário',pet:'Pet',loja:'Loja',missoes:'Missões'};
@@ -18,7 +50,7 @@
   const report=msg=>{$('message').textContent=msg||'';};
   const button=(text,handler,style='main-action')=>{const b=h('button',style,text);b.type='button';b.addEventListener('click',handler);return b;};
   const block=(title,body)=>{const div=h('div','game-box');if(title)div.append(h('h3','',title));if(body)div.append(h('p','',body));return div;};
-  const safeRun=async(action,success)=>{try {const result=await action();if(success)toast(typeof success==='function'?success(result):success);await refreshProfile();await refreshActive();return result;}catch(err){toast('⚠ '+err.message);return null;}};
+  const safeRun=async(action,success)=>{try {const result=await action();resetCachedData();if(success)toast(typeof success==='function'?success(result):success);await refreshProfile();await refreshActive();return result;}catch(err){toast('⚠ '+err.message);return null;}};
   function countdown(iso){if(!iso)return '—';const delta=new Date(iso).getTime()-Date.now();if(delta<=0)return 'Disponível agora';let s=Math.ceil(delta/1000);const d=Math.floor(s/86400);s%=86400;const hour=Math.floor(s/3600);s%=3600;const minute=Math.floor(s/60);const sec=s%60;return (d?`${d}d `:'')+`${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;}
   function updateCountdowns(){if(state.reset){const t=countdown(state.reset);$('cardCountdown').textContent=$('dailyCard').disabled?'Novo card em '+countdown(state.cardReset):'Disponível agora (a cada 5h)!';$('coinCountdown').textContent=$('dailyCoins').disabled?'Próximo resgate: '+t:'Resgate disponível!';}if(state.missionReset)$('missionTimer').textContent='Missões reiniciam em: '+countdown(state.missionReset);}
   function avatar(el,name,url){el.replaceChildren();if(url){const img=h('img');img.src=url;img.alt='Foto de '+name;img.onerror=()=>{img.remove();el.textContent='◉';};el.append(img);}else el.textContent='◉';}
@@ -41,12 +73,16 @@
   }
   function updateInstallButton(){
     const btn=$('installApp');
-    if(btn)btn.hidden=!state.installEvent;
+    if(!btn)return;
+    btn.hidden=false;
+    const installed=matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
+    btn.disabled=installed;
+    btn.querySelector('span').textContent=installed?'Instalado':'Instalar';
   }
   function renderProfile(me){state.account=me;$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);avatar($('userAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.toggle('has-card',!!me.last_card);recent.setAttribute('aria-label',me.last_card?'Ampliar último card: '+me.last_card.name:'Nenhum card obtido ainda');recent.onclick=me.last_card?()=>showCard(me.last_card,'Último card recebido'):null;if(me.last_card&&me.last_card.image_url){const img=h('img');img.src=me.last_card.image_url;img.alt=me.last_card.name;recent.append(img);}else recent.textContent=me.last_card?me.last_card.name:'?';}
   $('latestCard').addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&state.account?.last_card){e.preventDefault();showCard(state.account.last_card,'Último card recebido');}});
   async function refreshProfile(){if(!state.account)return;const me=await API('/api/me');if(me.authenticated)renderProfile(me);else showLogin();}
-  function showLogin(){state.account=null;$('loginScreen').hidden=false;$('splashScreen').hidden=true;$('homeScreen').hidden=true;$('modal').hidden=true;}
+  function showLogin(){resetCachedData();state.account=null;$('loginScreen').hidden=false;$('splashScreen').hidden=true;$('homeScreen').hidden=true;$('modal').hidden=true;}
   async function refreshActive(){if(!state.account)return;
     if(state.tab==='perfil')await loadProfileExtras();
     if(state.tab==='cards')await loadCards();
@@ -68,7 +104,7 @@
     }
     Object.entries(pages).forEach(([key,node])=>{node.hidden=key!==tab;node.classList.remove('page-enter');});
     if(changed){void nextPage.offsetWidth;nextPage.classList.add('page-enter');}
-    try{await refreshActive();applyUiAssets();}catch(err){if(seq===state.tabTransition)toast('⚠ '+err.message);}
+    try{await refreshActive();applyUiAssets();}catch(err){if(seq===state.tabTransition)toast('⚠ Não foi possível carregar esta aba. Tente novamente.');}
   }
   async function loadProfileExtras(){
     const [ach,game]=await Promise.all([API('/api/achievements'),API('/api/game/config')]);state.game=game;
@@ -596,7 +632,14 @@
     try{const reg=await navigator.serviceWorker.getRegistration();if(!reg){toast('Abra o Recanto no endereço HTTPS e instale o aplicativo.');return;}await reg.update();toast('Verificação realizada. Se houver uma versão nova, aparecerá a opção Atualizar.');}
     catch(_){toast('Não foi possível verificar atualizações agora.');}
   };
-  $('installApp').onclick=async()=>{if(!state.installEvent)return;const ev=state.installEvent;state.installEvent=null;updateInstallButton();ev.prompt();try{await ev.userChoice;}catch(_){}};
+  $('installApp').onclick=async()=>{
+    if(matchMedia('(display-mode: standalone)').matches){toast('O Recanto já está instalado.');return;}
+    if(state.installEvent){
+      const ev=state.installEvent;state.installEvent=null;ev.prompt();
+      try{await ev.userChoice;}catch(_){}updateInstallButton();return;
+    }
+    toast(/iPhone|iPad/i.test(navigator.userAgent)?'No Safari, toque em Compartilhar → Adicionar à Tela de Início.':'No Chrome, abra o menu ⋮ e escolha Instalar aplicativo ou Adicionar à tela inicial.');
+  };
   $('searchUsers').onclick=searchProfiles;
   $('closeProfiles').onclick=()=>{$('profilesModal').hidden=true;};
   document.querySelectorAll('[data-inventory-tab]').forEach(btn=>btn.addEventListener('click',()=>inventoryPane(btn.dataset.inventoryTab).catch(err=>toast(err.message))));
@@ -617,15 +660,27 @@
     const splash=$('splashScreen');splash.hidden=false;splash.classList.remove('splash-fade');
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     await new Promise(resolve=>setTimeout(resolve,reduced?100:1050));
-    renderProfile(me);await loadUiAssets();await chooseTab('perfil');
+    renderProfile(me);prefetchTabs();await loadUiAssets();await chooseTab('perfil');
     if(!reduced){splash.classList.add('splash-fade');await new Promise(resolve=>setTimeout(resolve,550));}
     splash.hidden=true;splash.classList.remove('splash-fade');
   }
   loadTheme();
+  updateInstallButton();
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();state.installEvent=e;updateInstallButton();});
   window.addEventListener('appinstalled',()=>{state.installEvent=null;updateInstallButton();toast('Recanto instalado com sucesso!');});
   setInterval(updateCountdowns,1000);
-  (async()=>{const params=new URLSearchParams(location.search);if(params.has('login_error')){report('Não foi possível concluir o login Discord: '+params.get('login_error'));history.replaceState(null,'',location.pathname);}try{state.config=await API('/api/config');const me=await API('/api/me');if(me.authenticated){await showWelcome(me);}}catch(err){report('Falha no servidor: '+err.message);}})();
+  (async()=>{
+    const params=new URLSearchParams(location.search);
+    if(params.has('login_error')){report('Não foi possível concluir o login Discord: '+params.get('login_error'));history.replaceState(null,'',location.pathname);}
+    try{
+      const results=await Promise.allSettled([retryBootstrap('/api/config'),retryBootstrap('/api/me')]);
+      if(results[0].status==='fulfilled')state.config=results[0].value;
+      const me=results[1].status==='fulfilled'?results[1].value:null;
+      if(me?.authenticated){report('');await showWelcome(me);return;}
+      if(results[1].status==='rejected')report('Conexão temporariamente indisponível. Reabra o Recanto ou tente novamente.');
+      else if(results[0].status==='rejected')report('Não foi possível consultar a configuração do servidor.');
+    }catch(err){if(!state.account)report('Não foi possível carregar o Recanto. Tente novamente.');}
+  })();
   // Atualizações do PWA: nunca reinstalar; confirmar no próprio app.
   // Não interrompe a abertura de pacotes nem formulários em andamento.
   if(window.isSecureContext && 'serviceWorker' in navigator){

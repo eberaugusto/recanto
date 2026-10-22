@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=1.0.0">
+  <link rel="stylesheet" href="/styles.css?v=1.1.0">
 </head>
 <body>
 <!-- Recanto v1.0.0. A tela de login já aparece mesmo se JavaScript falhar. -->
@@ -21,8 +21,8 @@
   <symbol id="shop" viewBox="0 0 24 24"><path d="M4 9h16l-1 12H5L4 9ZM8 9V6a4 4 0 0 1 8 0v3" stroke="currentColor" fill="none" stroke-width="2" stroke-linejoin="round"/></symbol>
   <symbol id="coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/><path d="M15 8c-1-2-6-2-6 1 0 3 6 1 6 5 0 3-5 4-7 1M12 5v14" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
   <symbol id="bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
-  <symbol id="missions" viewBox="0 0 24 24"><path d="M5 5h15M5 11h15M5 17h15M2 5l1 1 2-3M2 11l1 1 2-3M2 17l1 1 2-3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></symbol>
-  <symbol id="inventory" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><path d="M3 11h18M9 15h6" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="missions" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/></symbol>
+  <symbol id="inventory" viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2M9 12h6M9 15h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   <symbol id="person-search" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M2.5 19c0-5.5 13-5.5 13 0M17 15l4.5 4.5M19.2 16.8a3.3 3.3 0 1 0-4.7-4.7 3.3 3.3 0 0 0 4.7 4.7Z" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/></symbol>
   <symbol id="heart" viewBox="0 0 24 24"><path d="M12 21S2 15 2 8c0-6 8-7 10-2 2-5 10-4 10 2 0 7-10 13-10 13Z" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
 </svg>
@@ -34,7 +34,7 @@
   </div>
   <main class="screen login-screen" id="loginScreen">
     <img class="brand-logo" src="/recanto-logo.png" alt="Recanto">
-    <div class="login-actions"><button type="button" class="discord-login" id="login"><svg class="discord-mark"><use href="#discord"/></svg><span>Login</span></button><button type="button" class="install-app" id="installApp" hidden>Instalar app</button><p class="system-message" id="message" role="status" aria-live="polite"></p></div>
+    <div class="login-actions"><button type="button" class="discord-login" id="login"><svg class="discord-mark"><use href="#discord"/></svg><span>Login</span></button><button type="button" class="install-app" id="installApp"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 17v3h16v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Instalar</span></button><p class="system-message" id="message" role="status" aria-live="polite"></p></div>
   </main>
   <main class="screen splash-screen" id="splashScreen" hidden><img src="/recanto-logo.png" alt="Recanto" class="splash-logo"></main>
   <main class="screen home-screen" id="homeScreen" hidden>
@@ -93,6 +93,6 @@
       <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 1.0.0</p></section></div>
   </main>
 </div>
-<script src="/app.js?v=1.0.0" defer></script>
+<script src="/app.js?v=1.1.0" defer></script>
 </body>
 </html>

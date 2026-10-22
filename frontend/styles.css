@@ -561,3 +561,38 @@ body.dark-mode .profile-games {background:#eef0ff;color:#2b3279;}
 @media (max-width:370px){.update-banner{font-size:11px;gap:5px;padding:8px}.update-banner button{font-size:11px;padding:8px}}
 
 .settings-update-check {width:100%;margin-top:14px;padding:12px;border-radius:13px;font-size:13px;}
+
+/* v1.1.0: atualização visual sem fontes externas */
+:root {font-family:Calibri, 'Segoe UI', Arial, sans-serif !important;}
+body,button,input,select,textarea {font-family:Calibri, 'Segoe UI', Arial, sans-serif !important;}
+h1,h2,h3,h4,h5,h6,.content-head h1,.game-box h3,.section-heading,.badge-title strong {font-weight:700 !important;}
+#loginScreen .brand-logo {animation:none !important;opacity:1 !important;transform:translate(-50%,-50%) !important;will-change:auto !important;}
+#loginScreen .login-actions {gap:18px !important;}
+#loginScreen .discord-login,#loginScreen .install-app {width:40%;min-width:176px;max-width:230px;min-height:53px;font-size:clamp(20px,5vw,27px);font-weight:700;border:0;border-radius:999px;background:#5865f2;color:#fff;display:flex;align-items:center;justify-content:center;gap:11px;padding:9px 16px;animation:none !important;box-shadow:none;}
+#loginScreen .install-app svg {width:27px;height:27px;flex:none;}
+#loginScreen .install-app:disabled {opacity:.7;cursor:default;}
+#profileContent .profile-badges {margin-top:59dvh !important;}
+@media(max-height:760px){#profileContent .profile-badges {margin-top:57dvh !important;}}
+/* Modo escuro com superficies e textos verdadeiramente escuros/claros. */
+body.dark-mode .home-screen, body.dark-mode .app-frame {background:linear-gradient(180deg,#101947 0%,#202d77 60%,#17235e 100%) !important;}
+body.dark-mode .profile-panel,body.dark-mode .profile-badges,body.dark-mode .profile-games,
+body.dark-mode .game-box,body.dark-mode .daily-card-box,body.dark-mode .inventory-row,
+body.dark-mode .modal-panel,body.dark-mode .shop-daily-coins,body.dark-mode .profile-result,
+body.dark-mode .public-section,body.dark-mode .card-tile,body.dark-mode .product-card,
+body.dark-mode .mission-card,body.dark-mode .bottom-nav,body.dark-mode .game-choice,
+body.dark-mode .game-choice-actions {background:#192444 !important;color:#eef2ff !important;}
+body.dark-mode .game-box h3,body.dark-mode .game-box p,body.dark-mode .game-box label,
+body.dark-mode .badge-title,body.dark-mode .badge-title strong,body.dark-mode .stat-name,
+body.dark-mode .last-card,body.dark-mode .profile-games strong,body.dark-mode .modal-panel h2,
+body.dark-mode .inventory-meta p,body.dark-mode .product-card p,body.dark-mode .rates,
+body.dark-mode .setting-label strong,body.dark-mode .setting-label span,
+body.dark-mode .notifications-status,body.dark-mode .game-icons p,body.dark-mode .profile-result small,
+body.dark-mode .game-choice {color:#ecf1ff !important;}
+body.dark-mode .profile-panel-inner .stat-value {color:#ffd071 !important;}
+body.dark-mode .select-input,body.dark-mode .text-input,body.dark-mode .profiles-search {background:#283759 !important;color:#fff !important;border-color:#526290 !important;}
+body.dark-mode .game-choice.selected {background:#394da1 !important;border-color:#8491ef !important;}
+body.dark-mode .soft-action,body.dark-mode .game-edit,body.dark-mode .badge-more,
+body.dark-mode .modal-close {background:#354573 !important;color:#f5f7ff !important;}
+body.dark-mode .nav-item:not(:last-child)::after,body.dark-mode .profile-divider {background:#435277 !important;}
+body.dark-mode .setting-row {border-color:#3e4d78 !important;}
+body.dark-mode .badge-chip.locked {opacity:.66;}
