@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=0.1.2">
+  <link rel="stylesheet" href="/styles.css?v=0.1.3">
 </head>
 <body>
 <!-- Recanto 0.1.2 — layout responsivo e gestão com carregamento progressivo. -->
@@ -61,6 +61,7 @@
       </div>
     </header>
     <div id="profileContent">
+      <div class="desktop-left-column" id="desktopLeftColumn">
       <header class="profile-header"><div class="greeting"><svg class="discord-mark"><use href="#discord"/></svg><span id="userName">Olá, Fulano</span><span class="desktop-profile-title">Meu Perfil</span></div><div class="header-actions"><button type="button" class="settings-button search-icon-button" id="searchUsers" aria-label="Buscar perfis" title="Buscar perfis"><svg><use href="#person"/></svg></button><button type="button" class="settings-button" id="settings" aria-label="Configurações"><svg><use href="#gear"/></svg></button></div></header>
       <div class="desktop-profile-hero">
       <section class="profile-panel"><div class="profile-panel-inner"><div class="stats-list">
@@ -70,6 +71,7 @@
       </div><span class="profile-divider"></span><div class="last-card"><div class="last-card-art" id="latestCard" role="button" tabindex="0" aria-label="Ver último card ampliado"></div><span>Último Card</span></div></div></section>
       <div class="profile-avatar"><div class="avatar" id="userAvatar"><svg class="avatar-placeholder"><use href="#person"/></svg></div></div>
       <div class="desktop-identity"><h2 id="desktopProfileName">Meu Recanto</h2><span class="desktop-online">● Online</span><p>Explorando, colecionando e construindo um lugar incrível com vocês! ✨</p></div>
+      </div>
       </div>
       <aside class="desktop-right-column">
         <section class="desktop-pet-widget" aria-label="Minha Pequena Lenda"><h2>🐾 Minha Pequena Lenda</h2><div id="desktopPetPreview" class="desktop-pet-content"><p>Carregando companheiro...</p></div><button type="button" class="desktop-widget-action" id="desktopSeePet">Ver detalhes do pet →</button></section>
@@ -121,9 +123,9 @@
       <p class="notifications-status" id="notificationsStatus" role="status" aria-live="polite">Avisos automáticos ainda não estão disponíveis.</p>
       <button type="button" class="soft-action settings-admin" id="settingsAdmin" hidden aria-label="Abrir Gestão do Recanto"><svg aria-hidden="true"><use href="#gear"/></svg><span>Gestão do Recanto</span></button>
       <button type="button" class="soft-action settings-update-check" id="checkUpdates">↻ Verificar atualizações</button>
-      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.1.2</p></section></div>
+      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.1.3</p></section></div>
   </main>
 </div>
-<script src="/app.js?v=0.1.2" defer></script>
+<script src="/app.js?v=0.1.3" defer></script>
 </body>
 </html>

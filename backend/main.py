@@ -91,6 +91,7 @@ class Card(Base):
     rarity: Mapped[str] = mapped_column(String(40), default='comum', nullable=False)
     collection_name: Mapped[str] = mapped_column(String(100), default='Recanto Original', nullable=False)
     created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
 class OwnedCard(Base):
@@ -121,7 +122,7 @@ class OAuthAttempt(Base):
 
 
 Base.metadata.create_all(engine)
-app = FastAPI(title='Recanto API', version='1.2.0', docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title='Recanto API', version='0.1.3', docs_url=None, redoc_url=None, openapi_url=None)
 
 
 def utcnow() -> datetime:

@@ -200,6 +200,19 @@ def register_engagement(*, app, Base, engine, SessionLocal, User, Wallet, curren
             m.week_tag=period_key('semanal') if kind=='semanal' else None
         return {'ok':True,'code':code}
 
+    @app.post('/api/admin/missions/{code}/visibility')
+    async def admin_mission_visibility(code:str,request:Request):
+        admin(request)
+        data=await request.json()
+        if not isinstance(data,dict) or type(data.get('enabled')) is not bool:
+            raise HTTPException(422,detail='Informe enabled true ou false')
+        with SessionLocal.begin() as db:
+            mission=db.get(Mission,code)
+            if not mission:raise HTTPException(404,detail='Missão inexistente')
+            mission.enabled=data['enabled']
+            if mission.enabled and mission.kind=='semanal':mission.week_tag=period_key('semanal')
+        return {'ok':True,'code':code,'enabled':data['enabled']}
+
     @app.post('/api/integrations/discord/event')
     async def discord_event(request:Request):
         secret=os.getenv('RECANTO_BOT_SECRET','')

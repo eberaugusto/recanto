@@ -1,7 +1,7 @@
 // PWA v0.8: rede em primeiro lugar para evitar interface desatualizada.
 // A API e a autenticação nunca passam pelo cache.
-const CACHE = 'recanto-ui-0.1.2';
-const CORE = ['/', '/styles.css?v=0.1.2', '/app.js?v=0.1.2', '/recanto-logo.png', '/icons/icon-192.png'];
+const CACHE = 'recanto-ui-0.1.3';
+const CORE = ['/', '/styles.css?v=0.1.3', '/app.js?v=0.1.3', '/recanto-logo.png', '/icons/icon-192.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE)));
 });
@@ -11,7 +11,7 @@ self.addEventListener('message', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
-// 0.1.2: PWA instalado abre a interface do cache antes do servidor acordar.
+// 0.1.3: PWA instalado abre a interface do cache antes do servidor acordar.
 // Nunca armazenar APIs, sessão, uploads nem páginas de autenticação.
 self.addEventListener('fetch', event => {
   const req=event.request;

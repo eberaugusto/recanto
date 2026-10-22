@@ -205,6 +205,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         event: Mapped[str] = mapped_column(String(30), nullable=False)
         target: Mapped[int] = mapped_column(Integer, nullable=False)
         image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+        active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     class AchievementProgress(Base):
         __tablename__ = 'achievement_progress'
@@ -229,6 +230,13 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         pet_animation: Mapped[str | None] = mapped_column(String(80), nullable=True)
         feed_animation: Mapped[str | None] = mapped_column(String(80), nullable=True)
         vet_animation: Mapped[str | None] = mapped_column(String(80), nullable=True)
+        active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    class ShopItemControl(Base):
+        __tablename__ = 'shop_item_controls'
+        sku: Mapped[str] = mapped_column(String(30), primary_key=True)
+        name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+        active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     class ProductCover(Base):
         __tablename__ = 'product_covers'
@@ -292,6 +300,14 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         owner_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
         day: Mapped[str] = mapped_column(String(10), primary_key=True)
         action: Mapped[str] = mapped_column(String(10), primary_key=True)
+
+    # 0.1.3: arquivamento reversivel. Preserva chaves estrangeiras, cards ja ganhos e pets adotados.
+    for table in ('cards', 'achievements', 'pet_species'):
+        if inspect(engine).has_table(table):
+            cols = {c['name'] for c in inspect(engine).get_columns(table)}
+            if 'active' not in cols:
+                with engine.begin() as connection:
+                    connection.execute(text(f'ALTER TABLE {table} ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE'))
 
     # Migracao aditiva de cards para v0.8. Bancos anteriores preservam colecoes e copias.
     if inspect(engine).has_table('cards'):
@@ -526,7 +542,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             db.add(obj)
         obj.counter += amount
         db.flush()
-        for award in db.scalars(select(Achievement).where(Achievement.event == event,
+        for award in db.scalars(select(Achievement).where(Achievement.active.is_(True), Achievement.event == event,
                                                               Achievement.target <= obj.counter)).all():
             if not db.get(UserAchievement, (uid, award.id)):
                 db.add(UserAchievement(user_id=uid, achievement_id=award.id, unlocked_at=utcnow()))
@@ -535,7 +551,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
     def achievements(request: Request):
         uid = me(request)
         with SessionLocal() as db:
-            goals = db.scalars(select(Achievement).order_by(Achievement.id)).all()
+            goals = db.scalars(select(Achievement).where(Achievement.active.is_(True)).order_by(Achievement.id)).all()
             progresses = {row.event: row.counter for row in db.scalars(
                 select(AchievementProgress).where(AchievementProgress.user_id == uid)).all()}
             unlocks = {row.achievement_id: row.unlocked_at for row in db.scalars(
@@ -550,7 +566,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
 
     def stock(db):
         # Emissão global: 3 cópias por título Comum; 2 Raro; 1 Lendário/Prismático.
-        rows = db.execute(select(Card.id, Card.name, Card.rarity, Card.image_url, Card.collection_name, Card.created_at)).all()
+        rows = db.execute(select(Card.id, Card.name, Card.rarity, Card.image_url, Card.collection_name, Card.created_at).where(Card.active.is_(True))).all()
         counts = dict(db.execute(select(OwnedCard.card_id, func.count(OwnedCard.id)).group_by(OwnedCard.card_id)).all())
         reserved = dict(db.execute(select(ReservedCard.card_id, func.count(ReservedCard.id)).join(InventoryPack, InventoryPack.id == ReservedCard.pack_id).where(InventoryPack.opened_at.is_(None)).group_by(ReservedCard.card_id)).all())
         return [{'id': r[0], 'name': r[1], 'rarity': r[2], 'image_url': r[3],
@@ -982,10 +998,16 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 {'sku': 'feast', 'name':'Banquete', 'price':setting(db,'treat_feast_cost'), 'amount':1,'kind':'treats','food':55,'treat_sku':'banquete'},
             ]
             covers = {c.sku:c.image_url for c in db.scalars(select(ProductCover)).all()}
+            controls = {c.sku:c for c in db.scalars(select(ShopItemControl)).all()}
+            visible = []
             for item in products:
+                control = controls.get(item['sku'])
+                if control and not control.active: continue
+                if control and control.name: item['name'] = control.name
                 item['image_url'] = covers.get(item['sku'])
                 item['emoji'] = SHOP_EMOJI[item['sku']]
-            return {'products': products}
+                visible.append(item)
+            return {'products': visible}
 
     @app.post('/api/shop/purchase')
     async def purchase(request: Request):
@@ -995,6 +1017,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if sku not in ('pack3', 'pack5', 'treat3', 'fruit', 'feast'):
             raise HTTPException(422, detail='Produto desconhecido')
         with writing() as db:
+            item_control = db.get(ShopItemControl, sku)
+            if item_control and not item_control.active:
+                raise HTTPException(409, detail='Este item foi removido da Loja')
             w = wallet(db, uid)
             if sku in ('treat3', 'fruit', 'feast'):
                 foodsku,qty,key = {'treat3':('biscoito',3,'treat_bundle_cost'),
@@ -1149,7 +1174,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         with writing() as db:
             obj = db.get(UserPet, uid)
             pet_tick(db, obj)
-            types = db.scalars(select(PetSpecies).order_by(PetSpecies.id)).all()
+            types = db.scalars(select(PetSpecies).where(PetSpecies.active.is_(True)).order_by(PetSpecies.id)).all()
             return {'pet': pet_dict(db, obj), 'species': [
                 {'id': s.id, 'name': s.name, 'emoji': s.emoji, 'image_url': s.image_url, **model_fields(s)} for s in types],
                     'treats': wallet(db, uid).treats,
@@ -1204,7 +1229,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         sid = integer(data['species_id'])
         with writing() as db:
             specie = db.get(PetSpecies, sid)
-            if not specie:
+            if not specie or not specie.active:
                 raise HTTPException(404, detail='Pet indisponível para adoção')
             pet = db.get(UserPet, uid)
             if pet:
@@ -1451,8 +1476,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
     async def admin_upload_model(request: Request, files: list[UploadFile] = File(...)):
         """GLB único ou GLTF acompanhado dos .bin e texturas no mesmo pacote."""
         only_admin(request)
-        if os.getenv('APP_ENV','development').strip().lower() != 'development':
-            raise HTTPException(403, detail='Upload de modelos apenas para testes locais')
+        production = os.getenv('APP_ENV','development').strip().lower() == 'production'
         if not files or len(files) > 35:
             raise HTTPException(422, detail='Envie até 35 arquivos por modelo')
         permitted = {'.glb','.gltf','.bin','.png','.jpg','.jpeg','.webp'}
@@ -1478,6 +1502,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             raise HTTPException(422, detail='Envie exatamente um arquivo principal .glb ou .gltf')
         primary = mainfiles[0]
         blob = gathered[primary]
+        if production and not primary.lower().endswith('.glb'):
+            raise HTTPException(422, detail='Em produção, envie um GLB único (GLTF com arquivos externos é apenas para testes locais).')
         if primary.lower().endswith('.glb'):
             if len(blob) < 20 or blob[:4] != b'glTF' or int.from_bytes(blob[4:8],'little') != 2 or int.from_bytes(blob[8:12],'little') != len(blob):
                 raise HTTPException(422, detail='GLB inválido (esperado formato glTF 2.0)')
@@ -1492,6 +1518,28 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                         raise ValueError('Arquivo auxiliar ausente')
             except (ValueError, KeyError, TypeError, AssertionError, UnicodeDecodeError):
                 raise HTTPException(422, detail='GLTF inválido ou arquivos .bin/texturas ausentes')
+        if production:
+            cloud=os.getenv('CLOUDINARY_CLOUD_NAME','').strip()
+            api_key=os.getenv('CLOUDINARY_API_KEY','').strip()
+            api_secret=os.getenv('CLOUDINARY_API_SECRET','').strip()
+            if not all((cloud,api_key,api_secret)):
+                raise HTTPException(503, detail='Para hospedar GLB permanentemente, configure CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY e CLOUDINARY_API_SECRET no Render; ou utilize uma URL HTTPS pública de .glb.')
+            # Cloudinary RAW preserva bytes GLB; o Render nao guarda uploads entre deploys.
+            try:
+                async with httpx.AsyncClient(timeout=75) as client:
+                    response=await client.post(
+                        f'https://api.cloudinary.com/v1_1/{cloud}/raw/upload',
+                        auth=(api_key,api_secret),
+                        data={'folder':'recanto/models'},
+                        files={'file': (primary,blob,'model/gltf-binary')},
+                    )
+                    response.raise_for_status()
+                    model_url=response.json().get('secure_url','')
+                    if not model_url.startswith('https://') or not model_url.lower().split('?')[0].endswith('.glb'):
+                        raise ValueError('O armazenamento não retornou uma URL pública GLB')
+            except (httpx.HTTPError, ValueError, KeyError) as exc:
+                raise HTTPException(502, detail='Falha ao guardar GLB no Cloudinary. Verifique credenciais, disponibilidade de arquivos RAW e limites da conta.') from exc
+            return {'ok':True, 'model_url':model_url, 'files':1}
         folder = frontend / 'models' / uuid.uuid4().hex
         folder.mkdir(parents=True, exist_ok=False)
         for name, contents in gathered.items():
@@ -1500,7 +1548,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
 
     @app.get('/models/{folder}/{filename}')
     def view_model(folder: str, filename: str):
-        if not re.fullmatch(r'[0-9a-f]{32}', folder) or not re.fullmatch(r'[A-Za-z0-9_+(). -]{1,100}',filename) or '..' in filename:
+        if (folder != 'public' and not re.fullmatch(r'[0-9a-f]{32}', folder)) or not re.fullmatch(r'[A-Za-z0-9_+(). -]{1,100}',filename) or '..' in filename:
             raise HTTPException(404, detail='Modelo não encontrado')
         path=frontend/'models'/folder/filename
         if not path.is_file():
@@ -1540,6 +1588,110 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     AchievementProgress.event == event, AchievementProgress.counter >= target)).all():
                     db.add(UserAchievement(user_id=row.user_id, achievement_id=new_id, unlocked_at=utcnow()))
         return {'ok': True, 'id': new_id, 'available': event != 'voice_minutes'}
+
+    # 0.1.3: editor centralizado. Remover = arquivar (nao quebra referencias antigas).
+    @app.get('/api/admin/catalog-management')
+    def admin_catalog_management(request: Request):
+        only_admin(request)
+        with SessionLocal() as db:
+            cards = db.scalars(select(Card).order_by(Card.id.desc())).all()
+            pets = db.scalars(select(PetSpecies).order_by(PetSpecies.id.desc())).all()
+            seals = db.scalars(select(Achievement).order_by(Achievement.id.desc())).all()
+            prices = {x.key:x.value for x in db.scalars(select(GameSetting)).all()}
+            controls = {x.sku:x for x in db.scalars(select(ShopItemControl)).all()}
+            covers = {x.sku:x.image_url for x in db.scalars(select(ProductCover)).all()}
+            items=[]
+            labels={'pack3':'Pacote com 3 cards','pack5':'Pacote com 5 cards','treat3':'3 Biscoitos','fruit':'Frutinha','feast':'Banquete'}
+            price_keys={'pack3':'pack3_cost','pack5':'pack5_cost','treat3':'treat_bundle_cost','fruit':'treat_fruit_cost','feast':'treat_feast_cost'}
+            for sku,name in labels.items():
+                ctrl=controls.get(sku)
+                items.append({'id':sku,'name':ctrl.name if ctrl and ctrl.name else name,
+                    'price':prices.get(price_keys[sku],DEFAULTS[price_keys[sku]]),
+                    'image_url':covers.get(sku),'active':bool(ctrl.active) if ctrl else True})
+            return {
+                'cards':[{'id':c.id,'name':c.name,'rarity':c.rarity,'collection':c.collection_name,'image_url':c.image_url,'active':bool(c.active)} for c in cards],
+                'pets':[{'id':p.id,'name':p.name,'emoji':p.emoji,'image_url':p.image_url,'active':bool(p.active),**model_fields(p)} for p in pets],
+                'achievements':[{'id':a.id,'title':a.title,'description':a.description,'icon':a.icon,'event':a.event,'target':a.target,'image_url':a.image_url,'active':bool(a.active)} for a in seals],
+                'items':items,
+            }
+
+    @app.post('/api/admin/catalog-management/{group}/{ident}')
+    async def admin_manage_catalog(group: str, ident: str, request: Request):
+        only_admin(request)
+        if group not in ('cards','pets','achievements','items'):
+            raise HTTPException(404,detail='Catálogo desconhecido')
+        payload=await request.json()
+        if not isinstance(payload,dict):raise HTTPException(422,detail='Dados inválidos')
+        action=str(payload.get('action','save'))
+        if action not in ('save','archive','restore'):
+            raise HTTPException(422,detail='Ação inválida')
+        with writing() as db:
+            if group=='items':
+                price_keys={'pack3':'pack3_cost','pack5':'pack5_cost','treat3':'treat_bundle_cost','fruit':'treat_fruit_cost','feast':'treat_feast_cost'}
+                if ident not in price_keys:raise HTTPException(404,detail='Item inexistente')
+                ctrl=db.get(ShopItemControl,ident)
+                if not ctrl:ctrl=ShopItemControl(sku=ident);db.add(ctrl)
+                if action=='archive':ctrl.active=False
+                elif action=='restore':ctrl.active=True
+                else:
+                    name=str(payload.get('name') or '').strip()
+                    price=integer(payload.get('price'))
+                    if not 2<=len(name)<=100 or not 0<=price<=100000:
+                        raise HTTPException(422,detail='Nome ou preço inválido')
+                    ctrl.name=name
+                    conf=db.get(GameSetting,price_keys[ident]);conf.value=price
+                    if 'image_url' in payload:
+                        image_url=safe_artwork(payload.get('image_url'))
+                        cover=db.get(ProductCover,ident)
+                        if not image_url and cover:db.delete(cover)
+                        elif image_url and cover:cover.image_url=image_url
+                        elif image_url:db.add(ProductCover(sku=ident,image_url=image_url))
+            else:
+                try:item_id=int(ident)
+                except ValueError:raise HTTPException(422,detail='ID numérico inválido')
+                kind={'cards':Card,'pets':PetSpecies,'achievements':Achievement}[group]
+                obj=db.get(kind,item_id)
+                if not obj:raise HTTPException(404,detail='Registro não encontrado')
+                if action=='archive':obj.active=False
+                elif action=='restore':obj.active=True
+                elif group=='cards':
+                    name=str(payload.get('name','')).strip()
+                    rarity=str(payload.get('rarity','')).strip()
+                    collection=str(payload.get('collection','')).strip()
+                    if not 2<=len(name)<=120 or rarity not in TIERS or not 2<=len(collection)<=100:
+                        raise HTTPException(422,detail='Nome, raridade ou coleção inválidos')
+                    obj.name=name;obj.rarity=rarity;obj.collection_name=collection
+                    obj.image_url=safe_artwork(payload.get('image_url'))
+                elif group=='pets':
+                    name=str(payload.get('name','')).strip()
+                    if not 2<=len(name)<=100:raise HTTPException(422,detail='Nome inválido')
+                    if db.scalar(select(PetSpecies.id).where(PetSpecies.name==name,PetSpecies.id!=item_id)):
+                        raise HTTPException(409,detail='Outra Pequena Lenda já usa este nome')
+                    obj.name=name;obj.emoji=str(payload.get('emoji') or '🐾')[:30]
+                    obj.image_url=safe_artwork(payload.get('image_url'))
+                    model=safe_artwork(payload.get('model_url'),allow_model=True)
+                    if model and not model.lower().split('?')[0].endswith(('.glb','.gltf')):
+                        raise HTTPException(422,detail='Modelo deve ser .glb ou .gltf')
+                    obj.model_url=model
+                    for field in ('idle_animation','pet_animation','feed_animation','vet_animation'):
+                        value=str(payload.get(field) or '').strip()
+                        if len(value)>80:raise HTTPException(422,detail='Nome de animação muito longo')
+                        setattr(obj,field,value or None)
+                else:
+                    title=str(payload.get('title','')).strip()
+                    description=str(payload.get('description','')).strip()
+                    event=str(payload.get('event','')).strip()
+                    target=integer(payload.get('target'))
+                    if not 2<=len(title)<=100 or not 4<=len(description)<=255 or not 1<=target<=1000000:
+                        raise HTTPException(422,detail='Nome, descrição ou meta inválidos')
+                    if event not in {'trade','card','adopt','pet','feed','mission','voice_minutes'}:
+                        raise HTTPException(422,detail='Evento inválido')
+                    if db.scalar(select(Achievement.id).where(Achievement.title==title,Achievement.id!=item_id)):
+                        raise HTTPException(409,detail='Outro selo já possui este título')
+                    obj.title=title;obj.description=description;obj.event=event;obj.target=target
+                    obj.icon=str(payload.get('icon') or '🏅')[:30]
+                    obj.image_url=safe_artwork(payload.get('image_url'))
+        return {'ok':True,'group':group,'id':ident,'action':action}
 
     @app.post('/api/admin/upload')
     async def upload_card_art(request: Request, image: UploadFile = File(...)):

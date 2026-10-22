@@ -688,8 +688,8 @@ body.dark-mode .admin-page .admin-dialog > .admin-tabs {background:#192444;borde
 /* No telefone, cabeçalho, resumo, selos, jogos e Discord seguem o mesmo espaçamento. */
 @media(max-width:767px){
   #profileContent{display:flex;flex-direction:column;align-items:stretch;gap:var(--recanto-card-gap);padding:0 6% calc(145px + env(safe-area-inset-bottom,0px))!important;}
-  #profileContent>.profile-header{position:relative;inset:auto!important;flex:0 0 auto;min-height:48px;margin:calc(24px + env(safe-area-inset-top,0px)) 0 0;}
-  #profileContent>.desktop-profile-hero{position:relative;display:block;flex:none;width:100%;margin-top:clamp(104px,13dvh,160px);height:clamp(300px,36dvh,405px);}
+  #profileContent .desktop-left-column>.profile-header{position:relative;inset:auto!important;flex:0 0 auto;min-height:48px;margin:calc(24px + env(safe-area-inset-top,0px)) 0 0;}
+  #profileContent .desktop-left-column>.desktop-profile-hero{position:relative;display:block;flex:none;width:100%;margin-top:clamp(104px,13dvh,160px);height:clamp(300px,36dvh,405px);}
   #profileContent .profile-panel{position:absolute!important;inset:0!important;width:100%;height:100%!important;left:0!important;right:0!important;top:0!important;}
   #profileContent .profile-avatar{position:absolute;top:clamp(-94px,-10.6dvh,-76px)!important;left:50%;width:min(34vw,165px);max-width:none;transform:translateX(-50%);}
   #profileContent .profile-badges{position:relative;inset:auto!important;margin:0!important;width:100%;flex:none;}
@@ -752,12 +752,12 @@ body.dark-mode .discord-widget-help{color:#bac6f2;}
   .desktop-user span:last-child{overflow:hidden;text-overflow:ellipsis;}
   .bottom-nav{display:none!important;}
   #profileContent{position:absolute;inset:81px 0 0 254px!important;display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px, .94fr);gap:var(--recanto-card-gap);grid-auto-rows:min-content;align-content:start;padding:24px clamp(16px,2vw,32px) 35px!important;max-height:none!important;overflow-y:auto;}
-  #profileContent>.profile-header{position:relative;inset:auto!important;grid-column:1;grid-row:1;height:48px;color:#1d2d7f;}
-  #profileContent>.profile-header .greeting{font-size:clamp(19px,2.4vw,29px);}
-  #profileContent>.profile-header .greeting .discord-mark{display:none;}
-  #profileContent>.profile-header .greeting span{font-weight:800;}
-  #profileContent>.profile-header .header-actions{display:none;}
-  #profileContent>.desktop-profile-hero{display:block;position:relative;grid-column:1;grid-row:2;height:340px;margin:0;min-width:0;}
+  #profileContent .desktop-left-column>.profile-header{position:relative;inset:auto!important;grid-column:1;grid-row:1;height:48px;color:#1d2d7f;}
+  #profileContent .desktop-left-column>.profile-header .greeting{font-size:clamp(19px,2.4vw,29px);}
+  #profileContent .desktop-left-column>.profile-header .greeting .discord-mark{display:none;}
+  #profileContent .desktop-left-column>.profile-header .greeting span{font-weight:800;}
+  #profileContent .desktop-left-column>.profile-header .header-actions{display:none;}
+  #profileContent .desktop-left-column>.desktop-profile-hero{display:block;position:relative;grid-column:1;grid-row:2;height:340px;margin:0;min-width:0;}
   #profileContent .profile-panel{position:absolute!important;inset:0!important;width:100%;height:100%!important;border-radius:24px;}
   #profileContent .profile-panel-inner{left:26px;right:20px;top:auto;bottom:22px;height:76px;grid-template-columns:minmax(0,1fr) 1px 117px;gap:18px;}
   #profileContent .stats-list{flex-direction:row;align-items:stretch;gap:8px;}
@@ -813,7 +813,7 @@ body.dark-mode .discord-widget-help{color:#bac6f2;}
 @media(min-width:768px) and (max-width:890px){
  #profileContent{grid-template-columns:minmax(0,1fr);}
  #profileContent>.desktop-right-column{grid-column:1;grid-row:5;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
- #profileContent>.profile-header,#profileContent>.desktop-profile-hero,#profileContent>.profile-badges,#profileContent>.profile-games{grid-column:1;}
+ #profileContent .desktop-left-column>.profile-header,#profileContent .desktop-left-column>.desktop-profile-hero,#profileContent>.profile-badges,#profileContent>.profile-games{grid-column:1;}
  .desktop-search span{display:none;}
  .desktop-search{flex:0 0 56px;width:56px;padding:15px;}
 }
@@ -844,3 +844,73 @@ body.dark-mode .discord-widget-help{color:#bac6f2;}
   .content-page .scroll-content{scrollbar-width:thin;}
   .content-page .filter-label span,.content-page .filter-check{color:#344596;}
 }
+
+/* Recanto 0.1.3 — rolagem estável e perfil organizado em colunas independentes. */
+#profileContent .desktop-left-column{min-width:0;}
+@media(max-width:767px){
+  #profileContent .desktop-left-column{display:contents;}
+  #profileContent .desktop-left-column>.profile-header{
+    position:relative!important;inset:auto!important;flex:0 0 auto;min-height:48px;
+    margin:calc(24px + env(safe-area-inset-top,0px)) 0 0;
+  }
+  #profileContent .desktop-left-column>.desktop-profile-hero{
+    display:block;position:relative!important;flex:0 0 auto;width:100%;
+    margin-top:clamp(104px,13dvh,160px);height:clamp(300px,36dvh,405px);
+  }
+}
+@media(min-width:768px){
+  #profileContent{
+    height:auto!important;min-height:0!important;max-height:none!important;
+    top:81px!important;bottom:0!important;overflow-y:auto!important;overflow-x:hidden!important;
+    overscroll-behavior-y:contain;touch-action:pan-y;align-content:start;
+    grid-template-columns:minmax(0,1.65fr) minmax(280px,.94fr);
+    grid-auto-rows:auto;
+  }
+  #profileContent .desktop-left-column{
+    display:flex;flex-direction:column;gap:var(--recanto-card-gap);align-self:start;
+    grid-column:1;grid-row:1;min-height:0;min-width:0;
+  }
+  #profileContent .desktop-left-column>.profile-header{
+    position:relative!important;inset:auto!important;height:48px!important;min-height:48px;
+    flex:0 0 48px;margin:0;color:#1d2d7f;
+  }
+  #profileContent .desktop-left-column>.desktop-profile-hero{
+    display:block;position:relative!important;inset:auto!important;margin:0;height:340px;flex:0 0 340px;
+    min-width:0;
+  }
+  #profileContent .desktop-left-column>.profile-badges,
+  #profileContent .desktop-left-column>.profile-games{
+    position:relative!important;inset:auto!important;grid-column:auto;grid-row:auto;
+    margin:0!important;flex:0 0 auto;
+  }
+  #profileContent>.desktop-right-column{grid-column:2;grid-row:1;align-self:start;min-height:0;}
+  #profileContent .profile-badges{min-height:0;}
+  #profileContent .profile-games{min-height:0;}
+}
+@media(min-width:768px) and (max-width:1080px){
+  #profileContent{grid-template-columns:minmax(0,1fr) minmax(245px,.85fr);}
+  #profileContent .desktop-left-column>.desktop-profile-hero{height:365px;flex-basis:365px;}
+}
+@media(min-width:768px) and (max-width:890px){
+  #profileContent{grid-template-columns:minmax(0,1fr)!important;}
+  #profileContent .desktop-left-column{grid-column:1;grid-row:1;}
+  #profileContent>.desktop-right-column{grid-column:1;grid-row:2;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+/* Pet 3D visível inclusive na prévia do dashboard */
+.desktop-pet-content .pet-visual{height:205px;margin:0 auto 10px;max-width:100%;}
+.desktop-pet-content .pet-fallback img{height:100%;object-fit:contain;}
+.pet-visual model-viewer{display:block;width:100%;height:100%;touch-action:pan-y;}
+.pet-model.model-loaded{opacity:1;}
+.pet-visual.pet-preview-moving .pet-fallback img{animation:recanto-pet-breathe 3.6s ease-in-out infinite;}
+@keyframes recanto-pet-breathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-6px) scale(1.015)}}
+/* Gerenciador de registros editáveis */
+.admin-catalog-tools{display:flex;flex-direction:column;gap:11px;margin-top:10px;}
+.admin-catalog-tools .admin-action-row{display:flex;flex-wrap:wrap;gap:8px;}
+.admin-catalog-tools .admin-action-row button{flex:1 1 130px;min-width:0;}
+.admin-catalog-tools .admin-field{min-width:0;}
+.admin-catalog-tools .admin-field input{width:100%;}
+.admin-catalog-tools .admin-entry-status{font-size:12px;color:#6671a0;}
+.admin-catalog-tools .admin-entry-status.off{color:#ad5858;}
+.admin-catalog-tools .admin-editor-form{display:flex;flex-direction:column;gap:9px;min-width:0;}
+.admin-catalog-tools .admin-editor-form[hidden]{display:none!important;}
+.admin-catalog-tools .admin-editor-form select{width:100%;}

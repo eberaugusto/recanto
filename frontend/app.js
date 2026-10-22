@@ -114,7 +114,7 @@
   }
   async function loadProfileExtras(){
     const [ach,game,prefs]=await Promise.all([API('/api/achievements'),API('/api/game/config'),API('/api/games/preferences')]);state.game=game;
-    if(!$('badgesSection')){const b=h('section','profile-badges');b.id='badgesSection';$('profileContent').insertBefore(b,$('profileContent').querySelector('.desktop-right-column'));}
+    if(!$('badgesSection')){const b=h('section','profile-badges');b.id='badgesSection';$('desktopLeftColumn').append(b);}
     const b=$('badgesSection');b.replaceChildren();
     const heading=h('div','badge-title');heading.append(h('strong','','🏅 Selos'),h('small','',`${ach.unlocked}/${ach.total} desbloqueados`));b.append(heading);
     const line=h('div','badge-strip');
@@ -161,9 +161,7 @@
       const data=await API('/api/pets');
       const pet=data.pet;content.replaceChildren();
       if(!pet){content.append(h('p','', 'Você ainda não adotou uma Pequena Lenda.'));state.petPreviewLoaded=true;return;}
-      const image=pet.image_url;
-      if(image){const img=h('img');img.src=image;img.alt=pet.name;img.loading='lazy';content.append(img);}
-      else content.append(h('div','desktop-pet-emoji',pet.emoji||'🐾'));
+      content.append(petVisual(pet,false));
       content.append(h('p','desktop-pet-name',pet.name));
       content.append(h('p','',pet.status==='ativo'?'Em casa':pet.status==='vet'?'No veterinário':pet.status==='missao'?'Em missão':'Falecido'));
       for(const [label,val] of [['Bem-estar',pet.happiness],['Fome',pet.food]]){
@@ -418,28 +416,55 @@
   }
   let modelViewerLoad=null;
   function load3DViewer(){
-    if(window.customElements?.get('model-viewer'))return Promise.resolve();
+    if(window.customElements?.get('model-viewer'))return Promise.resolve(true);
     if(!modelViewerLoad){
-      // Só carrega o motor 3D quando um pet possui modelo; não atrasa Perfil, Cards ou Loja.
-      modelViewerLoad=import('https://cdn.jsdelivr.net/npm/@google/model-viewer@4.1.0/dist/model-viewer.min.js').catch(()=>null);
+      // Somente importa WebGL quando ha um GLB. Tenta CDN secundaria se a primeira falhar.
+      modelViewerLoad=import('https://cdn.jsdelivr.net/npm/@google/model-viewer@4.1.0/dist/model-viewer.min.js')
+        .catch(()=>import('https://unpkg.com/@google/model-viewer@4.1.0/dist/model-viewer.min.js'))
+        .then(()=>window.customElements.whenDefined('model-viewer').then(()=>true))
+        .catch(()=>false);
     }
     return modelViewerLoad;
   }
   function petVisual(species,large=false){
     const wrap=h('div','pet-visual'+(large?' pet-visual-large':''));
-    const fallback=mediaCover(species.image_url,species.emoji||'🐾',species.name,'pet-fallback');wrap.append(fallback);
-    if(species.model_url){
-      load3DViewer();
-      const view=h('model-viewer','pet-model');view.setAttribute('src',species.model_url);
-      view.setAttribute('alt','Modelo 3D de '+species.name);view.setAttribute('camera-controls','');
-      view.setAttribute('shadow-intensity','0.6');view.setAttribute('exposure','1.1');
-      view.setAttribute('interaction-prompt','none');view.setAttribute('loading','lazy');
-      if(species.idle_animation){view.setAttribute('animation-name',species.idle_animation);view.setAttribute('autoplay','');}
-      view.addEventListener('load',()=>{view.classList.add('model-loaded');fallback.classList.add('fallback-hidden');});
-      view.addEventListener('error',()=>{view.classList.remove('model-loaded');fallback.classList.remove('fallback-hidden');});
-      view.addEventListener('finished',()=>{if(species.idle_animation){view.animationName=species.idle_animation;view.play();}});
-      wrap.append(view);
-    }
+    const fallback=mediaCover(species.image_url,species.emoji||'🐾',species.name,'pet-fallback');
+    wrap.append(fallback);
+    // Enquanto o 3D nao carrega, exibe arte animada suavemente (sem simular animacao interna do GLB).
+    if(!matchMedia('(prefers-reduced-motion: reduce)').matches)wrap.classList.add('pet-preview-moving');
+    const model=String(species.model_url||'').trim();
+    if(!model)return wrap;
+    const view=h('model-viewer','pet-model');
+    view.setAttribute('src',model);view.setAttribute('alt','Modelo 3D de '+species.name);
+    view.setAttribute('camera-controls','');view.setAttribute('shadow-intensity','0.7');
+    view.setAttribute('exposure','1.12');view.setAttribute('environment-image','neutral');
+    view.setAttribute('interaction-prompt','none');view.setAttribute('loading','eager');
+    view.setAttribute('reveal','auto');view.setAttribute('autoplay','');
+    view.setAttribute('animation-crossfade-duration','350');
+    if(species.idle_animation)view.setAttribute('animation-name',species.idle_animation);
+    view.addEventListener('load',()=>{
+      view.classList.add('model-loaded');fallback.classList.add('fallback-hidden');
+      wrap.classList.remove('pet-preview-moving');
+      const available=Array.isArray(view.availableAnimations)?view.availableAnimations:[];
+      let idle=species.idle_animation;
+      if(!idle || !available.includes(idle)){
+        idle=available.find(name=>/idle|parad|stand|breath|loop|walk/i.test(name))||available[0];
+      }
+      if(idle){view.animationName=idle;view.play();view.dataset.idleAnimation=idle;}
+    });
+    view.addEventListener('error',()=>{
+      view.classList.remove('model-loaded');fallback.classList.remove('fallback-hidden');
+      wrap.classList.add('pet-preview-moving');
+      if(large && !wrap.querySelector('.model-error')){
+        const msg=h('small','model-error','Modelo 3D indisponível: confira a URL .glb pública e as permissões de acesso.');wrap.append(msg);
+      }
+    });
+    view.addEventListener('finished',()=>{
+      const idle=view.dataset.idleAnimation;
+      if(idle && view.animationName!==idle){view.animationName=idle;view.play();}
+    });
+    wrap.append(view);
+    load3DViewer().then(ready=>{if(!ready)view.dispatchEvent(new Event('error'));});
     return wrap;
   }
   function petReaction(action){
@@ -447,7 +472,7 @@
     visual.classList.remove('pet-react');void visual.offsetWidth;visual.classList.add('pet-react');
     const view=visual.querySelector('model-viewer.model-loaded');
     const pet=state.activePet;const name=action==='feed'?pet?.feed_animation:pet?.pet_animation;
-    if(view&&name){view.animationName=name;view.play({repetitions:1});}
+    if(view && name && view.availableAnimations?.includes(name)){view.animationName=name;view.play({repetitions:1});}
     const symbol=h('span','pet-spark',action==='feed'?'🍪':'💖');visual.append(symbol);setTimeout(()=>{symbol.remove();visual.classList.remove('pet-react');},850);
   }
   async function petCare(action,sku='biscoito'){
@@ -609,6 +634,93 @@
     return result.model_url;
   }
   const adminField=(label,value,type='text')=>{const row=h('label','admin-field',label);const input=h('input','text-input');input.value=value||'';input.type=type;row.append(input);return [row,input];};
+  // Editor de registros existentes: todas as operacoes conferem permissoes novamente no servidor.
+  function adminCatalogEditor(group,title,spec,collectionPromise){
+    const box=block(title,'Editar ou remover do catálogo sem apagar dados já obtidos pelos usuários. Remover significa arquivar; é possível restaurar.');
+    const wrap=h('div','admin-catalog-tools');
+    const chooser=h('select','select-input');chooser.append(h('option','','Carregando registros...'));
+    const form=h('div','admin-editor-form');form.hidden=true;
+    const status=h('p','admin-entry-status');
+    const inputs={};
+    for(const [key,label,kind,options] of spec){
+      const field=h('label','admin-field',label);
+      let input;
+      if(kind==='select'){
+        input=h('select','select-input');
+        for(const [value,text] of options){const option=h('option','',text);option.value=value;input.append(option);}
+      }else{
+        input=h('input','text-input');input.type=kind==='number'?'number':'text';
+        if(kind==='number')input.min='0';
+      }
+      field.append(input);inputs[key]=input;form.append(field);
+    }
+    let imageFile=null,modelFile=null;
+    if(['cards','pets','achievements','items'].includes(group)){
+      const label=h('label','admin-field','Substituir imagem (opcional)');
+      imageFile=h('input','text-input');imageFile.type='file';imageFile.accept='image/png,image/jpeg,image/webp';label.append(imageFile);form.append(label);
+    }
+    if(group==='pets'){
+      const label=h('label','admin-field','Substituir GLB animado (opcional; em produção requer Cloudinary ou URL pública .glb)');
+      modelFile=h('input','text-input');modelFile.type='file';modelFile.accept='.glb,model/gltf-binary';label.append(modelFile);form.append(label);
+      form.append(h('small','','Se o GLB contém animações, o visualizador usa a primeira automaticamente. Nomes personalizados devem corresponder aos nomes internos do arquivo.'));
+    }
+    const actions=h('div','admin-action-row');
+    const save=button('Salvar alterações',async()=>{
+      const current=rows.find(row=>String(row.id)===chooser.value);
+      if(!current)return;
+      const data=Object.fromEntries(spec.map(([key,,kind])=>[key,kind==='number'?Number(inputs[key].value):inputs[key].value.trim()]));
+      data.action='save';
+      const result=await safeRun(async()=>{
+        if(imageFile?.files.length)data.image_url=await uploadArtwork(imageFile.files[0]);
+        if(modelFile?.files.length)data.model_url=await uploadModel(modelFile.files);
+        return API('/api/admin/catalog-management/'+group+'/'+encodeURIComponent(current.id),data);
+      },'Alterações salvas.');
+      if(result)await refresh(current.id);
+    });
+    const archive=button('Remover (arquivar)',async()=>{
+      const current=rows.find(row=>String(row.id)===chooser.value);
+      if(!current||!window.confirm('Remover '+(current.name||current.title)+' do catálogo público? Itens já obtidos serão preservados.'))return;
+      const result=await safeRun(()=>API('/api/admin/catalog-management/'+group+'/'+encodeURIComponent(current.id),{action:'archive'}),'Registro arquivado.');
+      if(result)await refresh(current.id);
+    },'danger-action');
+    const restore=button('Restaurar',async()=>{
+      const current=rows.find(row=>String(row.id)===chooser.value);
+      if(!current)return;
+      const result=await safeRun(()=>API('/api/admin/catalog-management/'+group+'/'+encodeURIComponent(current.id),{action:'restore'}),'Registro restaurado.');
+      if(result)await refresh(current.id);
+    },'soft-action');
+    actions.append(save,archive,restore);form.append(actions);wrap.append(chooser,status,form);box.append(wrap);
+    let rows=[];
+    const updateForm=()=>{
+      const current=rows.find(row=>String(row.id)===chooser.value);
+      form.hidden=!current;
+      if(!current){status.textContent='Nenhum registro para editar.';return;}
+      for(const [key,,kind] of spec){
+        inputs[key].value=current[key]??(kind==='number'?0:'');
+      }
+      status.textContent=current.active?'● Ativo':'● Arquivado (não aparece em novos catálogos)';
+      status.classList.toggle('off',!current.active);
+      archive.hidden=!current.active;restore.hidden=!!current.active;
+      if(imageFile)imageFile.value='';if(modelFile)modelFile.value='';
+    };
+    chooser.addEventListener('change',updateForm);
+    const load=data=>{
+      rows=data[group]||[];let selected=chooser.value;
+      chooser.replaceChildren();
+      for(const item of rows){const option=h('option','',`${item.id} · ${item.name||item.title}${item.active?'':' (arquivado)'}`);option.value=String(item.id);chooser.append(option);}
+      if(rows.some(item=>String(item.id)===selected))chooser.value=selected;
+      updateForm();
+    };
+    const refresh=async(id)=>{
+      const data=await API('/api/admin/catalog-management');
+      if(id!=null)chooser.value=String(id);
+      load(data);
+      if(id!=null){chooser.value=String(id);updateForm();}
+    };
+    collectionPromise.then(load).catch(err=>{status.textContent='Não foi possível carregar registros: '+err.message;});
+    return box;
+  }
+
   async function openAdmin(force=false){
     const dialog=$('adminModal');
     dialog.hidden=false;document.body.classList.add('page-open');
@@ -644,6 +756,27 @@
     moveCard.append(h('label','','Selecione um card'),idSelect,newCollectionLabel,
       button('Atualizar coleção',()=>safeRun(()=>API('/api/admin/cards/collection',{card_id:Number(idSelect.value),collection:newCollectionInput.value}),'Coleção atualizada!')));
     pane.append(moveCard);
+    // Busca unica, em paralelo com o restante do painel, sem segurar sua abertura.
+    const existingCatalog=API('/api/admin/catalog-management');
+    pane.append(adminCatalogEditor('cards','Gerenciar cards cadastrados',[
+      ['name','Nome','text'],['rarity','Raridade','select',Object.entries(tierLabels)],
+      ['collection','Coleção','text'],['image_url','Imagem HTTPS ou /uploads/... (vazio remove)','text']
+    ],existingCatalog));
+    pane.append(adminCatalogEditor('items','Gerenciar itens da Loja',[
+      ['name','Nome do produto','text'],['price','Preço em moedas','number'],
+      ['image_url','Imagem HTTPS ou /uploads/... (vazio remove)','text']
+    ],existingCatalog));
+    pane.append(adminCatalogEditor('pets','Gerenciar Pequenas Lendas',[
+      ['name','Nome','text'],['emoji','Emoji','text'],['image_url','Capa HTTPS (vazio remove)','text'],
+      ['model_url','Modelo 3D .glb HTTPS (vazio remove)','text'],
+      ['idle_animation','Animação idle (opcional)','text'],['pet_animation','Animação de carinho (opcional)','text'],
+      ['feed_animation','Animação de alimentação (opcional)','text'],['vet_animation','Animação de veterinário (opcional)','text']
+    ],existingCatalog));
+    pane.append(adminCatalogEditor('achievements','Gerenciar selos cadastrados',[
+      ['title','Título','text'],['description','Descrição','text'],['icon','Emoji','text'],
+      ['event','Evento','select',[['trade','Trocas'],['card','Cards recebidos'],['adopt','Pets adotados'],['pet','Carinhos'],['feed','Alimentações'],['mission','Missões resgatadas'],['voice_minutes','Voz no Discord']]],
+      ['target','Meta','number'],['image_url','Imagem HTTPS (vazio remove)','text']
+    ],existingCatalog));
     const featured=block('Coleção em destaque','Banner que aparece no Catálogo. Existem três coleções padrão: Celebridades, Personagens e Memes.');
     const [featuredNameLabel,featuredName]=adminField('Nome da coleção','Celebridades');
     const [featuredUrlLabel,featuredUrl]=adminField('URL da capa (opcional)','');
@@ -751,6 +884,21 @@
       button('Salvar missão',async()=>{const payload=Object.fromEntries(Object.entries(mFields).map(([k,v])=>[k,v.value]));
         payload.goal=Number(payload.goal);payload.reward=Number(payload.reward);payload.kind=missionType.value;payload.event=missionEvent.value;payload.enabled=enabled.checked;
         const result=await safeRun(async()=>{if(imageUpload.files.length)payload.image_url=await uploadArtwork(imageUpload.files[0]);return API('/api/admin/missions',payload);},'Missão cadastrada/atualizada!');if(result){state.adminReady=false;await openAdmin(true);}}));
+    const missionVisibility=h('div','admin-action-row');
+    missionVisibility.append(
+      button('Remover missão (desativar)',async()=>{
+        if(!existing.value){toast('Selecione uma missão cadastrada.');return;}
+        if(!window.confirm('Desativar esta missão? O progresso histórico será preservado.'))return;
+        const result=await safeRun(()=>API('/api/admin/missions/'+encodeURIComponent(existing.value)+'/visibility',{enabled:false}),'Missão removida da lista ativa.');
+        if(result){state.adminReady=false;await openAdmin(true);}
+      },'danger-action'),
+      button('Restaurar missão',async()=>{
+        if(!existing.value){toast('Selecione uma missão cadastrada.');return;}
+        const result=await safeRun(()=>API('/api/admin/missions/'+encodeURIComponent(existing.value)+'/visibility',{enabled:true}),'Missão reativada.');
+        if(result){state.adminReady=false;await openAdmin(true);}
+      },'soft-action')
+    );
+    missionBlock.append(missionVisibility);
     pane.append(missionBlock);
     const integrations=block('Integrações','Missões de voz e mensagens requerem RECANTO_BOT_SECRET no Render e um pequeno envio de eventos pelo seu bot existente. Notificações exigem chaves VAPID e o job agendado; consulte o guia no ZIP.');
     pane.append(integrations);
@@ -783,9 +931,9 @@
     const classify=(name)=>{
       const x=name.toLowerCase();
       if(x.includes('valores configuráveis'))return 'Economia';
-      if(x.includes('cadastrar card')||x.includes('coleção'))return 'Cards';
-      if(x.includes('capa'))return 'Loja';
-      if(x.includes('pequena lenda'))return 'Pets';
+      if(x.includes('cadastrar card')||x.includes('gerenciar cards')||x.includes('coleção'))return 'Cards';
+      if(x.includes('gerenciar itens')||x.includes('capa'))return 'Loja';
+      if(x.includes('pequena lenda')||x.includes('pequenas lendas'))return 'Pets';
       if(x.includes('missões do recanto'))return 'Missões';
       if(x.includes('selo'))return 'Selos';
       if(x.includes('assets'))return 'Assets';
