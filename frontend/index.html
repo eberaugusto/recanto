@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#5865f2">
+  <title>Recanto</title>
+  <meta name="description" content="Recanto — coleção de cards, pets e comunidade">
+  <link rel="icon" type="image/png" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/styles.css?v=1.0.0">
+</head>
+<body>
+<!-- Recanto v1.0.0. A tela de login já aparece mesmo se JavaScript falhar. -->
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="discord" viewBox="0 0 127.14 96.36"><path fill="currentColor" d="M104.4 8.18A102.42 102.42 0 0 0 79.4 0a72.06 72.06 0 0 0-3.2 6.62 95.88 95.88 0 0 0-28.9 0A72.06 72.06 0 0 0 44.1 0 102.32 102.32 0 0 0 19 8.2C4.1 30.26.07 51.77 2.09 73.01A103.74 103.74 0 0 0 33.6 96.36a78.46 78.46 0 0 0 6.76-11.01 66.03 66.03 0 0 1-10.64-5.17c.89-.66 1.77-1.35 2.62-2.06a73.14 73.14 0 0 0 62.45 0c.86.71 1.73 1.4 2.62 2.06a65.88 65.88 0 0 1-10.65 5.17 78.64 78.64 0 0 0 6.77 11.01 103.57 103.57 0 0 0 31.52-23.35c2.37-24.61-4.05-45.92-20.65-64.83ZM42.45 60.32c-6.15 0-11.21-5.64-11.21-12.53s4.96-12.53 11.21-12.53c6.3 0 11.34 5.69 11.21 12.53 0 6.89-4.96 12.53-11.21 12.53Zm42.24 0c-6.15 0-11.21-5.64-11.21-12.53s4.96-12.53 11.21-12.53c6.3 0 11.34 5.69 11.21 12.53 0 6.89-4.96 12.53-11.21 12.53Z"/></symbol>
+  <symbol id="person" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c0-7 16-7 16 0" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="gear" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M10 2h4l1 3 2 1 3-1 2 4-2 2v2l2 2-2 4-3-1-2 1-1 3h-4l-1-3-2-1-3 1-2-4 2-2v-2L2 9l2-4 3 1 2-1z"/><circle fill="none" stroke="currentColor" stroke-width="2" cx="12" cy="12" r="3"/></symbol>
+  <symbol id="cards" viewBox="0 0 24 24"><rect x="6" y="4" width="14" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 17V5a2 2 0 0 1 2-2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="pet" viewBox="0 0 24 24"><path d="M4 13c-3-2-2-5 0-5 2 0 3 2 3 4m10 0c0-2 1-4 3-4 2 0 3 3 0 5M8 16c3-5 5-5 8 0 3 5-2 7-4 5-2 2-7 0-4-5Z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/></symbol>
+  <symbol id="shop" viewBox="0 0 24 24"><path d="M4 9h16l-1 12H5L4 9ZM8 9V6a4 4 0 0 1 8 0v3" stroke="currentColor" fill="none" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/><path d="M15 8c-1-2-6-2-6 1 0 3 6 1 6 5 0 3-5 4-7 1M12 5v14" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+  <symbol id="missions" viewBox="0 0 24 24"><path d="M5 5h15M5 11h15M5 17h15M2 5l1 1 2-3M2 11l1 1 2-3M2 17l1 1 2-3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></symbol>
+  <symbol id="inventory" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><path d="M3 11h18M9 15h6" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="person-search" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M2.5 19c0-5.5 13-5.5 13 0M17 15l4.5 4.5M19.2 16.8a3.3 3.3 0 1 0-4.7-4.7 3.3 3.3 0 0 0 4.7 4.7Z" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/></symbol>
+  <symbol id="heart" viewBox="0 0 24 24"><path d="M12 21S2 15 2 8c0-6 8-7 10-2 2-5 10-4 10 2 0 7-10 13-10 13Z" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+</svg>
+<div class="app-frame" id="frame">
+  <div class="update-banner" id="updateBanner" hidden role="status" aria-live="polite">
+    <span>✨ Nova versão do Recanto disponível</span>
+    <button type="button" id="updateNow">Atualizar</button>
+    <button type="button" id="updateLater" aria-label="Lembrar depois">✕</button>
+  </div>
+  <main class="screen login-screen" id="loginScreen">
+    <img class="brand-logo" src="/recanto-logo.png" alt="Recanto">
+    <div class="login-actions"><button type="button" class="discord-login" id="login"><svg class="discord-mark"><use href="#discord"/></svg><span>Login</span></button><button type="button" class="install-app" id="installApp" hidden>Instalar app</button><p class="system-message" id="message" role="status" aria-live="polite"></p></div>
+  </main>
+  <main class="screen splash-screen" id="splashScreen" hidden><img src="/recanto-logo.png" alt="Recanto" class="splash-logo"></main>
+  <main class="screen home-screen" id="homeScreen" hidden>
+    <div id="profileContent">
+      <header class="profile-header"><div class="greeting"><svg class="discord-mark"><use href="#discord"/></svg><span id="userName">Olá, Fulano</span></div><div class="header-actions"><button type="button" class="settings-button search-icon-button" id="searchUsers" aria-label="Buscar perfis" title="Buscar perfis"><svg><use href="#person"/></svg></button><button type="button" class="settings-button" id="settings" aria-label="Configurações"><svg><use href="#gear"/></svg></button></div></header>
+      <section class="profile-panel"><div class="profile-panel-inner"><div class="stats-list">
+        <div class="stat"><span class="stat-icon"><svg><use href="#coin"/></svg></span><strong class="stat-value" id="valMoedas">50</strong><span class="stat-name">Moedas</span></div>
+        <div class="stat"><span class="stat-icon"><svg><use href="#cards"/></svg></span><strong class="stat-value" id="valCards">50</strong><span class="stat-name">Cards</span></div>
+        <div class="stat"><span class="stat-icon"><svg><use href="#heart"/></svg></span><strong class="stat-value" id="valPetiscos">50</strong><span class="stat-name">Petiscos</span></div>
+      </div><span class="profile-divider"></span><div class="last-card"><div class="last-card-art" id="latestCard" role="button" tabindex="0" aria-label="Ver último card ampliado"></div><span>Último Card</span></div></div></section>
+      <div class="profile-avatar"><div class="avatar" id="userAvatar"><svg class="avatar-placeholder"><use href="#person"/></svg></div></div>
+    </div>
+    <section class="content-page" id="cardsScreen" hidden>
+      <header class="content-head"><h1>✦ Cards</h1><span id="cardsCount">Coleção</span></header>
+      <div class="scroll-content">
+        <div class="daily-card-box"><div class="daily-card-info"><div class="daily-icon" id="dailyCardIcon" aria-hidden="true">🃏</div><div><strong>Resgate de cards · 5h</strong><p id="cardCountdown">Carregando...</p></div></div><button class="main-action" id="dailyCard">Resgatar card</button></div>
+        <div class="mini-tabs"><button class="mini-active" data-card-tab="colecao">Minha coleção</button><button data-card-tab="catalogo">Catálogo</button><button data-card-tab="trocas">Trocas</button></div>
+        <div id="cardFilters" class="card-filters" hidden></div>
+        <div id="cardsPane"></div>
+      </div>
+    </section>
+    <section class="content-page" id="inventoryScreen" hidden>
+      <header class="content-head"><h1>✦ Inventário</h1><span id="inventorySummary">Meus itens</span></header>
+      <div class="scroll-content"><div class="mini-tabs"><button class="mini-active" data-inventory-tab="packs">🎴 Pacotes</button><button data-inventory-tab="petiscos">🍪 Itens de Pet</button></div><div id="inventoryPane"></div></div>
+    </section>
+    <section class="content-page" id="petScreen" hidden>
+      <header class="content-head"><h1>✦ Meu Pet</h1><span id="petStatus">Companheiro</span></header>
+      <div class="scroll-content" id="petPane"></div>
+    </section>
+    <section class="content-page" id="shopScreen" hidden>
+      <header class="content-head"><h1>✦ Loja</h1><span id="shopWallet">🪙 —</span></header>
+      <div class="scroll-content" id="shopContent"><div class="shop-daily-coins"><div class="shop-daily-text"><strong>🪙 Recompensa diária</strong><p id="coinCountdown">Disponível hoje!</p></div><button type="button" class="white-action" id="dailyCoins">Resgatar moedas</button></div><div id="shopPane"></div></div>
+    </section>
+    <section class="content-page" id="missionsScreen" hidden>
+      <header class="content-head"><h1>✦ Missões</h1><span id="missionCount">Diárias</span></header>
+      <div class="scroll-content"><p class="reset-note" id="missionTimer"></p><div id="missionPane"></div></div>
+    </section>
+    <nav class="bottom-nav" aria-label="Menu principal">
+      <button type="button" class="nav-item nav-active" data-tab="perfil" aria-label="Perfil"><span class="nav-circle"><svg><use href="#person"/></svg></span></button>
+      <button type="button" class="nav-item" data-tab="cards" aria-label="Cards"><span class="nav-circle"><svg><use href="#cards"/></svg></span></button>
+      <button type="button" class="nav-item" data-tab="inventario" aria-label="Inventário"><span class="nav-circle"><svg><use href="#inventory"/></svg></span></button>
+      <button type="button" class="nav-item" data-tab="pet" aria-label="Pet"><span class="nav-circle"><svg><use href="#pet"/></svg></span></button>
+      <button type="button" class="nav-item" data-tab="loja" aria-label="Loja"><span class="nav-circle"><svg><use href="#shop"/></svg></span></button>
+      <button type="button" class="nav-item" data-tab="missoes" aria-label="Missões"><span class="nav-circle"><svg><use href="#missions"/></svg></span></button>
+    </nav>
+    <div class="modal-backdrop" id="profilesModal" hidden><section class="modal-panel profiles-dialog" role="dialog" aria-modal="true" aria-label="Perfis da comunidade"><header class="modal-header"><h2>Comunidade</h2><button class="modal-close" id="closeProfiles" aria-label="Fechar">✕</button></header><div id="profilesPane"></div></section></div>
+    <div class="pack-reveal" id="packReveal" hidden role="dialog" aria-modal="true" aria-label="Abrir pacote"><div class="reveal-hint" id="revealHint">Toque para revelar</div><div class="flip-stage" id="flipStage"><div class="flip-card" id="flipCard"><div class="flip-face flip-back">✦<small>RECANTO</small></div><div class="flip-face flip-front" id="flipFront"></div></div></div><div class="reveal-counter" id="revealCounter"></div><button class="reveal-next" id="revealNext">Revelar card</button><button class="reveal-exit" id="revealExit" aria-label="Encerrar abertura" hidden>Concluir</button></div>
+    <div class="modal-backdrop" id="cardModal" hidden><section class="modal-panel card-detail-dialog" role="dialog" aria-modal="true" aria-label="Detalhes do card"><button class="detail-x" id="closeCardDetail" aria-label="Fechar card">✕</button><div id="cardDetail"></div></section></div>
+    <div class="modal-backdrop" id="adminModal" hidden><section class="modal-panel admin-dialog" role="dialog" aria-modal="true" aria-label="Gestão do Recanto"><header class="modal-header"><h2>Gestão do Recanto</h2><button class="modal-close" id="closeAdmin">✕</button></header><div class="admin-scroll" id="adminContent"></div></section></div>
+    <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
+    <div class="modal-backdrop" id="modal" hidden><section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title"><header class="modal-header"><h2 id="settings-title">Configurações</h2><button class="modal-close" type="button" id="closeSettings" aria-label="Fechar">✕</button></header>
+      <div class="setting-row"><div class="setting-label"><svg><use href="#bell"/></svg><div><strong>Habilitar notificações</strong><span>Avisos e recompensas no futuro</span></div></div><button class="switch" type="button" role="switch" aria-label="Habilitar notificações" aria-checked="false" id="notificationsToggle"><span></span></button></div>
+      <div class="setting-row"><div class="setting-label"><svg><use href="#inventory"/></svg><div><strong>Modo escuro</strong><span>Deixa o aplicativo com visual mais escuro</span></div></div><button class="switch" type="button" role="switch" aria-label="Ativar modo escuro" aria-checked="false" id="darkModeToggle"><span></span></button></div>
+      <p class="notifications-status" id="notificationsStatus" role="status" aria-live="polite">Avisos automáticos ainda não estão disponíveis.</p>
+      <button type="button" class="soft-action settings-update-check" id="checkUpdates">↻ Verificar atualizações</button>
+      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 1.0.0</p></section></div>
+  </main>
+</div>
+<script src="/app.js?v=1.0.0" defer></script>
+</body>
+</html>

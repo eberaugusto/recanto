@@ -1,0 +1,12 @@
+backend/.env
+backend/.venv/
+backend/recanto.db
+backend/*.db
+backend/__pycache__/
+.pytest_cache/
+__pycache__/
+
+# Imagens enviadas em teste: nao enviar conteudo pessoal/local ao GitHub.
+frontend/uploads/*
+!frontend/uploads/.gitkeep
+*.log
