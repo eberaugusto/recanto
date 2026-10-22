@@ -1064,3 +1064,196 @@ body.dark-mode .discord-widget-help{color:#bac6f2;}
  .public-profile-hero .profile-thumb{display:grid;place-items:center;
    background:linear-gradient(145deg,#b9c6fb,#e6eaff);color:#6679cd;font-size:56px;line-height:1;}
 }
+
+/* ================================================================
+   RECANTO 0.1.6 — layout desktop e ajuste específico do painel mobile.
+   Todas as alterações amplas abaixo ficam restritas a telas >= 768px.
+   ================================================================ */
+@media(max-width:767px){
+  /* A caixa branca do resumo nao deve crescer com a altura do aparelho. */
+  #profileContent .desktop-left-column>.desktop-profile-hero{
+    height:clamp(256px,29dvh,332px)!important;
+    margin-top:clamp(103px,12dvh,145px)!important;
+  }
+  #profileContent .profile-panel-inner{top:29%;bottom:7%;}
+  #profileContent .last-card-art{max-height:calc(100% - 25px);}
+  #profileContent .profile-badges{margin-top:0!important;}
+  #profileContent .desktop-left-column>.profile-header{margin-top:calc(24px + env(safe-area-inset-top,0px));}
+}
+
+@media(min-width:768px){
+  :root{--recanto-card-gap:16px;}
+  /* Navegacao principal sem link duplicado para a comunidade. */
+  .desktop-side-links{gap:8px;}
+  .desktop-topbar{gap:16px;}
+  .desktop-wallet-summary{display:flex;align-items:center;gap:9px;flex:none;}
+  .desktop-coins,.desktop-resource{display:flex;align-items:center;gap:8px;min-width:92px;padding:9px 11px;border-radius:14px;background:#ffffff24;color:#fff;}
+  .desktop-coins svg,.desktop-resource svg{width:25px;height:25px;flex:none;color:#ffd15c;}
+  .desktop-resource svg{color:#fff;}
+  .desktop-coins span,.desktop-resource span{display:flex;flex-direction:column;gap:2px;line-height:1.05;}
+  .desktop-coins b,.desktop-resource b{font-size:18px;font-weight:800;}
+  .desktop-coins small,.desktop-resource small{font-size:12px;font-weight:700;color:#fff;}
+  .desktop-topbar-actions{gap:12px;}
+  .desktop-user{max-width:240px;font-size:16px;}
+  .desktop-user-avatar{width:49px;height:49px;}
+
+  /* Perfil: a foto e o nome sao o centro do cartao; saldos apenas no cabecalho. */
+  #profileContent .desktop-left-column>.profile-header{display:none!important;}
+  #profileContent .desktop-left-column>.desktop-profile-hero{
+    height:342px!important;flex:0 0 342px!important;
+  }
+  #profileContent .profile-panel{border-radius:22px;}
+  #profileContent .profile-panel-inner{display:contents;}
+  #profileContent .stats-list,#profileContent .profile-divider{display:none!important;}
+  #profileContent .profile-avatar{top:52px!important;left:clamp(24px,3vw,42px);width:clamp(142px,13vw,188px);z-index:2;}
+  #profileContent .desktop-identity{top:90px;left:clamp(200px,17.5vw,256px);right:245px;min-width:0;}
+  #profileContent .desktop-identity h2{font-size:clamp(27px,2.4vw,36px);line-height:1.15;font-weight:800!important;margin-bottom:16px;overflow-wrap:anywhere;}
+  #profileContent .desktop-identity p{display:none!important;}
+  #profileContent .desktop-online{font-size:14px;padding:7px 14px;}
+  #profileContent .last-card{right:clamp(24px,2.6vw,42px);top:20px;bottom:auto;width:clamp(166px,15vw,214px);height:304px;gap:8px;font-size:16px;}
+  #profileContent .last-card-art{height:264px;max-height:264px;width:100%;border-radius:12px;}
+  #profileContent .desktop-left-column{gap:var(--recanto-card-gap);}
+  #profileContent .profile-badges,#profileContent .profile-games{padding:21px 24px;border-radius:22px;}
+  #profileContent .badge-title strong,#profileContent .profile-games .badge-title strong{font-size:20px;}
+  #profileContent .badge-title small{font-size:14px;}
+  #profileContent .badge-strip{gap:14px;margin-top:16px;}
+  #profileContent .profile-badges .badge-chip{width:clamp(50px,5.2vw,78px);height:clamp(50px,5.2vw,78px);font-size:30px;}
+
+  /* O widget oficial do Discord permite iframe; compactamos a janela visivel. */
+  #profileContent .discord-widget-frame{height:216px;}
+  #profileContent .discord-widget-help{font-size:13px;color:#495987;}
+  #profileContent .desktop-pet-widget h2,#profileContent .profile-discord-widget h2{font-size:20px;}
+
+  /* Cabecalhos e formularios: maior contraste para leitura em PC. */
+  .content-page .content-head>span{font-size:17px!important;font-weight:800!important;opacity:1!important;color:#293c88!important;}
+  .content-page .content-head h1{font-size:30px;}
+  .content-page .game-box{color:#253976;}
+  .content-page .game-box h3{color:#253976;font-size:19px;}
+  .content-page .game-box p{font-size:15px;line-height:1.5;color:#475987;opacity:1;}
+  .content-page .soft-action{color:#3148ab;font-size:15px;font-weight:700;}
+  .content-page .mini-tabs button{font-weight:750;}
+  .content-page .select-input,.content-page .text-input{font-size:15px;color:#273d80;}
+  .content-page .mission-placeholder{color:#4b6090!important;opacity:1;font-size:16px;}
+  .content-page .section-heading{color:#273b87!important;}
+
+  /* Missoes: tres colunas independentes, cartões proporcionais, sem mosaico automatico. */
+  #missionPane{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;align-items:start;gap:16px;width:100%;}
+  #missionPane .mission-category{display:flex;flex-direction:column;gap:14px;min-width:0;padding:0;}
+  #missionPane .mission-category-title{font-size:21px;font-weight:800!important;color:#263c88!important;text-align:center;margin:2px 0 4px;min-height:30px;}
+  #missionPane .mission-card{width:100%;min-height:328px;max-width:none;display:flex;flex-direction:column;padding:17px;gap:10px;border-radius:22px;}
+  #missionPane .mission-card .mission-cover{height:128px;flex:none;font-size:51px;}
+  #missionPane .mission-card h3{font-size:18px;line-height:1.3;}
+  #missionPane .mission-card p{font-size:15px;line-height:1.35;}
+  #missionPane .mission-card .mission-meter{margin-top:auto;}
+  #missionPane .mission-card .main-action{font-size:15px;min-height:44px;}
+  #missionsScreen .reset-note{font-size:17px;font-weight:800;color:#293d89;margin:4px 0 5px;}
+
+  /* Catalogo: destaque menor que o bloco informativo; grade paginada. */
+  #cardsPane .catalog-highlights{grid-template-columns:minmax(0,1.6fr) minmax(265px,.84fr)!important;gap:16px;}
+  #cardsPane .catalog-summary{grid-column:1;grid-row:1;min-height:166px;}
+  #cardsPane .catalog-highlights .featured-collection-banner{grid-column:2!important;grid-row:1;min-height:166px;max-height:166px;height:166px;}
+  #cardsPane .card-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;}
+  .card-pagination{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:14px;padding:14px 4px 22px;}
+  .card-pagination .soft-action{min-width:122px;min-height:43px;padding:10px 15px;background:#e4e9ff;border-radius:12px;}
+  .card-pagination .soft-action:disabled{opacity:.5;cursor:default;}
+  .card-pagination-label{font-size:16px;font-weight:750;color:#2a3c83;text-align:center;}
+
+  /* Inventario: estado vazio e atalho lado a lado, com dimensoes uteis. */
+  #inventoryScreen .mini-tabs button{font-size:16px;min-height:50px;}
+  #inventoryPane{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:16px;}
+  #inventoryPane .game-box{width:100%;min-height:134px;margin:0;}
+  #inventoryPane>.soft-action{display:flex;align-items:center;justify-content:center;min-height:134px;border-radius:18px;background:#e3e8ff;color:#2e48ad;font-size:16px;}
+  #inventoryPane .inventory-row{min-width:0;}
+
+  /* Lista para adocao: quadrados em tres colunas. */
+  #petPane .pet-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start;}
+  #petPane .pet-grid .game-box{margin:0;min-width:0;padding:16px;}
+  #petPane .pet-grid .pet-visual{aspect-ratio:1;height:auto;min-height:0;max-height:none;}
+  #petPane .pet-grid .pet-visual .pet-fallback img{object-fit:contain;}
+  #petPane .pet-grid .main-action{font-size:15px;min-height:44px;}
+
+  /* Loja: resgate alinhado a esquerda, sem repetir moedas no titulo. */
+  #shopWallet{display:none!important;}
+  #shopScreen .shop-daily-coins{width:min(100%,680px);max-width:680px;min-height:116px;justify-content:flex-start;gap:22px;padding:20px 24px;}
+  #shopScreen .shop-daily-text{flex:0 1 330px;}
+  #shopScreen .shop-daily-text strong{font-size:19px;color:#273c8a;}
+  #shopScreen .shop-daily-text p{font-size:15px;color:#536490;}
+  #shopScreen .shop-daily-coins .white-action{max-width:none;flex:0 0 auto;min-height:47px;font-size:15px;}
+
+  /* Perfil de outro membro: retorno lado a lado. */
+  .public-profile-page .full-page-header{justify-content:flex-start;flex-wrap:nowrap;max-width:none;margin:0 0 12px;}
+  .public-profile-page .full-page-header h2{display:none;}
+  .public-back-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+  .public-back-actions .soft-action{min-height:44px;}
+  .public-profile-scroll>.public-back-search{display:none;}
+  .public-profile-layout .public-profile-hero{min-height:342px;}
+  .public-profile-hero .public-identity{gap:24px;}
+  .public-profile-hero .public-identity>img,.public-profile-hero .profile-thumb{height:clamp(145px,12vw,188px);width:clamp(145px,12vw,188px);}
+  .public-profile-hero .public-identity-info h3{font-size:clamp(25px,2.3vw,35px);}
+  .public-card-count{margin-top:16px;font-size:16px;font-weight:750;color:#384ca3;}
+  .public-profile-hero .public-identity-info p{font-size:15px;}
+  .public-hero-favorite{width:150px;flex:none;text-align:center;margin-left:auto;}
+  .public-hero-favorite .item-cover{width:100%;height:198px;object-fit:cover;border-radius:12px;margin-bottom:8px;}
+  .public-hero-favorite strong{display:block;font-size:15px;line-height:1.3;color:#31458c;}
+  .public-profile-main .public-section h3{font-size:20px;}
+  .public-profile-layout .public-badges-row{gap:14px;}
+  .public-profile-layout .badge-chip{width:65px;height:65px;font-size:30px;}
+}
+@media(min-width:768px) and (max-width:1220px){
+  .desktop-wallet-summary{gap:5px;}
+  .desktop-coins,.desktop-resource{min-width:0;padding:8px;gap:6px;}
+  .desktop-coins b,.desktop-resource b{font-size:15px;}
+  .desktop-coins small,.desktop-resource small{font-size:10px;}
+  .desktop-coins svg,.desktop-resource svg{width:21px;height:21px;}
+  .desktop-topbar{padding-inline:14px;gap:10px;}
+  .desktop-search{max-width:none;}
+  #profileContent .profile-avatar{width:138px;top:65px!important;}
+  #profileContent .desktop-identity{left:180px;right:195px;top:92px;}
+  #profileContent .last-card{width:145px;right:22px;height:270px;top:28px;}
+  #profileContent .last-card-art{height:230px;max-height:230px;}
+  #missionPane .mission-card{min-height:310px;}
+  #missionPane .mission-card .mission-cover{height:110px;}
+  .public-hero-favorite{width:110px;}
+  .public-hero-favorite .item-cover{height:155px;}
+}
+@media(min-width:768px) and (max-width:1024px){
+  .desktop-user{display:none;}
+  #missionPane{gap:10px;}
+  #missionPane .mission-card{padding:12px;min-height:298px;}
+  #missionPane .mission-card h3{font-size:16px;}
+  #missionPane .mission-card p{font-size:14px;}
+  #cardsPane .catalog-highlights{grid-template-columns:minmax(0,1.25fr) minmax(190px,.75fr)!important;}
+  #petPane .pet-grid{gap:10px;}
+}
+@media(min-width:768px) and (max-width:900px){
+  #profileContent .desktop-identity{left:178px;right:120px;}
+  #profileContent .last-card{width:100px;top:62px;}
+  #profileContent .last-card-art{height:170px;max-height:170px;}
+  .public-profile-hero .public-identity{flex-wrap:wrap;}
+  .public-hero-favorite{margin-left:0;}
+}
+
+/* 0.1.6: layout compacto para notebooks e tablets em modo PC. */
+.public-back-search-top{display:none!important;}
+@media(min-width:768px){.public-back-search-top{display:inline-flex!important;}}
+@media(min-width:768px) and (max-width:1320px){
+  #profileContent{grid-template-columns:minmax(0,1fr)!important;}
+  #profileContent .desktop-left-column{grid-column:1!important;grid-row:1!important;}
+  #profileContent>.desktop-right-column{grid-column:1!important;grid-row:2!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;}
+  #profileContent .desktop-left-column>.desktop-profile-hero{height:316px!important;flex-basis:316px!important;}
+  #profileContent .profile-avatar{left:clamp(20px,3vw,38px)!important;width:clamp(120px,15vw,170px)!important;top:54px!important;}
+  #profileContent .desktop-identity{left:clamp(164px,19vw,226px)!important;right:clamp(135px,18vw,210px)!important;top:88px!important;}
+  #profileContent .desktop-identity h2{font-size:clamp(23px,2.4vw,32px)!important;overflow-wrap:normal;word-break:normal;hyphens:auto;}
+  #profileContent .last-card{width:clamp(120px,15vw,182px)!important;right:22px!important;top:20px!important;height:275px!important;}
+  #profileContent .last-card-art{height:230px!important;max-height:230px!important;}
+}
+@media(min-width:768px) and (max-width:880px){
+  #profileContent .desktop-identity{left:150px!important;right:150px!important;top:85px!important;}
+  #profileContent .last-card{width:120px!important;}
+  #profileContent .last-card-art{height:198px!important;max-height:198px!important;}
+  #profileContent .desktop-identity h2{font-size:23px!important;}
+}
+@media(min-width:768px) and (max-width:1320px){
+  /* Linhas max-content evitam que a coluna do pet passe por baixo dos selos. */
+  #profileContent{grid-template-rows:max-content max-content!important;grid-auto-rows:max-content!important;}
+}

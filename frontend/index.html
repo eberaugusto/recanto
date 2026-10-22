@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=0.1.5">
+  <link rel="stylesheet" href="/styles.css?v=0.1.6">
 </head>
 <body>
 <!-- Recanto 0.1.2 — layout responsivo e gestão com carregamento progressivo. -->
@@ -47,14 +47,13 @@
         <button type="button" class="desktop-side-link" data-tab="cards"><svg><use href="#cards"/></svg><span>Cards</span></button>
         <button type="button" class="desktop-side-link" data-tab="pet"><svg><use href="#pet"/></svg><span>Pet</span></button>
         <button type="button" class="desktop-side-link" data-tab="loja"><svg><use href="#shop"/></svg><span>Loja</span></button>
-        <button type="button" class="desktop-side-link" id="desktopCommunity"><svg><use href="#person-search"/></svg><span>Comunidade</span></button>
         <button type="button" class="desktop-side-link" id="desktopSettings"><svg><use href="#gear"/></svg><span>Configurações</span></button>
       </div>
     </aside>
     <header class="desktop-topbar" aria-label="Barra superior">
       <button type="button" class="desktop-search" id="desktopSearch"><svg><use href="#person-search"/></svg><span>Buscar membros da comunidade...</span></button>
       <div class="desktop-topbar-actions">
-        <div class="desktop-coins"><svg><use href="#coin"/></svg><span><b id="desktopWallet">—</b><small>Moedas</small></span></div>
+        <div class="desktop-wallet-summary" aria-label="Saldos do perfil"><div class="desktop-coins"><svg><use href="#coin"/></svg><span><b id="desktopWallet">—</b><small>Moedas</small></span></div><div class="desktop-resource"><svg><use href="#cards"/></svg><span><b id="desktopCards">—</b><small>Cards</small></span></div><div class="desktop-resource"><svg><use href="#heart"/></svg><span><b id="desktopTreats">—</b><small>Petiscos</small></span></div></div>
         <button type="button" class="desktop-settings" id="desktopSettingsTop" aria-label="Configurações"><svg><use href="#gear"/></svg></button>
         <div class="desktop-user"><span class="desktop-user-avatar" id="desktopAvatar"></span><span id="desktopUserName">Meu Recanto</span></div>
       </div>
@@ -69,7 +68,7 @@
         <div class="stat"><span class="stat-icon"><svg><use href="#heart"/></svg></span><strong class="stat-value" id="valPetiscos">50</strong><span class="stat-name">Petiscos</span></div>
       </div><span class="profile-divider"></span><div class="last-card"><div class="last-card-art" id="latestCard" role="button" tabindex="0" aria-label="Ver último card ampliado"></div><span>Último Card</span></div></div></section>
       <div class="profile-avatar"><div class="avatar" id="userAvatar"><svg class="avatar-placeholder"><use href="#person"/></svg></div></div>
-      <div class="desktop-identity"><h2 id="desktopProfileName">Meu Recanto</h2><span class="desktop-online">● Online</span><p>Explorando, colecionando e construindo um lugar incrível com vocês! ✨</p></div>
+      <div class="desktop-identity"><h2 id="desktopProfileName">Meu Recanto</h2><span class="desktop-online">● Online</span></div>
       </div>
       </div>
       <aside class="desktop-right-column">
@@ -111,7 +110,7 @@
       <button type="button" class="nav-item" data-tab="loja" aria-label="Loja"><span class="nav-circle"><svg><use href="#shop"/></svg></span></button>
     </nav>
     <div class="modal-backdrop" id="profilesModal" hidden><section class="modal-panel profiles-dialog" role="dialog" aria-modal="true" aria-label="Perfis da comunidade"><header class="modal-header"><h2>Comunidade</h2><button class="modal-close" id="closeProfiles" aria-label="Fechar">✕</button></header><div id="profilesPane"></div></section></div>
-    <section class="full-page public-profile-page" id="publicProfilePage" hidden aria-label="Perfil da comunidade"><header class="full-page-header"><button type="button" class="soft-action" id="backToMyProfile">← Voltar ao meu perfil</button><h2>Comunidade</h2></header><div class="public-profile-scroll" id="publicProfileContent"></div></section>
+    <section class="full-page public-profile-page" id="publicProfilePage" hidden aria-label="Perfil da comunidade"><header class="full-page-header"><div class="public-back-actions"><button type="button" class="soft-action" id="backToMyProfile">← Voltar ao meu perfil</button><button type="button" class="soft-action public-back-search-top" id="backToSearchTop">← Voltar à busca</button></div><h2>Comunidade</h2></header><div class="public-profile-scroll" id="publicProfileContent"></div></section>
     <div class="pack-reveal" id="packReveal" hidden role="dialog" aria-modal="true" aria-label="Abrir pacote"><div class="reveal-hint" id="revealHint">Toque para revelar</div><div class="flip-stage" id="flipStage"><div class="flip-card" id="flipCard"><div class="flip-face flip-back">✦<small>RECANTO</small></div><div class="flip-face flip-front" id="flipFront"></div></div></div><div class="reveal-counter" id="revealCounter"></div><button class="reveal-next" id="revealNext">Revelar card</button><button class="reveal-exit" id="revealExit" aria-label="Encerrar abertura" hidden>Concluir</button></div>
     <div class="modal-backdrop" id="cardModal" hidden><section class="modal-panel card-detail-dialog" role="dialog" aria-modal="true" aria-label="Detalhes do card"><button class="detail-x" id="closeCardDetail" aria-label="Fechar card">✕</button><div id="cardDetail"></div></section></div>
     <section class="full-page admin-page" id="adminModal" hidden aria-label="Gestão do Recanto"><div class="admin-dialog"><header class="modal-header"><h2>Gestão do Recanto</h2><div class="admin-header-actions"><button class="admin-refresh" type="button" id="refreshAdmin" title="Atualizar dados da gestão">↻ Atualizar</button><button class="modal-close" id="closeAdmin" aria-label="Fechar gestão">✕</button></div></header><div class="admin-scroll" id="adminContent"></div></div></section>
@@ -122,9 +121,9 @@
       <p class="notifications-status" id="notificationsStatus" role="status" aria-live="polite">Avisos automáticos ainda não estão disponíveis.</p>
       <button type="button" class="soft-action settings-admin" id="settingsAdmin" hidden aria-label="Abrir Gestão do Recanto"><svg aria-hidden="true"><use href="#gear"/></svg><span>Gestão do Recanto</span></button>
       <button type="button" class="soft-action settings-update-check" id="checkUpdates">↻ Verificar atualizações</button>
-      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.1.5</p></section></div>
+      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.1.6</p></section></div>
   </main>
 </div>
-<script src="/app.js?v=0.1.5" defer></script>
+<script src="/app.js?v=0.1.6" defer></script>
 </body>
 </html>

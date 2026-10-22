@@ -50,7 +50,7 @@
   const money = n=>Number(n||0).toLocaleString('pt-BR');
   const labels={perfil:'Perfil',cards:'Cards',inventario:'Inventário',pet:'Pet',loja:'Loja',missoes:'Missões'};
   const tierLabels={comum:'Comum',raro:'Raro',lendário:'Lendário',prismático:'Prismático'};
-  const state={assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:8,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:'padrao',missing:false,newOnly:false},detailClosing:false};
+  const state={assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:8,cardPage:1,cardPageSize:12,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:matchMedia('(min-width:768px)').matches?'raridade':'padrao',missing:false,newOnly:false},detailClosing:false};
   const toast=(message)=>{const el=$('toast');el.textContent=message;el.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>{el.hidden=true;},4800);};
   const report=msg=>{$('message').textContent=msg||'';};
   const button=(text,handler,style='main-action')=>{const b=h('button',style,text);b.type='button';b.addEventListener('click',handler);return b;};
@@ -84,7 +84,7 @@
     btn.disabled=installed;
     btn.querySelector('span').textContent='Instalar';
   }
-  function renderProfile(me){state.account=me;$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);$('desktopWallet').textContent=money(me.coins);$('desktopUserName').textContent=me.name;$('desktopProfileName').textContent=me.name;avatar($('userAvatar'),me.name,me.avatar_url);avatar($('desktopAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.toggle('has-card',!!me.last_card);recent.setAttribute('aria-label',me.last_card?'Ampliar último card: '+me.last_card.name:'Nenhum card obtido ainda');recent.onclick=me.last_card?()=>showCard(me.last_card,'Último card recebido'):null;if(me.last_card&&me.last_card.image_url){const img=h('img');img.src=me.last_card.image_url;img.alt=me.last_card.name;recent.append(img);}else recent.textContent=me.last_card?me.last_card.name:'?';}
+  function renderProfile(me){state.account=me;$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);$('desktopWallet').textContent=money(me.coins);$('desktopCards').textContent=money(me.cards);$('desktopTreats').textContent=money(me.treats);$('desktopUserName').textContent=me.name;$('desktopProfileName').textContent=me.name;avatar($('userAvatar'),me.name,me.avatar_url);avatar($('desktopAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.toggle('has-card',!!me.last_card);recent.setAttribute('aria-label',me.last_card?'Ampliar último card: '+me.last_card.name:'Nenhum card obtido ainda');recent.onclick=me.last_card?()=>showCard(me.last_card,'Último card recebido'):null;if(me.last_card&&me.last_card.image_url){const img=h('img');img.src=me.last_card.image_url;img.alt=me.last_card.name;recent.append(img);}else recent.textContent=me.last_card?me.last_card.name:'?';}
   $('latestCard').addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&state.account?.last_card){e.preventDefault();showCard(state.account.last_card,'Último card recebido');}});
   async function refreshProfile(){if(!state.account)return;const me=await API('/api/me');if(me.authenticated)renderProfile(me);else showLogin();}
   function showLogin(){resetCachedData();state.adminReady=false;state.petPreviewLoaded=false;$('adminModal').hidden=true;document.body.classList.remove('page-open');$('settingsAdmin').hidden=true;state.account=null;$('loginScreen').hidden=false;$('splashScreen').hidden=true;$('homeScreen').hidden=true;$('modal').hidden=true;}
@@ -228,12 +228,12 @@
     const filters=state.cardFilters;
     const line=h('div','filters-top');
     const chooser=(name,value,options,callback)=>{const wrapper=h('label','filter-label');wrapper.append(h('span','',name));const select=h('select','select-input');for(const [v,txt] of options){const opt=h('option','',txt);opt.value=v;select.append(opt);}select.value=value;select.addEventListener('change',()=>callback(select.value));wrapper.append(select);return wrapper;};
-    const rerender=()=>paintCardGrid(items,ownedIds,tab,container);
+    const rerender=()=>{state.cardPage=1;paintCardGrid(items,ownedIds,tab,container);};
     line.append(chooser('Raridade',filters.rarity,[['todos','Todas'],...Object.entries(tierLabels)],v=>{filters.rarity=v;rerender();}));
     const collections=[...new Set([...items.map(c=>c.collection||'Recanto Original'),'Celebridades','Personagens','Memes',filters.collection].filter(c=>c!=='todas'))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
     if(filters.collection!=='todas'&&!collections.includes(filters.collection))filters.collection='todas';
     line.append(chooser('Coleção',filters.collection,[['todas','Todas as coleções'],...collections.map(v=>[v,v])],v=>{filters.collection=v;rerender();}));
-    line.append(chooser('Ordem',filters.alphabetical,[['padrao','Recentes / Catálogo'],['az','Alfabético A–Z'],['za','Alfabético Z–A']],v=>{filters.alphabetical=v;rerender();}));
+    line.append(chooser('Ordem',filters.alphabetical,[['raridade','Mais raros primeiro'],['padrao','Recentes / Catálogo'],['az','Alfabético A–Z'],['za','Alfabético Z–A']],v=>{filters.alphabetical=v;rerender();}));
     host.append(line);
     const checks=h('div','filters-checks');
     const toggle=(name,key,enabled=true)=>{const label=h('label','filter-check');const cb=h('input');cb.type='checkbox';cb.checked=!!filters[key];cb.disabled=!enabled;cb.addEventListener('change',()=>{filters[key]=cb.checked;rerender();});label.append(cb,h('span','',name));return label;};
@@ -246,15 +246,32 @@
     if(f.missing&&tab==='catalogo')list=list.filter(c=>!ownedIds.has(c.id));
     if(f.newOnly)list=list.filter(c=>{const date=c.acquired_at||c.created_at;return date&&new Date(date).getTime()>=week;});
     if(f.alphabetical==='az'||f.alphabetical==='za')list=list.slice().sort((a,b)=>a.name.localeCompare(b.name,'pt-BR')*(f.alphabetical==='za'?-1:1));
+    if(f.alphabetical==='raridade'){
+      const ranks={'prismático':4,'prismatico':4,'lendário':3,'lendario':3,'raro':2,'comum':1};
+      list=list.slice().sort((a,b)=>(ranks[b.rarity]||0)-(ranks[a.rarity]||0)||a.name.localeCompare(b.name,'pt-BR'));
+    }
     if(!list.length)container.append(block('Nenhum card encontrado','Altere os filtros para encontrar outros cards.'));
+    const isDesktop=matchMedia('(min-width:768px)').matches;
+    const pageSize=isDesktop?state.cardPageSize:Math.max(1,list.length);
+    const pages=Math.max(1,Math.ceil(list.length/pageSize));
+    state.cardPage=Math.min(Math.max(1,state.cardPage),pages);
+    const start=(state.cardPage-1)*pageSize;
     const grid=h('div','card-grid');
-    for(const item of list){grid.append(cardTile(item,c=>{
+    for(const item of list.slice(start,start+pageSize)){grid.append(cardTile(item,c=>{
       if(tab==='catalogo'){const owners=c.owners.map(o=>`${o.name}: ${o.count}`).join(' · ');showCard(c,`${c.minted}/${c.max_copies} cópias distribuídas. Donos: ${owners||'nenhum'}`);}
       else showCard(c,`Exemplar #${c.owned_id}`);
     }));}
     container.append(grid);
+    if(list.length>pageSize){
+      const nav=h('nav','card-pagination');nav.setAttribute('aria-label','Páginas de cards');
+      const previous=button('← Anterior',()=>{state.cardPage--;paintCardGrid(items,ownedIds,tab,container);},'soft-action');previous.disabled=state.cardPage===1;
+      const caption=h('span','card-pagination-label',`Página ${state.cardPage} de ${pages} · ${list.length} cards`);
+      const next=button('Próxima →',()=>{state.cardPage++;paintCardGrid(items,ownedIds,tab,container);},'soft-action');next.disabled=state.cardPage===pages;
+      nav.append(previous,caption,next);container.append(nav);
+    }
   }
   async function cardPane(tab){
+    if(state.cardTab!==tab)state.cardPage=1;
     state.cardTab=tab;document.querySelectorAll('[data-card-tab]').forEach(el=>el.classList.toggle('mini-active',el.dataset.cardTab===tab));
     const p=$('cardsPane');p.replaceChildren();p.dataset.mode=tab;$('cardFilters').hidden=tab==='trocas';
     if(tab==='colecao'){
@@ -276,7 +293,7 @@
       const banner=h('button','featured-collection-banner');banner.type='button';
       if(featured.image_url){banner.style.backgroundImage=`linear-gradient(90deg,rgba(19,24,88,.78),rgba(19,24,88,.12)),url("${featured.image_url.replaceAll('"','%22')}")`;}
       banner.append(h('small','','✦ COLEÇÃO EM DESTAQUE'),h('strong','',featured.name),h('span','','Ver os cards desta coleção →'));
-      banner.onclick=()=>{state.cardFilters.collection=featured.name;cardPane('catalogo').catch(e=>toast(e.message));};
+      banner.onclick=()=>{state.cardFilters.collection=featured.name;state.cardPage=1;cardPane('catalogo').catch(e=>toast(e.message));};
       catalogIntro.append(banner);p.append(catalogIntro);
       const results=h('div','filtered-cards');p.append(results);renderCardFilters(data.items,new Set(mine.items.map(c=>c.card_id)),'catalogo',results);
     }
@@ -430,7 +447,8 @@
       const hero=h('section','public-profile-hero');
       const title=h('div','public-identity');
       if(d.avatar_url){const img=h('img');img.src=d.avatar_url;img.alt=d.name;title.append(img);}else title.append(h('div','profile-thumb','◉'));
-      const meta=h('div','public-identity-info');meta.append(h('h3','',d.name),h('span','public-online','● Membro da comunidade'),h('p','',`${d.cards} card(s) na coleção`));title.append(meta);hero.append(title);
+      const meta=h('div','public-identity-info');meta.append(h('h3','',d.name),h('span','public-online','● Perfil da comunidade'),h('p','public-card-count',`${d.cards} card(s) na coleção`));title.append(meta);hero.append(title);
+      if(d.favorite){const recent=h('div','public-hero-favorite');recent.append(mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover'),h('strong','','Card favorito: '+d.favorite.name));hero.append(recent);}
       main.append(hero);
       const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section','public-badges');const line=h('div','public-badges-row');
       (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip',b.icon);badge.title=b.title;line.append(badge);});
@@ -439,8 +457,6 @@
       const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
       for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));chip.title=game.name;gameIcons.append(chip);}
       favorites.append(gameIcons);main.append(favorites);
-      if(d.favorite){const fav=block('★ Card favorito',d.favorite.name);fav.classList.add('public-section','public-favorite');
-        const art=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');art.addEventListener('click',()=>showCard(d.favorite));fav.prepend(art);aside.append(fav);}
       if(d.pet){const pet=block('🐾 Pequena Lenda: '+d.pet.name,`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);pet.classList.add('public-section','public-pet');pet.prepend(petVisual(d.pet));aside.append(pet);
         if(d.pet.status==='ativo'){
           const actions=h('div','social-actions');actions.append(button('💗 Acariciar',()=>visitPet(uid,'pet')));
@@ -1130,7 +1146,6 @@
       if(!$('modal').hidden)$('settingsAdmin').hidden=!game.admin;
     }).catch(()=>{$('settingsAdmin').hidden=true;});
   };
-  $('desktopCommunity').onclick=()=>searchProfiles();
   $('desktopSearch').onclick=()=>searchProfiles();
   $('desktopSettings').onclick=()=>$('settings').click();
   $('desktopSettingsTop').onclick=()=>$('settings').click();
@@ -1171,6 +1186,7 @@
   document.querySelectorAll('[data-card-tab]').forEach(btn=>btn.addEventListener('click',()=>cardPane(btn.dataset.cardTab).catch(err=>toast(err.message))));
   $('closeCardDetail').onclick=closeCardDetail;$('closeAdmin').onclick=()=>{$('adminModal').hidden=true;document.body.classList.remove('page-open');};
   $('backToMyProfile').onclick=()=>{$('publicProfilePage').hidden=true;$('profilesModal').hidden=true;chooseTab('perfil');};
+  $('backToSearchTop').onclick=()=>{$('publicProfilePage').hidden=true;searchProfiles();};
   for(const id of ['modal','cardModal','profilesModal'])$(id).addEventListener('click',e=>{if(e.target===$(id)){if(id==='cardModal')closeCardDetail();else $(id).hidden=true;}});
   window.addEventListener('keydown',e=>{if(e.key==='Escape')for(const id of ['modal','profilesModal'])$(id).hidden=true;closeCardDetail();});
   
