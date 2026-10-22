@@ -1,0 +1,21 @@
+name: Notificações Recanto
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+concurrency:
+  group: recanto-push-cron
+  cancel-in-progress: false
+jobs:
+  avisos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Executar verificação de notificações
+        env:
+          RECANTO_PUBLIC_URL: ${{ secrets.RECANTO_PUBLIC_URL }}
+          RECANTO_CRON_SECRET: ${{ secrets.RECANTO_CRON_SECRET }}
+        run: |
+          test -n "$RECANTO_PUBLIC_URL" && test -n "$RECANTO_CRON_SECRET" || { echo 'Configure os dois GitHub Actions secrets do Recanto.'; exit 1; }
+          curl --fail --silent --show-error --retry 2 --retry-delay 10 --max-time 180 \
+            -X POST -H "x-recanto-cron-secret: $RECANTO_CRON_SECRET" \
+            "${RECANTO_PUBLIC_URL%/}/api/jobs/send-notifications"
