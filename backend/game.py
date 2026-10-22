@@ -111,7 +111,7 @@ except ZoneInfoNotFoundError:
 
 def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedCard,
                   current_user_id, utcnow, naive_to_utc, dev_request,
-                  demo_enabled, root: Path, frontend: Path):
+                  demo_enabled, root: Path, frontend: Path, mission_tracker=None):
     class UIAsset(Base):
         """Imagens personalizadas por elemento/jogo, administradas no servidor."""
         __tablename__ = 'ui_assets'
@@ -513,6 +513,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             db.add(MissionProgress(user_id=uid, day=day, mission=mission, progress=amount, claimed=False))
         else:
             obj.progress = min(9999, obj.progress + amount)
+        if mission_tracker:
+            mission_tracker(db, uid, mission, amount)
 
     def achievement_event(db, uid, event, amount=1):
         # Nunca aceitar progresso arbitrário enviado pelo navegador.
@@ -1661,6 +1663,12 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                           CoinOffer, CardCooldown, PetExpedition, FavoriteGame, TradeReward, Trade, MissionProgress, Claim, UserAchievement,
                           AchievementProgress, UserPet, OwnedCard):
                 db.execute(delete(table))
+            # Progresso e deduplicação da v1.2 também devem ser reiniciados
+            # nas ferramentas EXCLUSIVAMENTE locais de teste.
+            for name in ('recanto_mission_counters','recanto_mission_claims',
+                         'recanto_discord_events','recanto_notification_sent'):
+                extra=Base.metadata.tables.get(name)
+                if extra is not None:db.execute(delete(extra))
             for w in db.scalars(select(Wallet)).all():
                 w.coins = 0
                 w.treats = 0

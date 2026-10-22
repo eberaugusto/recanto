@@ -121,7 +121,7 @@ class OAuthAttempt(Base):
 
 
 Base.metadata.create_all(engine)
-app = FastAPI(title='Recanto API', version='1.1.0', docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title='Recanto API', version='1.2.0', docs_url=None, redoc_url=None, openapi_url=None)
 
 
 def utcnow() -> datetime:
@@ -218,7 +218,7 @@ async def safety_headers(request: Request, call_next):
 
 @app.get('/api/health')
 def health():
-    return {'status': 'ok', 'version': '1.1.0'}
+    return {'status': 'ok', 'version': '1.2.0'}
 
 
 @app.get('/api/config')
@@ -226,7 +226,7 @@ def public_config(request: Request):
     return {'demo_enabled': DEMO_ENABLED and dev_request(request),
             'discord_configured': auth_configured(),
             'login_required_guild': bool(REQUIRED_GUILD_ID),
-            'version': '1.1.0'}
+            'version': '1.2.0'}
 
 
 @app.get('/api/me')
@@ -436,7 +436,7 @@ def manifest():
 
 @app.get('/api/version', include_in_schema=False)
 def version():
-    return JSONResponse({'version': '1.1.0'}, headers={'Cache-Control': 'no-store'})
+    return JSONResponse({'version': '1.2.0'}, headers={'Cache-Control': 'no-store'})
 
 
 @app.get('/favicon.ico', include_in_schema=False)
@@ -453,9 +453,12 @@ def worker():
 import sys
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+from engagement import register_engagement
+track_event = register_engagement(app=app, Base=Base, engine=engine, SessionLocal=SessionLocal,
+             User=User, Wallet=Wallet, current_user_id=current_user_id, utcnow=utcnow)
 from game import register_game
 register_game(app=app, Base=Base, engine=engine, SessionLocal=SessionLocal,
               User=User, Wallet=Wallet, Card=Card, OwnedCard=OwnedCard,
               current_user_id=current_user_id, utcnow=utcnow,
               naive_to_utc=naive_to_utc, dev_request=dev_request,
-              demo_enabled=DEMO_ENABLED, root=ROOT, frontend=FRONTEND)
+              demo_enabled=DEMO_ENABLED, root=ROOT, frontend=FRONTEND, mission_tracker=track_event)

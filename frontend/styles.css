@@ -596,3 +596,15 @@ body.dark-mode .modal-close {background:#354573 !important;color:#f5f7ff !import
 body.dark-mode .nav-item:not(:last-child)::after,body.dark-mode .profile-divider {background:#435277 !important;}
 body.dark-mode .setting-row {border-color:#3e4d78 !important;}
 body.dark-mode .badge-chip.locked {opacity:.66;}
+
+/* Recanto v1.2.0: missões e painel de administração por abas */
+.mission-category {display:flex;flex-direction:column;gap:14px;padding-bottom:8px;}
+.mission-category-title {font-size:17px;font-weight:700;color:white;margin:7px 0 0;}
+.mission-placeholder {font-size:13px;color:#eef2ff;opacity:.8;margin:0;}
+.admin-tabs {display:flex;gap:7px;overflow-x:auto;position:sticky;top:0;background:#fff;padding:8px 0 15px;z-index:4;scrollbar-width:thin;}
+.admin-tab {flex:none;padding:9px 12px;border:1px solid #d3d8f7;border-radius:99px;background:#eff1ff;color:#515bd3;font-size:12px;font-weight:700;}
+.admin-tab.selected {background:#5865f2;color:#fff;}
+.admin-scroll>.game-box[hidden] {display:none!important;}
+body.dark-mode .admin-tabs {background:#192444;}
+body.dark-mode .admin-tab {background:#273766;color:#e9edff;border-color:#46588c;}
+body.dark-mode .admin-tab.selected {background:#5865f2;color:white;}

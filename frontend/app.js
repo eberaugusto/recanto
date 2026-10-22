@@ -488,10 +488,65 @@
     return wrapper;
   }
   async function loadShop(){const [shop,me,daily]=await Promise.all([API('/api/shop'),API('/api/me'),API('/api/daily/status')]);$('shopWallet').textContent=`🪙 ${money(me.coins)}`;state.reset=daily.next_reset;$('dailyCoins').disabled=daily.coins_claimed;$('dailyCoins').textContent=daily.coins_claimed?'✓ Resgatado':`Resgatar ${money(daily.reward)} moedas`;updateCountdowns();const pane=$('shopPane');pane.replaceChildren();for(const s of shop.products){const box=block(s.name,s.kind==='cards'?`${s.amount} cartas aleatórias · guarda no Inventário`:`${s.amount} petisco(s) · +${s.food||15} fome por unidade`);box.id='shop-'+s.sku;box.classList.add('product-card');box.prepend(mediaCover(s.image_url,s.emoji||'🎁',s.name,'product-cover'));if(s.rates)box.append(h('p','rates',Object.entries(s.rates).map(([k,v])=>`${tierLabels[k]} ${v}%`).join(' · ')));box.append(button(`Comprar · 🪙 ${money(s.price)}`,()=>safeRun(()=>API('/api/shop/purchase',{sku:s.sku}),result=>result.pack_id?`Pacote guardado no Inventário!`:`${result.treats_gained} item(ns) adicionado(s) ao Inventário!`)));pane.append(box);}if(state.focusShop){const selected=$('shop-'+state.focusShop);state.focusShop=null;if(selected){selected.classList.add('shop-focus');selected.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});setTimeout(()=>selected.classList.remove('shop-focus'),1800);}}}
-  async function loadMissions(){const data=await API('/api/missions');state.missionReset=data.next_reset;const pane=$('missionPane');pane.replaceChildren();const completed=data.items.filter(x=>x.claimed).length;$('missionCount').textContent=`${completed}/${data.items.length} resgatadas`;data.items.forEach(m=>{const box=block(m.title,`Progresso: ${m.progress}/${m.goal} · Recompensa: 🪙 ${m.reward}`);box.classList.add('mission-card');box.prepend(mediaCover(m.image_url,m.emoji||'🎯',m.title,'mission-cover')); const bar=h('div','mission-meter');const fill=h('div','mission-fill');fill.style.width=Math.min(100,100*m.progress/m.goal)+'%';bar.append(fill);box.append(bar);const action=button(m.claimed?'✓ Resgatada':m.progress>=m.goal?'Resgatar recompensa':'Em andamento',()=>safeRun(()=>API('/api/missions/'+m.code+'/claim',{}),`+${m.reward} moedas!`));action.disabled=m.claimed||m.progress<m.goal;box.append(action);pane.append(box);});updateCountdowns();}
-  async function loadNotification(){try{const d=await API('/api/notifications/preferences');state.notification=!!d.enabled;}catch(_){state.notification=false;}updateNotificationUI();}
-  function updateNotificationUI(message){const permitted=window.isSecureContext&&'Notification' in window;const active=state.notification&&permitted&&Notification.permission==='granted';$('notificationsToggle').classList.toggle('on',!!active);$('notificationsToggle').setAttribute('aria-checked',String(!!active));$('notificationsStatus').textContent=message||(!permitted?'Notificações exigem HTTPS e navegador compatível.':active?'Permissão ativada. Avisos automáticos serão adicionados no futuro.':'Ative para autorizar futuros avisos de pets, cards e recompensas.');}
-  async function toggleNotifications(){if(state.notificationBusy)return;state.notificationBusy=true;try{const enabling=!state.notification||('Notification' in window&&Notification.permission!=='granted');if(enabling){if(!window.isSecureContext||!('Notification' in window)||!('serviceWorker' in navigator))throw Error('Notificações exigem HTTPS.');if(await Notification.requestPermission()!=='granted')throw Error('Permissão não concedida.');await navigator.serviceWorker.register('/sw.js');}await API('/api/notifications/preferences',{enabled:enabling});state.notification=enabling;updateNotificationUI(enabling?'Permissão concedida. Os avisos automáticos ainda serão implementados.':'Notificações desativadas.');}catch(err){updateNotificationUI(err.message);}finally{state.notificationBusy=false;}}
+  async function loadMissions(){
+    const data=await API('/api/missions');state.missionReset=data.next_reset;
+    const pane=$('missionPane');pane.replaceChildren();
+    const completed=data.items.filter(x=>x.claimed).length;
+    $('missionCount').textContent=`${completed}/${data.items.length} resgatadas`;
+    for(const [kind,label] of [['unica','Missões Únicas'],['diaria','Missões Diárias (3 por dia)'],['semanal','Missões Semanais']]){
+      const section=h('section','mission-category');section.append(h('h2','mission-category-title',label));
+      const items=data.items.filter(x=>x.kind===kind);
+      if(!items.length)section.append(h('p','mission-placeholder','Nenhuma missão disponível nesta categoria.'));
+      for(const m of items){
+        const box=block(m.title,`Progresso: ${m.progress}/${m.goal} · Recompensa: 🪙 ${m.reward}`);
+        box.classList.add('mission-card');box.prepend(mediaCover(m.image_url,m.emoji||'🎯',m.title,'mission-cover'));
+        const bar=h('div','mission-meter');const fill=h('div','mission-fill');fill.style.width=Math.min(100,100*m.progress/m.goal)+'%';bar.append(fill);box.append(bar);
+        const action=button(m.claimed?'✓ Resgatada':m.progress>=m.goal?'Resgatar recompensa':'Em andamento',()=>safeRun(()=>API('/api/missions/'+m.code+'/claim',{}),`+${m.reward} moedas!`));
+        action.disabled=m.claimed||m.progress<m.goal;box.append(action);section.append(box);
+      }
+      pane.append(section);
+    }
+    updateCountdowns();
+  }
+  async function loadNotification(){
+    try{
+      const d=await API('/api/notifications/preferences');state.notification=!!d.enabled;
+      // V1.0 concedia permissão sem registrar subscription Web Push.
+      // Converte a antiga preferência em opt-in novo e efetivo neste dispositivo.
+      if(state.notification && 'serviceWorker' in navigator && 'PushManager' in window){
+        const reg=await navigator.serviceWorker.ready;
+        const subscription=await reg.pushManager.getSubscription();
+        if(!subscription){state.notification=false;await API('/api/notifications/preferences',{enabled:false});}
+      }
+    }catch(_){state.notification=false;}
+    updateNotificationUI();
+  }
+  function updateNotificationUI(message){const permitted=window.isSecureContext&&'Notification' in window;const active=state.notification&&permitted&&Notification.permission==='granted';$('notificationsToggle').classList.toggle('on',!!active);$('notificationsToggle').setAttribute('aria-checked',String(!!active));$('notificationsStatus').textContent=message||(!permitted?'Notificações exigem HTTPS e navegador compatível.':active?'Notificações Web Push ativadas.':'Ative para receber avisos de pets, cards e novidades.');}
+  function vapidBytes(key){
+    const normalized=(key+'='.repeat((4-key.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/');
+    const decoded=atob(normalized);return Uint8Array.from(decoded,c=>c.charCodeAt(0));
+  }
+  async function toggleNotifications(){
+    if(state.notificationBusy)return;state.notificationBusy=true;
+    try{
+      if(!window.isSecureContext||!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window))throw Error('Este navegador não suporta notificações Web Push.');
+      const reg=await navigator.serviceWorker.ready;
+      if(!state.notification){
+        const key=await API('/api/push/key');
+        if(!key.enabled)throw Error('O administrador precisa configurar as chaves VAPID no Render.');
+        if(await Notification.requestPermission()!=='granted')throw Error('Permissão não concedida.');
+        const sub=await reg.pushManager.getSubscription()||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapidBytes(key.public_key)});
+        await API('/api/push/subscribe',sub.toJSON());
+        await API('/api/notifications/preferences',{enabled:true});state.notification=true;
+        updateNotificationUI('Notificações ativadas! Você receberá alertas dos eventos configurados.');
+      } else {
+        const sub=await reg.pushManager.getSubscription();
+        if(sub){await API('/api/push/unsubscribe',{endpoint:sub.endpoint});await sub.unsubscribe();}
+        await API('/api/notifications/preferences',{enabled:false});state.notification=false;
+        updateNotificationUI('Notificações desativadas.');
+      }
+    }catch(err){updateNotificationUI(err.message);}finally{state.notificationBusy=false;}
+  }
     function login(){if(state.config.discord_configured)location.assign('/auth/discord/start');else report('Configure as credenciais do Discord no arquivo backend/.env antes de entrar.');}
   async function logout(){await safeRun(()=>API('/api/auth/logout',{}));showLogin();}
   async function uploadArtwork(file){
@@ -610,6 +665,31 @@
       button('Remover imagem do elemento',()=>safeRun(()=>saveAsset(true),'Asset removido.'),'soft-action'));
     assetPane.append(h('p','asset-help','Para outros elementos, use uma chave personalizada e um seletor CSS, por exemplo #shopWallet ou .product-cover. O modo fundo preserva os cliques e textos. Para jogos, escolha o nome da lista.'));
     pane.append(assetPane);
+    const missionData=await API('/api/admin/missions');
+    const missionBlock=block('Missões do Recanto','Crie e edite missões únicas, diárias ou semanais. As semanais entram na semana atual; após a próxima segunda-feira, cadastre/reative as missões da nova semana.');
+    const existing=h('select','select-input');
+    existing.append(Object.assign(h('option','','Nova missão'),{value:''}));
+    for(const row of missionData.items){const o=h('option','',row.title+' ['+row.code+']');o.value=row.code;existing.append(o);}
+    const mFields={};
+    for(const [key,label,value] of [['code','Código único (ex: voz_30)',''],['title','Título',''],['goal','Meta numérica','1'],['reward','Recompensa em moedas','10'],['emoji','Emoji','🎯'],['image_url','Capa URL HTTPS (opcional)','']]){
+      const [wrap,inp]=adminField(label,value,(['goal','reward'].includes(key)?'number':'text'));
+      mFields[key]=inp;missionBlock.append(wrap);
+    }
+    const missionType=h('select','select-input');for(const [v,t] of [['unica','Única'],['diaria','Diária'],['semanal','Semanal']]){const opt=h('option','',t);opt.value=v;missionType.append(opt);}
+    const missionEvent=h('select','select-input');for(const [v,t] of [['adopt','Adotar pet'],['trade','Trocar card'],['daily_card','Resgatar card'],['daily_coins','Resgatar moedas'],['pet','Acariciar pet'],['feed','Alimentar pet'],['pack','Abrir pack'],['voice_minutes','Minutos em canal de voz'],['message_count','Mensagens de texto']]){const opt=h('option','',t);opt.value=v;missionEvent.append(opt);}
+    const enabled=h('input');enabled.type='checkbox';enabled.checked=true;
+    existing.onchange=()=>{const row=missionData.items.find(m=>m.code===existing.value);if(!row)return;
+      for(const key of Object.keys(mFields))mFields[key].value=row[key]??'';
+      missionType.value=row.kind;missionEvent.value=row.event;enabled.checked=row.enabled;};
+    missionBlock.prepend(h('label','','Editar missão cadastrada ou criar nova'),existing);
+    const imageUpload=h('input','text-input');imageUpload.type='file';imageUpload.accept='image/png,image/jpeg,image/webp';
+    missionBlock.append(h('label','','Tipo de missão'),missionType,h('label','','Ação que conta progresso'),missionEvent,h('label','','Ou envie a imagem da missão'),imageUpload,h('label','','Missão ativa'),enabled,
+      button('Salvar missão',async()=>{const payload=Object.fromEntries(Object.entries(mFields).map(([k,v])=>[k,v.value]));
+        payload.goal=Number(payload.goal);payload.reward=Number(payload.reward);payload.kind=missionType.value;payload.event=missionEvent.value;payload.enabled=enabled.checked;
+        const result=await safeRun(async()=>{if(imageUpload.files.length)payload.image_url=await uploadArtwork(imageUpload.files[0]);return API('/api/admin/missions',payload);},'Missão cadastrada/atualizada!');if(result)await openAdmin();}));
+    pane.append(missionBlock);
+    const integrations=block('Integrações','Missões de voz e mensagens requerem RECANTO_BOT_SECRET no Render e um pequeno envio de eventos pelo seu bot existente. Notificações exigem chaves VAPID e o job agendado; consulte o guia no ZIP.');
+    pane.append(integrations);
     const settings=block('Valores configuráveis','Recompensas, preços e prazos.');for(const [key,value] of Object.entries(opts.settings)){const [fld,inp]=adminField(key,value,'number');settings.append(fld,button('Salvar '+key,()=>safeRun(()=>API('/api/admin/settings',{key,value:Number(inp.value)}),'Valor salvo!'),'soft-action'));}pane.append(settings);
     if(game.local_development){const dev=block('Ferramentas de teste local','Acelere os testes sem esperar dias. Apenas administradores Discord.');
       dev.append(button('Adicionar 5.000 moedas para minha conta',()=>safeRun(()=>API('/api/dev/grant-coins',{amount:5000}),'5.000 moedas adicionadas!')));dev.append(button('Reiniciar resgates diários',()=>safeRun(()=>API('/api/dev/reset-daily',{}),'Resgates reiniciados!')));dev.append(button('Simular abandono → veterinário',()=>safeRun(()=>API('/api/dev/advance-pet',{stage:'vet'}),'Pet no veterinário!'),'soft-action'));dev.append(button('Simular prazo vencido → morte',()=>safeRun(()=>API('/api/dev/advance-pet',{stage:'death'}),'Prazo encerrado.','soft-action')));pane.append(dev);
@@ -623,6 +703,27 @@
       },'danger-action');resetButton.disabled=true;confirmation.addEventListener('input',()=>resetButton.disabled=confirmation.value!=='LIMPAR TUDO');
       reset.append(scope,field,resetButton);pane.append(reset);
     }
+    const groups=['Geral','Economia','Cards','Loja','Pets','Missões','Selos','Assets','Usuários','Integrações'];
+    const classify=(name)=>{
+      const x=name.toLowerCase();
+      if(x.includes('valores configuráveis'))return 'Economia';
+      if(x.includes('cadastrar card')||x.includes('coleção'))return 'Cards';
+      if(x.includes('capa'))return 'Loja';
+      if(x.includes('pequena lenda'))return 'Pets';
+      if(x.includes('missões do recanto'))return 'Missões';
+      if(x.includes('selo'))return 'Selos';
+      if(x.includes('assets'))return 'Assets';
+      if(x.includes('administrador')||x.includes('ids autorizados'))return 'Usuários';
+      if(x.includes('integrações'))return 'Integrações';
+      return 'Geral';
+    };
+    const boxes=[...pane.querySelectorAll(':scope > .game-box')];
+    for(const box of boxes)box.dataset.adminGroup=classify(box.querySelector('h3')?.textContent||'');
+    const nav=h('div','admin-tabs');
+    const showGroup=group=>{for(const box of boxes)box.hidden=box.dataset.adminGroup!==group;
+      for(const btn of nav.querySelectorAll('button'))btn.classList.toggle('selected',btn.dataset.group===group);};
+    for(const group of groups){const btn=button(group,()=>showGroup(group),'admin-tab');btn.dataset.group=group;nav.append(btn);}
+    pane.prepend(nav);showGroup('Geral');
     $('adminModal').hidden=false;}catch(err){toast('⚠ '+err.message);}}
   $('login').onclick=login;$('settings').onclick=()=>{$('modal').hidden=false;loadNotification();};$('closeSettings').onclick=()=>{$('modal').hidden=true;};$('logout').onclick=async()=>{try{await API('/api/auth/logout',{});showLogin();}catch(err){toast(err.message);}};
   $('notificationsToggle').onclick=toggleNotifications;
