@@ -1319,3 +1319,84 @@ body.dark-mode .discord-widget-help{color:#bac6f2;}
   }
   #cardsPane .card-pagination .soft-action:disabled{background:#e9ecfa;color:#7d85ac;opacity:1;}
 }
+
+
+/* ================================================================
+   RECANTO 0.1.9 — CORREÇÃO ESTRUTURAL DO RESUMO MOBILE
+   As medidas internas pertencem ao painel, sem posicionar a legenda
+   fora da caixa e sem depender de % da altura total da tela.
+   Nao modifica o perfil desktop.
+   ================================================================ */
+@media (max-width:767px){
+  #profileContent .desktop-left-column>.desktop-profile-hero{
+    height:clamp(290px,33dvh,335px)!important;
+    min-height:290px;
+    box-sizing:border-box;
+  }
+  #profileContent .profile-panel{
+    overflow:visible;
+    box-sizing:border-box;
+  }
+  #profileContent .profile-panel-inner{
+    position:absolute;
+    top:clamp(102px,35%,122px);
+    bottom:24px;
+    height:auto;
+    left:7%;right:7%;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 1px minmax(0,1fr);
+    gap:clamp(9px,3vw,18px);
+    align-items:center;
+    min-width:0;
+  }
+  #profileContent .profile-divider{
+    display:block;
+    width:1px;
+    height:72%;
+    align-self:center;
+    justify-self:center;
+    margin:0;
+    background:#d6d6d6;
+  }
+  #profileContent .stats-list{
+    min-width:0;
+    align-self:center;
+    gap:clamp(10px,1.65dvh,18px);
+  }
+  #profileContent .last-card{
+    position:relative;
+    inset:auto;
+    min-width:0;
+    width:100%;
+    height:100%;
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-end;
+    gap:7px;
+    padding:0 0 3px;
+    box-sizing:border-box;
+    overflow:visible;
+  }
+  #profileContent .last-card-art{
+    width:auto;
+    height:calc(100% - 32px);
+    max-width:100%;
+    max-height:calc(100% - 32px)!important;
+    min-height:0;
+    aspect-ratio:0.71;
+    flex:0 1 auto;
+    border-radius:6px;
+  }
+  #profileContent .last-card>span{
+    display:block;
+    position:static;
+    flex:0 0 auto;
+    line-height:23px;
+    height:23px;
+    margin:0;
+    white-space:nowrap;
+    text-align:center;
+  }
+}
