@@ -218,7 +218,7 @@ async def safety_headers(request: Request, call_next):
 
 @app.get('/api/health')
 def health():
-    return {'status': 'ok', 'version': '1.2.0'}
+    return {'status': 'ok', 'version': '0.1.2'}
 
 
 @app.get('/api/config')
@@ -226,7 +226,7 @@ def public_config(request: Request):
     return {'demo_enabled': DEMO_ENABLED and dev_request(request),
             'discord_configured': auth_configured(),
             'login_required_guild': bool(REQUIRED_GUILD_ID),
-            'version': '1.2.0'}
+            'version': '0.1.2'}
 
 
 @app.get('/api/me')
@@ -436,7 +436,7 @@ def manifest():
 
 @app.get('/api/version', include_in_schema=False)
 def version():
-    return JSONResponse({'version': '1.2.0'}, headers={'Cache-Control': 'no-store'})
+    return JSONResponse({'version': '0.1.2'}, headers={'Cache-Control': 'no-store'})
 
 
 @app.get('/favicon.ico', include_in_schema=False)

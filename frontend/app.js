@@ -1,10 +1,12 @@
 "use strict";
 (() => {
   const $ = id => document.getElementById(id);
-  const PREFETCH_TTL=45000;
+  const PREFETCH_TTL=60000;
+  const tabLoadedAt={};
+  const TAB_SOFT_TTL=20000;
   const getCache=new Map();
   const cacheable=url=>/^(\/api\/(game\/config|achievements|games\/preferences|shop|daily\/status|catalog|cards|inventory|pets|missions|collections\/featured|assets|community\/profiles))(\?|$|\/)/.test(url);
-  function resetCachedData(){getCache.clear();}
+  function resetCachedData(){getCache.clear();for(const k of Object.keys(tabLoadedAt))delete tabLoadedAt[k];}
   const API = async (url, data) => {
     if(data===undefined && cacheable(url)){
       const prev=getCache.get(url);
@@ -30,7 +32,7 @@
   let prefetchPromise=null;
   function prefetchTabs(){
     if(prefetchPromise)return prefetchPromise;
-    const urls=['/api/game/config','/api/achievements','/api/games/preferences','/api/daily/status'];
+    const urls=['/api/daily/status','/api/shop','/api/inventory','/api/missions','/api/pets'];
     prefetchPromise=Promise.allSettled(urls.map(url=>API(url)));
     prefetchPromise.finally(()=>{prefetchPromise=null;});
     return prefetchPromise;
@@ -53,7 +55,7 @@
   const report=msg=>{$('message').textContent=msg||'';};
   const button=(text,handler,style='main-action')=>{const b=h('button',style,text);b.type='button';b.addEventListener('click',handler);return b;};
   const block=(title,body)=>{const div=h('div','game-box');if(title)div.append(h('h3','',title));if(body)div.append(h('p','',body));return div;};
-  const safeRun=async(action,success)=>{try {const result=await action();resetCachedData();if(success)toast(typeof success==='function'?success(result):success);await refreshProfile();await refreshActive();return result;}catch(err){toast('⚠ '+err.message);return null;}};
+  const safeRun=async(action,success)=>{try {const result=await action();resetCachedData();if(success)toast(typeof success==='function'?success(result):success);await refreshProfile();if($('adminModal').hidden)await refreshActive(true);return result;}catch(err){toast('⚠ '+err.message);return null;}};
   function countdown(iso){if(!iso)return '—';const delta=new Date(iso).getTime()-Date.now();if(delta<=0)return 'Disponível agora';let s=Math.ceil(delta/1000);const d=Math.floor(s/86400);s%=86400;const hour=Math.floor(s/3600);s%=3600;const minute=Math.floor(s/60);const sec=s%60;return (d?`${d}d `:'')+`${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;}
   function updateCountdowns(){if(state.reset){const t=countdown(state.reset);$('cardCountdown').textContent=$('dailyCard').disabled?'Novo card em '+countdown(state.cardReset):'Disponível agora (a cada 5h)!';$('coinCountdown').textContent=$('dailyCoins').disabled?'Próximo resgate: '+t:'Resgate disponível!';}if(state.missionReset)$('missionTimer').textContent='Missões reiniciam em: '+countdown(state.missionReset);}
   function avatar(el,name,url){el.replaceChildren();if(url){const img=h('img');img.src=url;img.alt='Foto de '+name;img.onerror=()=>{img.remove();el.textContent='◉';};el.append(img);}else el.textContent='◉';}
@@ -82,17 +84,19 @@
     btn.disabled=installed;
     btn.querySelector('span').textContent='Instalar';
   }
-  function renderProfile(me){state.account=me;$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);avatar($('userAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.toggle('has-card',!!me.last_card);recent.setAttribute('aria-label',me.last_card?'Ampliar último card: '+me.last_card.name:'Nenhum card obtido ainda');recent.onclick=me.last_card?()=>showCard(me.last_card,'Último card recebido'):null;if(me.last_card&&me.last_card.image_url){const img=h('img');img.src=me.last_card.image_url;img.alt=me.last_card.name;recent.append(img);}else recent.textContent=me.last_card?me.last_card.name:'?';}
+  function renderProfile(me){state.account=me;$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);$('desktopWallet').textContent=money(me.coins);$('desktopUserName').textContent=me.name;$('desktopProfileName').textContent=me.name;avatar($('userAvatar'),me.name,me.avatar_url);avatar($('desktopAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.toggle('has-card',!!me.last_card);recent.setAttribute('aria-label',me.last_card?'Ampliar último card: '+me.last_card.name:'Nenhum card obtido ainda');recent.onclick=me.last_card?()=>showCard(me.last_card,'Último card recebido'):null;if(me.last_card&&me.last_card.image_url){const img=h('img');img.src=me.last_card.image_url;img.alt=me.last_card.name;recent.append(img);}else recent.textContent=me.last_card?me.last_card.name:'?';}
   $('latestCard').addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&state.account?.last_card){e.preventDefault();showCard(state.account.last_card,'Último card recebido');}});
   async function refreshProfile(){if(!state.account)return;const me=await API('/api/me');if(me.authenticated)renderProfile(me);else showLogin();}
-  function showLogin(){resetCachedData();$('settingsAdmin').hidden=true;state.account=null;$('loginScreen').hidden=false;$('splashScreen').hidden=true;$('homeScreen').hidden=true;$('modal').hidden=true;}
-  async function refreshActive(){if(!state.account)return;
+  function showLogin(){resetCachedData();state.adminReady=false;state.petPreviewLoaded=false;$('adminModal').hidden=true;document.body.classList.remove('page-open');$('settingsAdmin').hidden=true;state.account=null;$('loginScreen').hidden=false;$('splashScreen').hidden=true;$('homeScreen').hidden=true;$('modal').hidden=true;}
+  async function refreshActive(force=false){if(!state.account)return;
+    if(!force && tabLoadedAt[state.tab] && Date.now()-tabLoadedAt[state.tab]<TAB_SOFT_TTL)return;
     if(state.tab==='perfil')await loadProfileExtras();
     if(state.tab==='cards')await loadCards();
     if(state.tab==='inventario')await loadInventory();
     if(state.tab==='pet')await loadPet();
     if(state.tab==='loja')await loadShop();
     if(state.tab==='missoes')await loadMissions();
+    tabLoadedAt[state.tab]=Date.now();
   }
   async function chooseTab(tab,focusSku=null){
     if(!labels[tab]||!state.account)return;
@@ -103,13 +107,14 @@
     document.querySelectorAll('[data-tab]').forEach(b=>{b.classList.toggle('nav-active',b.dataset.tab===tab);b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false');});
     // Alternar imediatamente: animações de saída deixavam telas deslocadas no PWA mobile.
     Object.entries(pages).forEach(([key,node])=>{node.hidden=key!==tab;node.classList.remove('page-enter');});
+    document.querySelectorAll('.desktop-side-link[data-tab]').forEach(btn=>btn.classList.toggle('selected',btn.dataset.tab===tab));
     // Preservar a rolagem interna de cada aba sem transformar o contêiner da tela.
     if(changed && nextPage && nextPage.dataset.firstVisit!=='yes'){nextPage.dataset.firstVisit='yes';nextPage.scrollTop=0;}
     try{await refreshActive();if(seq===state.tabTransition)applyUiAssets();}catch(err){if(seq===state.tabTransition)toast('⚠ Não foi possível carregar esta aba. Tente novamente.');}
   }
   async function loadProfileExtras(){
-    const [ach,game]=await Promise.all([API('/api/achievements'),API('/api/game/config')]);state.game=game;
-    if(!$('badgesSection')){const b=h('section','profile-badges');b.id='badgesSection';$('profileContent').append(b);}
+    const [ach,game,prefs]=await Promise.all([API('/api/achievements'),API('/api/game/config'),API('/api/games/preferences')]);state.game=game;
+    if(!$('badgesSection')){const b=h('section','profile-badges');b.id='badgesSection';$('profileContent').insertBefore(b,$('profileContent').querySelector('.desktop-right-column'));}
     const b=$('badgesSection');b.replaceChildren();
     const heading=h('div','badge-title');heading.append(h('strong','','🏅 Selos'),h('small','',`${ach.unlocked}/${ach.total} desbloqueados`));b.append(heading);
     const line=h('div','badge-strip');
@@ -127,13 +132,51 @@
     // Gestão fica exclusivamente em Configurações; o servidor valida o acesso.
     $('settingsAdmin').hidden=!game.admin;
     let gamesSection=$('gamesSection');if(!gamesSection){gamesSection=h('section','profile-games');gamesSection.id='gamesSection';b.after(gamesSection);}
-    const prefs=await API('/api/games/preferences');gamesSection.replaceChildren();
+    gamesSection.replaceChildren();
     const head=h('div','badge-title');head.append(h('strong','','🎮 Jogos favoritos'),button('Editar',()=>editFavoriteGames(prefs),'game-edit'));gamesSection.append(head);
     const lineGames=h('div','game-icons');
     if(!prefs.selected.length)lineGames.append(h('p','', 'Escolha até cinco jogos para exibir no seu perfil.'));
     for(const g of prefs.selected){const chip=h('span','game-icon');chip.append(gameIcon(g));chip.title=g.name;chip.setAttribute('aria-label',g.name);lineGames.append(chip);}
     gamesSection.append(lineGames);applyUiAssets();
+    if(!state.discordWidgetStarted)startDiscordWidget();
+    if(matchMedia('(min-width:768px)').matches && !state.petPreviewLoaded)loadPetPreview().catch(()=>{});
   }
+
+  function startDiscordWidget(){
+    const iframe=$('discordServerFrame');
+    if(!iframe || state.discordWidgetStarted)return;
+    state.discordWidgetStarted=true;
+    const begin=()=>{if(iframe.src==='about:blank')iframe.src='https://discord.com/widget?id=958567158479208458&theme=dark';};
+    if('IntersectionObserver' in window){
+      const watcher=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){watcher.disconnect();begin();}},{rootMargin:'220px'});
+      watcher.observe($('discordWidgetSection'));
+    }else begin();
+  }
+  async function loadPetPreview(){
+    // Opcional e paralelo: a página inicial não fica bloqueada aguardando o pet.
+    if(state.petPreviewLoading)return;
+    state.petPreviewLoading=true;
+    const content=$('desktopPetPreview');
+    try{
+      const data=await API('/api/pets');
+      const pet=data.pet;content.replaceChildren();
+      if(!pet){content.append(h('p','', 'Você ainda não adotou uma Pequena Lenda.'));state.petPreviewLoaded=true;return;}
+      const image=pet.image_url;
+      if(image){const img=h('img');img.src=image;img.alt=pet.name;img.loading='lazy';content.append(img);}
+      else content.append(h('div','desktop-pet-emoji',pet.emoji||'🐾'));
+      content.append(h('p','desktop-pet-name',pet.name));
+      content.append(h('p','',pet.status==='ativo'?'Em casa':pet.status==='vet'?'No veterinário':pet.status==='missao'?'Em missão':'Falecido'));
+      for(const [label,val] of [['Bem-estar',pet.happiness],['Fome',pet.food]]){
+        if(val==null)continue;
+        const row=h('div','desktop-pet-metric');row.append(h('span','',label),h('span','',`${val}/100`));
+        const meter=h('div','desktop-pet-meter');const fill=h('span');fill.style.width=`${Math.max(0,Math.min(100,Number(val)||0))}%`;meter.append(fill);
+        content.append(row,meter);
+      }
+      state.petPreviewLoaded=true;
+    }catch(_){content.replaceChildren(h('p','', 'Pet temporariamente indisponível. Abra a aba Pet para tentar novamente.'));}
+    finally{state.petPreviewLoading=false;}
+  }
+
   async function editFavoriteGames(prefs){
     const pane=$('profilesPane');$('profilesModal').hidden=false;pane.replaceChildren(h('h3','','Meus jogos favoritos'),h('p','','Selecione até 5 jogos.'));
     const selected=new Set(prefs.selected.map(g=>g.id));const grid=h('div','game-choices');
@@ -566,20 +609,38 @@
     return result.model_url;
   }
   const adminField=(label,value,type='text')=>{const row=h('label','admin-field',label);const input=h('input','text-input');input.value=value||'';input.type=type;row.append(input);return [row,input];};
-  async function openAdmin(){try{const [opts,game]=await Promise.all([API('/api/admin/settings'),API('/api/game/config')]);const pane=$('adminContent');pane.replaceChildren();pane.append(h('p','', 'Apenas IDs do Discord autorizados podem administrar os catálogos e as configurações.'));
+  async function openAdmin(force=false){
+    const dialog=$('adminModal');
+    dialog.hidden=false;document.body.classList.add('page-open');
+    if(state.adminReady && !force)return;
+    if(state.adminLoading)return;
+    state.adminLoading=true;
+    const pane=$('adminContent');
+    pane.replaceChildren(h('div','admin-loading','Carregando ferramentas administrativas...'));
+    try{
+      const authorizedTask=API('/api/admin/authorized-ids');
+      const missionsTask=API('/api/admin/missions');
+      const catalogTask=API('/api/catalog');
+      const gamesTask=API('/api/games/preferences');
+      const [opts,game]=await Promise.all([API('/api/admin/settings'),API('/api/game/config')]);
+      pane.replaceChildren();
+      pane.append(h('p','', 'Apenas IDs do Discord autorizados podem administrar os catálogos e as configurações.'));
     const adminBox=block('Administradores por Discord ID','Somente IDs autorizados podem editar o Recanto. O ID principal é permanente.');
-    try{const ids=await API('/api/admin/authorized-ids');adminBox.append(h('p','',`Administradores fixos: ${ids.permanent.join(', ')}`));
-      if(ids.additional.length)adminBox.append(h('p','',`IDs extras: ${ids.additional.join(', ')}`));
-      const [adminFieldRow,adminInput]=adminField('Discord ID do novo administrador','');adminBox.append(adminFieldRow);
-      adminBox.append(button('Autorizar ID',()=>safeRun(()=>API('/api/admin/authorized-ids',{discord_id:adminInput.value,action:'add'}),'ID autorizado!')),
-        button('Revogar ID adicional',()=>safeRun(()=>API('/api/admin/authorized-ids',{discord_id:adminInput.value,action:'remove'}),'Permissão revogada.')));
-    }catch(err){adminBox.append(h('p','',err.message));}pane.append(adminBox);
+    const idsSummary=h('p','','Carregando administradores...');adminBox.append(idsSummary);
+    authorizedTask.then(ids=>{idsSummary.textContent='Administradores fixos: '+ids.permanent.join(', ')+(ids.additional.length?' · IDs extras: '+ids.additional.join(', '):'');})
+      .catch(err=>{idsSummary.textContent='Não foi possível listar os administradores: '+err.message;});
+    const [adminFieldRow,adminInput]=adminField('Discord ID do novo administrador','');adminBox.append(adminFieldRow);
+    adminBox.append(button('Autorizar ID',()=>safeRun(()=>API('/api/admin/authorized-ids',{discord_id:adminInput.value,action:'add'}),'ID autorizado!')),
+      button('Revogar ID adicional',()=>safeRun(()=>API('/api/admin/authorized-ids',{discord_id:adminInput.value,action:'remove'}),'Permissão revogada.')));
+    pane.append(adminBox);
     const card=block('Cadastrar card','Nome, raridade e imagem (opcional).');const [n,ni]=adminField('Nome','');const [url,ui]=adminField('URL HTTPS da imagem ou /uploads/...','');const [collectionRow,collectionInput]=adminField('Coleção do card','Recanto Original');card.append(n,collectionRow,url);const cardFile=h('input','text-input');cardFile.type='file';cardFile.accept='image/png,image/jpeg,image/webp';card.append(h('label','','Ou envie imagem PNG/JPG/WEBP (até 4 MB)'),cardFile);const rarity=h('select','select-input');['comum','raro','lendário','prismático'].forEach(t=>{const o=h('option','',tierLabels[t]);o.value=t;rarity.append(o);});card.append(rarity,button('Cadastrar card',()=>safeRun(async()=>{const image_url=cardFile.files.length?await uploadArtwork(cardFile.files[0]):ui.value;return API('/api/admin/cards',{name:ni.value,rarity:rarity.value,collection:collectionInput.value,image_url});},'Card cadastrado!')));pane.append(card);
     const moveCard=block('Alterar coleção de card existente','Informe o ID do card (visível no catálogo administrativo) e o nome da coleção.');
     const [cardIdLabel,cardIdInput]=adminField('ID do card','', 'number');
     const [newCollectionLabel,newCollectionInput]=adminField('Nova coleção','Recanto Original');
-    const catalog=await API('/api/catalog');const idSelect=h('select','select-input');
-    for(const c of catalog.items){const o=h('option','',`#${c.id} · ${c.name} (${c.collection||'Recanto Original'})`);o.value=String(c.id);idSelect.append(o);}
+    const idSelect=h('select','select-input');
+    idSelect.append(h('option','','Carregando catálogo...'));
+    catalogTask.then(catalog=>{idSelect.replaceChildren();for(const c of catalog.items){const o=h('option','',`#${c.id} · ${c.name} (${c.collection||'Recanto Original'})`);o.value=String(c.id);idSelect.append(o);}})
+      .catch(err=>{idSelect.replaceChildren(h('option','','Catálogo indisponível: '+err.message));});
     moveCard.append(h('label','','Selecione um card'),idSelect,newCollectionLabel,
       button('Atualizar coleção',()=>safeRun(()=>API('/api/admin/cards/collection',{card_id:Number(idSelect.value),collection:newCollectionInput.value}),'Coleção atualizada!')));
     pane.append(moveCard);
@@ -639,10 +700,9 @@
       ['capa-pack-revelacao','.flip-back','background','Verso do card na abertura']
     ];
     const allSlots=[...baseSlots];
-    const gamesData=await API('/api/games/preferences');
-    for(const g of gamesData.catalog)allSlots.push([`game:${g.id}`,'','icon',`Jogo · ${g.name}`]);
     const chooseSlot=h('select','select-input');
     for(const [key,sel,mode,name] of allSlots){const o=h('option','',name);o.value=key;chooseSlot.append(o);}
+    gamesTask.then(gamesData=>{for(const g of gamesData.catalog){const entry=[`game:${g.id}`,'','icon',`Jogo · ${g.name}`];allSlots.push(entry);const o=h('option','',entry[3]);o.value=entry[0];chooseSlot.append(o);}}).catch(()=>{});
     const [customKeyRow,customKey]=adminField('Ou crie uma chave personalizada (opcional)','');
     const [customSelectorRow,customSelector]=adminField('Seletor CSS do elemento personalizado (opcional)','');
     const modeSelect=h('select','select-input');for(const [key,label] of [['background','Imagem de fundo'],['icon','Icone sobre o elemento'],['image','Imagem (tag img)']]){const op=h('option','',label);op.value=key;modeSelect.append(op);}
@@ -668,11 +728,12 @@
       button('Remover imagem do elemento',()=>safeRun(()=>saveAsset(true),'Asset removido.'),'soft-action'));
     assetPane.append(h('p','asset-help','Para outros elementos, use uma chave personalizada e um seletor CSS, por exemplo #shopWallet ou .product-cover. O modo fundo preserva os cliques e textos. Para jogos, escolha o nome da lista.'));
     pane.append(assetPane);
-    const missionData=await API('/api/admin/missions');
+    const missionData={items:[]};
     const missionBlock=block('Missões do Recanto','Crie e edite missões únicas, diárias ou semanais. As semanais entram na semana atual; após a próxima segunda-feira, cadastre/reative as missões da nova semana.');
     const existing=h('select','select-input');
     existing.append(Object.assign(h('option','','Nova missão'),{value:''}));
-    for(const row of missionData.items){const o=h('option','',row.title+' ['+row.code+']');o.value=row.code;existing.append(o);}
+    missionsTask.then(data=>{missionData.items=data.items||[];for(const row of missionData.items){const o=h('option','',row.title+' ['+row.code+']');o.value=row.code;existing.append(o);}})
+      .catch(err=>{missionBlock.append(h('p','', 'Missões indisponíveis: '+err.message));});
     const mFields={};
     for(const [key,label,value] of [['code','Código único (ex: voz_30)',''],['title','Título',''],['goal','Meta numérica','1'],['reward','Recompensa em moedas','10'],['emoji','Emoji','🎯'],['image_url','Capa URL HTTPS (opcional)','']]){
       const [wrap,inp]=adminField(label,value,(['goal','reward'].includes(key)?'number':'text'));
@@ -689,23 +750,35 @@
     missionBlock.append(h('label','','Tipo de missão'),missionType,h('label','','Ação que conta progresso'),missionEvent,h('label','','Ou envie a imagem da missão'),imageUpload,h('label','','Missão ativa'),enabled,
       button('Salvar missão',async()=>{const payload=Object.fromEntries(Object.entries(mFields).map(([k,v])=>[k,v.value]));
         payload.goal=Number(payload.goal);payload.reward=Number(payload.reward);payload.kind=missionType.value;payload.event=missionEvent.value;payload.enabled=enabled.checked;
-        const result=await safeRun(async()=>{if(imageUpload.files.length)payload.image_url=await uploadArtwork(imageUpload.files[0]);return API('/api/admin/missions',payload);},'Missão cadastrada/atualizada!');if(result)await openAdmin();}));
+        const result=await safeRun(async()=>{if(imageUpload.files.length)payload.image_url=await uploadArtwork(imageUpload.files[0]);return API('/api/admin/missions',payload);},'Missão cadastrada/atualizada!');if(result){state.adminReady=false;await openAdmin(true);}}));
     pane.append(missionBlock);
     const integrations=block('Integrações','Missões de voz e mensagens requerem RECANTO_BOT_SECRET no Render e um pequeno envio de eventos pelo seu bot existente. Notificações exigem chaves VAPID e o job agendado; consulte o guia no ZIP.');
     pane.append(integrations);
     const settings=block('Valores configuráveis','Recompensas, preços e prazos.');for(const [key,value] of Object.entries(opts.settings)){const [fld,inp]=adminField(key,value,'number');settings.append(fld,button('Salvar '+key,()=>safeRun(()=>API('/api/admin/settings',{key,value:Number(inp.value)}),'Valor salvo!'),'soft-action'));}pane.append(settings);
-    if(game.local_development){const dev=block('Ferramentas de teste local','Acelere os testes sem esperar dias. Apenas administradores Discord.');
-      dev.append(button('Adicionar 5.000 moedas para minha conta',()=>safeRun(()=>API('/api/dev/grant-coins',{amount:5000}),'5.000 moedas adicionadas!')));dev.append(button('Reiniciar resgates diários',()=>safeRun(()=>API('/api/dev/reset-daily',{}),'Resgates reiniciados!')));dev.append(button('Simular abandono → veterinário',()=>safeRun(()=>API('/api/dev/advance-pet',{stage:'vet'}),'Pet no veterinário!'),'soft-action'));dev.append(button('Simular prazo vencido → morte',()=>safeRun(()=>API('/api/dev/advance-pet',{stage:'death'}),'Prazo encerrado.','soft-action')));pane.append(dev);
-      const reset=block('Apagar banco para testes','Operação irreversível. Disponível apenas ao administrador autenticado no PC; as contas Discord não são removidas.');
-      const scope=h('select','select-input');[['progress','Limpar progresso: cartas, moedas, pets, trocas, selos e missões'],['factory','Reset completo: progresso, catálogo, pets, capas, selos e configurações']].forEach(([v,t])=>{const opt=h('option','',t);opt.value=v;scope.append(opt);});
-      const [field,confirmation]=adminField('Digite LIMPAR TUDO para confirmar','');
-      const resetButton=button('Apagar dados de teste',async()=>{
-        if(confirmation.value!=='LIMPAR TUDO'){toast('Digite LIMPAR TUDO para confirmar.');return;}
-        const result=await safeRun(()=>API('/api/dev/reset-all',{scope:scope.value,confirmation:confirmation.value}),'Dados de teste reiniciados!');
-        if(result){confirmation.value='';await openAdmin();}
-      },'danger-action');resetButton.disabled=true;confirmation.addEventListener('input',()=>resetButton.disabled=confirmation.value!=='LIMPAR TUDO');
-      reset.append(scope,field,resetButton);pane.append(reset);
+    if(game.local_development && ['localhost','127.0.0.1'].includes(location.hostname)){
+      const dev=block('Ferramentas de teste local','Simulações exclusivas do ambiente local.');
+      dev.append(button('Adicionar 5.000 moedas para minha conta',()=>safeRun(()=>API('/api/dev/grant-coins',{amount:5000}),'Moedas de teste adicionadas!')));
+      dev.append(button('Simular abandono → veterinário',()=>safeRun(()=>API('/api/dev/advance-pet',{stage:'vet'}),'Pet no veterinário!'),'soft-action'));
+      dev.append(button('Simular prazo vencido → morte',()=>safeRun(()=>API('/api/dev/advance-pet',{stage:'death'}),'Prazo encerrado!'),'soft-action'));
+      pane.append(dev);
     }
+    const tools=block('Ferramentas administrativas','Operações destinadas a administradores Discord. Funcionam também em celulares.');
+    tools.append(button('Reiniciar meus resgates diários',async()=>{
+      const result=await safeRun(()=>API('/api/admin/reset-daily',{}),'Seus resgates foram reiniciados!');
+      if(result)await openAdmin(true);
+    }));
+    pane.append(tools);
+    const reset=block('Limpar progresso para testes','ATENÇÃO: apaga o progresso de TODOS os usuários (cards obtidos, moedas, pets, trocas, selos e missões). As contas Discord e os catálogos permanecem. A operação não pode ser desfeita.');
+    const [field,confirmation]=adminField('Digite LIMPAR TUDO para confirmar','');
+    const resetButton=button('Apagar progresso de todos os usuários',async()=>{
+      if(confirmation.value.trim()!=='LIMPAR TUDO'){toast('Digite LIMPAR TUDO para confirmar.');return;}
+      if(!window.confirm('ATENÇÃO: apagar todo o progresso de TODOS os usuários? Não é possível desfazer.'))return;
+      const result=await safeRun(()=>API('/api/admin/reset-progress',{confirmation:confirmation.value.trim()}),'Progresso reiniciado!');
+      if(result){confirmation.value='';resetButton.disabled=true;await openAdmin(true);}
+    },'danger-action');
+    resetButton.disabled=true;
+    confirmation.addEventListener('input',()=>resetButton.disabled=confirmation.value.trim()!=='LIMPAR TUDO');
+    reset.append(field,resetButton);pane.append(reset);
     const groups=['Geral','Economia','Cards','Loja','Pets','Missões','Selos','Assets','Usuários','Integrações'];
     const classify=(name)=>{
       const x=name.toLowerCase();
@@ -723,13 +796,16 @@
     const boxes=[...pane.querySelectorAll(':scope > .game-box')];
     for(const box of boxes)box.dataset.adminGroup=classify(box.querySelector('h3')?.textContent||'');
     const nav=h('div','admin-tabs');
-    const showGroup=group=>{for(const box of boxes)box.hidden=box.dataset.adminGroup!==group;
+    const showGroup=group=>{state.adminGroup=group;for(const box of boxes)box.hidden=box.dataset.adminGroup!==group;
       for(const btn of nav.querySelectorAll('button'))btn.classList.toggle('selected',btn.dataset.group===group);};
     for(const group of groups){const btn=button(group,()=>showGroup(group),'admin-tab');btn.dataset.group=group;nav.append(btn);}
     const adminDialog=$('adminModal').querySelector('.admin-dialog');
     adminDialog.querySelector('.admin-tabs')?.remove();
-    adminDialog.insertBefore(nav,pane);showGroup('Geral');
-    $('adminModal').hidden=false;document.body.classList.add('page-open');$('adminContent').scrollTop=0;}catch(err){toast('⚠ '+err.message);}}
+    adminDialog.insertBefore(nav,pane);showGroup(state.adminGroup||'Geral');
+    state.adminReady=true;pane.scrollTop=0;
+    }catch(err){pane.replaceChildren(h('div','admin-loading','Não foi possível carregar a gestão: '+err.message));}
+    finally{state.adminLoading=false;}
+  }
   $('login').onclick=login;
   $('settings').onclick=()=>{
     $('modal').hidden=false;
@@ -741,6 +817,12 @@
       if(!$('modal').hidden)$('settingsAdmin').hidden=!game.admin;
     }).catch(()=>{$('settingsAdmin').hidden=true;});
   };
+  $('desktopCommunity').onclick=()=>searchProfiles();
+  $('desktopSearch').onclick=()=>searchProfiles();
+  $('desktopSettings').onclick=()=>$('settings').click();
+  $('desktopSettingsTop').onclick=()=>$('settings').click();
+  $('desktopSeePet').onclick=()=>chooseTab('pet');
+  $('refreshAdmin').onclick=()=>{resetCachedData();state.adminReady=false;openAdmin(true);};
   $('settingsAdmin').onclick=()=>{
     if($('settingsAdmin').hidden)return;
     $('modal').hidden=true;
@@ -786,21 +868,21 @@
     renderProfile(me);
     // Renderizar o perfil imediatamente; carregar detalhes em segundo plano.
     const firstTab=chooseTab('perfil');
-    await Promise.race([firstTab,sleep(550)]);
+    await Promise.race([firstTab,sleep(280)]);
     // Trabalho secundário só depois da primeira tela pronta.
-    setTimeout(()=>{prefetchTabs();loadUiAssets().catch(()=>{});},300);
-    if(!reduced){splash.classList.add('splash-fade');await sleep(220);}
+    setTimeout(()=>{loadUiAssets().catch(()=>{});},650);
+    setTimeout(()=>{if(state.account && !document.hidden)prefetchTabs().catch(()=>{});},1500);
+    if(!reduced){splash.classList.add('splash-fade');await sleep(150);}
     splash.hidden=true;splash.classList.remove('splash-fade');
   }
   // iOS/Android: usar a altura real visível, sem permitir que o body role e desloque a tela.
   function syncViewport(){
-    const viewport=window.visualViewport;
-    const height=viewport ? viewport.height : window.innerHeight;
+    const height=window.innerHeight;
     if(height>200)document.documentElement.style.setProperty('--recanto-height',`${Math.round(height)}px`);
   }
   syncViewport();
   window.addEventListener('resize',syncViewport,{passive:true});
-  window.visualViewport?.addEventListener('resize',syncViewport,{passive:true});
+  // Não use visualViewport.height: o teclado do iOS/Android encolhe e desloca o app.
   window.addEventListener('pageshow',syncViewport,{passive:true});
   loadTheme();
   updateInstallButton();

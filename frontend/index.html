@@ -8,10 +8,10 @@
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=0.1.1">
+  <link rel="stylesheet" href="/styles.css?v=0.1.2">
 </head>
 <body>
-<!-- Recanto 0.1. A tela de login já aparece mesmo se JavaScript falhar. -->
+<!-- Recanto 0.1.2 — layout responsivo e gestão com carregamento progressivo. -->
 <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden">
   <symbol id="discord" viewBox="0 0 127.14 96.36"><path fill="currentColor" d="M104.4 8.18A102.42 102.42 0 0 0 79.4 0a72.06 72.06 0 0 0-3.2 6.62 95.88 95.88 0 0 0-28.9 0A72.06 72.06 0 0 0 44.1 0 102.32 102.32 0 0 0 19 8.2C4.1 30.26.07 51.77 2.09 73.01A103.74 103.74 0 0 0 33.6 96.36a78.46 78.46 0 0 0 6.76-11.01 66.03 66.03 0 0 1-10.64-5.17c.89-.66 1.77-1.35 2.62-2.06a73.14 73.14 0 0 0 62.45 0c.86.71 1.73 1.4 2.62 2.06a65.88 65.88 0 0 1-10.65 5.17 78.64 78.64 0 0 0 6.77 11.01 103.57 103.57 0 0 0 31.52-23.35c2.37-24.61-4.05-45.92-20.65-64.83ZM42.45 60.32c-6.15 0-11.21-5.64-11.21-12.53s4.96-12.53 11.21-12.53c6.3 0 11.34 5.69 11.21 12.53 0 6.89-4.96 12.53-11.21 12.53Zm42.24 0c-6.15 0-11.21-5.64-11.21-12.53s4.96-12.53 11.21-12.53c6.3 0 11.34 5.69 11.21 12.53 0 6.89-4.96 12.53-11.21 12.53Z"/></symbol>
   <symbol id="person" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c0-7 16-7 16 0" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
@@ -38,14 +38,43 @@
   </main>
   <main class="screen splash-screen" id="splashScreen" aria-live="polite"><img src="/recanto-logo.png" alt="Recanto" class="splash-logo"></main>
   <main class="screen home-screen" id="homeScreen" hidden>
+    <aside class="desktop-sidebar" aria-label="Menu do Recanto">
+      <div class="desktop-brand"><img src="/recanto-logo.png" alt="Recanto"></div>
+      <div class="desktop-side-links">
+        <button type="button" class="desktop-side-link selected" data-tab="perfil"><svg><use href="#person"/></svg><span>Perfil</span></button>
+        <button type="button" class="desktop-side-link" data-tab="missoes"><svg><use href="#missions"/></svg><span>Missões</span></button>
+        <button type="button" class="desktop-side-link" data-tab="inventario"><svg><use href="#inventory"/></svg><span>Inventário</span></button>
+        <button type="button" class="desktop-side-link" data-tab="cards"><svg><use href="#cards"/></svg><span>Cards</span></button>
+        <button type="button" class="desktop-side-link" data-tab="pet"><svg><use href="#pet"/></svg><span>Pet</span></button>
+        <button type="button" class="desktop-side-link" data-tab="loja"><svg><use href="#shop"/></svg><span>Loja</span></button>
+        <button type="button" class="desktop-side-link" id="desktopCommunity"><svg><use href="#person-search"/></svg><span>Comunidade</span></button>
+        <button type="button" class="desktop-side-link" id="desktopSettings"><svg><use href="#gear"/></svg><span>Configurações</span></button>
+      </div>
+      <div class="desktop-sidebar-note">Um lugar para nossa comunidade brilhar juntos! ✨</div>
+    </aside>
+    <header class="desktop-topbar" aria-label="Barra superior">
+      <button type="button" class="desktop-search" id="desktopSearch"><svg><use href="#person-search"/></svg><span>Buscar membros da comunidade...</span></button>
+      <div class="desktop-topbar-actions">
+        <div class="desktop-coins"><svg><use href="#coin"/></svg><span><b id="desktopWallet">—</b><small>Moedas</small></span></div>
+        <button type="button" class="desktop-settings" id="desktopSettingsTop" aria-label="Configurações"><svg><use href="#gear"/></svg></button>
+        <div class="desktop-user"><span class="desktop-user-avatar" id="desktopAvatar"></span><span id="desktopUserName">Meu Recanto</span></div>
+      </div>
+    </header>
     <div id="profileContent">
-      <header class="profile-header"><div class="greeting"><svg class="discord-mark"><use href="#discord"/></svg><span id="userName">Olá, Fulano</span></div><div class="header-actions"><button type="button" class="settings-button search-icon-button" id="searchUsers" aria-label="Buscar perfis" title="Buscar perfis"><svg><use href="#person"/></svg></button><button type="button" class="settings-button" id="settings" aria-label="Configurações"><svg><use href="#gear"/></svg></button></div></header>
+      <header class="profile-header"><div class="greeting"><svg class="discord-mark"><use href="#discord"/></svg><span id="userName">Olá, Fulano</span><span class="desktop-profile-title">Meu Perfil</span></div><div class="header-actions"><button type="button" class="settings-button search-icon-button" id="searchUsers" aria-label="Buscar perfis" title="Buscar perfis"><svg><use href="#person"/></svg></button><button type="button" class="settings-button" id="settings" aria-label="Configurações"><svg><use href="#gear"/></svg></button></div></header>
+      <div class="desktop-profile-hero">
       <section class="profile-panel"><div class="profile-panel-inner"><div class="stats-list">
         <div class="stat"><span class="stat-icon"><svg><use href="#coin"/></svg></span><strong class="stat-value" id="valMoedas">50</strong><span class="stat-name">Moedas</span></div>
         <div class="stat"><span class="stat-icon"><svg><use href="#cards"/></svg></span><strong class="stat-value" id="valCards">50</strong><span class="stat-name">Cards</span></div>
         <div class="stat"><span class="stat-icon"><svg><use href="#heart"/></svg></span><strong class="stat-value" id="valPetiscos">50</strong><span class="stat-name">Petiscos</span></div>
       </div><span class="profile-divider"></span><div class="last-card"><div class="last-card-art" id="latestCard" role="button" tabindex="0" aria-label="Ver último card ampliado"></div><span>Último Card</span></div></div></section>
       <div class="profile-avatar"><div class="avatar" id="userAvatar"><svg class="avatar-placeholder"><use href="#person"/></svg></div></div>
+      <div class="desktop-identity"><h2 id="desktopProfileName">Meu Recanto</h2><span class="desktop-online">● Online</span><p>Explorando, colecionando e construindo um lugar incrível com vocês! ✨</p></div>
+      </div>
+      <aside class="desktop-right-column">
+        <section class="desktop-pet-widget" aria-label="Minha Pequena Lenda"><h2>🐾 Minha Pequena Lenda</h2><div id="desktopPetPreview" class="desktop-pet-content"><p>Carregando companheiro...</p></div><button type="button" class="desktop-widget-action" id="desktopSeePet">Ver detalhes do pet →</button></section>
+        <section class="profile-discord-widget" id="discordWidgetSection"><h2><svg class="discord-mark"><use href="#discord"/></svg> Servidor do Discord</h2><div class="discord-widget-frame"><iframe id="discordServerFrame" title="Widget do servidor Recanto no Discord" loading="lazy" referrerpolicy="no-referrer" src="about:blank"></iframe></div><p class="discord-widget-help">Para ver membros e canais, habilite o Widget nas configurações do servidor Discord.</p><a class="desktop-widget-action" href="https://discord.com/channels/958567158479208458" target="_blank" rel="noopener noreferrer">Abrir servidor no Discord ↗</a></section>
+      </aside>
     </div>
     <section class="content-page" id="cardsScreen" hidden>
       <header class="content-head"><h1>✦ Cards</h1><span id="cardsCount">Coleção</span></header>
@@ -84,7 +113,7 @@
     <section class="full-page public-profile-page" id="publicProfilePage" hidden aria-label="Perfil da comunidade"><header class="full-page-header"><button type="button" class="soft-action" id="backToMyProfile">← Voltar ao meu perfil</button><h2>Comunidade</h2></header><div class="public-profile-scroll" id="publicProfileContent"></div></section>
     <div class="pack-reveal" id="packReveal" hidden role="dialog" aria-modal="true" aria-label="Abrir pacote"><div class="reveal-hint" id="revealHint">Toque para revelar</div><div class="flip-stage" id="flipStage"><div class="flip-card" id="flipCard"><div class="flip-face flip-back">✦<small>RECANTO</small></div><div class="flip-face flip-front" id="flipFront"></div></div></div><div class="reveal-counter" id="revealCounter"></div><button class="reveal-next" id="revealNext">Revelar card</button><button class="reveal-exit" id="revealExit" aria-label="Encerrar abertura" hidden>Concluir</button></div>
     <div class="modal-backdrop" id="cardModal" hidden><section class="modal-panel card-detail-dialog" role="dialog" aria-modal="true" aria-label="Detalhes do card"><button class="detail-x" id="closeCardDetail" aria-label="Fechar card">✕</button><div id="cardDetail"></div></section></div>
-    <section class="full-page admin-page" id="adminModal" hidden aria-label="Gestão do Recanto"><div class="admin-dialog"><header class="modal-header"><h2>Gestão do Recanto</h2><button class="modal-close" id="closeAdmin">✕</button></header><div class="admin-scroll" id="adminContent"></div></div></section>
+    <section class="full-page admin-page" id="adminModal" hidden aria-label="Gestão do Recanto"><div class="admin-dialog"><header class="modal-header"><h2>Gestão do Recanto</h2><div class="admin-header-actions"><button class="admin-refresh" type="button" id="refreshAdmin" title="Atualizar dados da gestão">↻ Atualizar</button><button class="modal-close" id="closeAdmin" aria-label="Fechar gestão">✕</button></div></header><div class="admin-scroll" id="adminContent"></div></div></section>
     <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
     <div class="modal-backdrop" id="modal" hidden><section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title"><header class="modal-header"><h2 id="settings-title">Configurações</h2><button class="modal-close" type="button" id="closeSettings" aria-label="Fechar">✕</button></header>
       <div class="setting-row"><div class="setting-label"><svg><use href="#bell"/></svg><div><strong>Habilitar notificações</strong><span>Avisos e recompensas no futuro</span></div></div><button class="switch" type="button" role="switch" aria-label="Habilitar notificações" aria-checked="false" id="notificationsToggle"><span></span></button></div>
@@ -92,9 +121,9 @@
       <p class="notifications-status" id="notificationsStatus" role="status" aria-live="polite">Avisos automáticos ainda não estão disponíveis.</p>
       <button type="button" class="soft-action settings-admin" id="settingsAdmin" hidden aria-label="Abrir Gestão do Recanto"><svg aria-hidden="true"><use href="#gear"/></svg><span>Gestão do Recanto</span></button>
       <button type="button" class="soft-action settings-update-check" id="checkUpdates">↻ Verificar atualizações</button>
-      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.1</p></section></div>
+      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.1.2</p></section></div>
   </main>
 </div>
-<script src="/app.js?v=0.1.1" defer></script>
+<script src="/app.js?v=0.1.2" defer></script>
 </body>
 </html>

@@ -1601,6 +1601,48 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             raise HTTPException(404, detail='Imagem não encontrada')
         return FileResponse(path, headers={'Cache-Control': 'public, max-age=3600'})
 
+    # 0.1.2: operações administrativas de manutenção, inclusive no PWA mobile.
+    # Não expor simulações de desenvolvimento nem restauração de catálogos em produção.
+    # O usuário é autenticado via sessão Discord e conferido na lista de administradores.
+    @app.post('/api/admin/reset-daily')
+    def admin_reset_daily(request: Request):
+        uid = only_admin(request)
+        with writing() as db:
+            for row in db.scalars(select(Claim).where(Claim.user_id == uid)).all():
+                db.delete(row)
+            cooldown = db.get(CardCooldown, uid)
+            if cooldown: db.delete(cooldown)
+            for progress in db.scalars(select(MissionProgress).where(
+                    MissionProgress.user_id == uid,
+                    MissionProgress.day == local_day())).all():
+                db.delete(progress)
+        return {'ok': True, 'detail': 'Resgates diários do administrador reiniciados'}
+
+    @app.post('/api/admin/reset-progress')
+    async def admin_reset_progress(request: Request):
+        uid = only_admin(request)
+        payload = json_body(await request.json(), ('confirmation',))
+        if payload['confirmation'] != 'LIMPAR TUDO':
+            raise HTTPException(422, detail='Digite LIMPAR TUDO para confirmar')
+        # Mantém todas as contas e sessões Discord, catálogos, ofertas da loja,
+        # permissões de administradores e configurações da aplicação.
+        with writing() as db:
+            for table in (VisitorCare, FavoriteCard, ReservedCard, InventoryPack,
+                          InventoryTreat, CoinOffer, CardCooldown, PetExpedition,
+                          FavoriteGame, TradeReward, Trade, MissionProgress, Claim,
+                          UserAchievement, AchievementProgress, UserPet, OwnedCard):
+                db.execute(delete(table))
+            for name in ('recanto_mission_counters', 'recanto_mission_claims',
+                         'recanto_discord_events', 'recanto_notification_sent'):
+                extra = Base.metadata.tables.get(name)
+                if extra is not None:
+                    db.execute(delete(extra))
+            for balance in db.scalars(select(Wallet)).all():
+                balance.coins = 0
+                balance.treats = 0
+        return {'ok': True, 'scope': 'progress',
+                'detail': 'Progresso de todos os usuários reiniciado por um administrador'}
+
     @app.post('/api/dev/grant-coins')
     async def grant_test_coins(request: Request):
         uid=test_admin(request)
