@@ -614,3 +614,39 @@ body.dark-mode .admin-tab.selected {background:#5865f2;color:white;}
 .settings-admin svg {width:18px;height:18px;flex:none;}
 .settings-admin[hidden] {display:none!important;}
 body.dark-mode .settings-admin {background:#354573!important;color:#f5f7ff!important;}
+
+/* Recanto 0.1 — layout responsivo e páginas de navegação */
+[hidden] { display:none !important; }
+html,body { overscroll-behavior-y:none; }
+body.page-open { overflow:hidden; }
+.app-frame { max-width: 480px; }
+.full-page { position:fixed; inset:0; z-index:25; background:#f6f7ff; color:#2b2e50; display:flex; flex-direction:column; overflow:hidden; padding: max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); }
+.admin-page .admin-dialog { display:flex; flex-direction:column; width:100%; max-width:980px; height:100%; min-height:0; margin:auto; overflow:hidden; }
+.admin-page .modal-header { flex:none; padding:6px 0 12px; margin:0; }
+.admin-page .admin-scroll { flex:1; overflow-y:auto; overflow-x:hidden; min-height:0; padding:12px 2px 36px; gap:18px; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+.admin-page .admin-tabs { position:sticky; top:0; z-index:3; display:flex; flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden; max-width:100%; gap:6px; padding:10px 0; background:#f6f7ff; scrollbar-width:thin; }
+.admin-page .admin-tab { flex:0 0 auto; white-space:nowrap; }
+.admin-page .game-box { min-width:0; max-width:100%; overflow-wrap:anywhere; }
+.admin-page input,.admin-page select,.admin-page textarea { max-width:100%; }
+.public-profile-page { z-index:24; }
+.full-page-header { display:flex; align-items:center; flex-wrap:wrap; gap:16px; width:100%; max-width:700px; margin:0 auto 16px; }
+.full-page-header h2 { margin:0; font-size:clamp(20px,4vw,28px); }
+.public-profile-scroll { flex:1; min-height:0; overflow:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; width:100%; max-width:700px; margin:0 auto; padding:8px 2px 36px; }
+.public-profile-scroll > .public-section,.public-profile-scroll > .game-box { margin-bottom:18px; }
+.public-profile-scroll > .public-pet { margin-top:20px; }
+.public-profile-scroll .game-icons { flex-wrap:wrap; }
+.splash-screen:not([hidden]) { position:fixed; inset:0; z-index:60; min-height:100dvh; width:100%; touch-action:none; overscroll-behavior:none; }
+.splash-screen.splash-fade { pointer-events:auto; }
+@media(min-width:768px){
+  .app-frame { box-shadow:0 0 40px #151b5130; }
+  .home-screen { max-width:480px; margin:auto; }
+  .modal-panel { max-width:620px; }
+  .admin-page .admin-scroll { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:start; }
+  .admin-page .admin-scroll > .admin-tabs,.admin-page .admin-scroll > p { grid-column:1/-1; }
+  .admin-page .admin-scroll > .game-box { align-self:start; }
+}
+@media(max-width:600px){
+  .full-page { padding-left:14px; padding-right:14px; }
+  .admin-page .admin-scroll { display:flex; flex-direction:column; }
+  .admin-page .modal-header h2 { font-size:21px; }
+}

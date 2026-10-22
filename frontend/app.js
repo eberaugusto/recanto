@@ -27,7 +27,7 @@
   let prefetchPromise=null;
   function prefetchTabs(){
     if(prefetchPromise)return prefetchPromise;
-    const urls=['/api/game/config','/api/achievements','/api/games/preferences','/api/daily/status','/api/catalog','/api/shop','/api/inventory','/api/pets','/api/missions','/api/collections/featured'];
+    const urls=['/api/game/config','/api/achievements','/api/games/preferences','/api/daily/status'];
     prefetchPromise=Promise.allSettled(urls.map(url=>API(url)));
     prefetchPromise.finally(()=>{prefetchPromise=null;});
     return prefetchPromise;
@@ -74,10 +74,10 @@
   function updateInstallButton(){
     const btn=$('installApp');
     if(!btn)return;
-    btn.hidden=false;
     const installed=matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
+    btn.hidden=installed;
     btn.disabled=installed;
-    btn.querySelector('span').textContent=installed?'Instalado':'Instalar';
+    btn.querySelector('span').textContent='Instalar';
   }
   function renderProfile(me){state.account=me;$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);avatar($('userAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.toggle('has-card',!!me.last_card);recent.setAttribute('aria-label',me.last_card?'Ampliar último card: '+me.last_card.name:'Nenhum card obtido ainda');recent.onclick=me.last_card?()=>showCard(me.last_card,'Último card recebido'):null;if(me.last_card&&me.last_card.image_url){const img=h('img');img.src=me.last_card.image_url;img.alt=me.last_card.name;recent.append(img);}else recent.textContent=me.last_card?me.last_card.name:'?';}
   $('latestCard').addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&state.account?.last_card){e.preventDefault();showCard(state.account.last_card,'Último card recebido');}});
@@ -348,7 +348,8 @@
   }
   async function openPublicProfile(uid){
     try{const [d,items]=await Promise.all([API('/api/community/profiles/'+encodeURIComponent(uid)),API('/api/inventory')]);
-      const pane=$('profilesPane');pane.replaceChildren();pane.append(button('← Voltar à busca',searchProfiles,'soft-action'));
+      $('profilesModal').hidden=true;$('publicProfilePage').hidden=false;
+      const pane=$('publicProfileContent');pane.replaceChildren();pane.append(button('← Voltar à busca',()=>{$('publicProfilePage').hidden=true;searchProfiles();},'soft-action'));
       const title=h('div','public-identity');if(d.avatar_url){const img=h('img');img.src=d.avatar_url;img.alt=d.name;title.append(img);}else title.append(h('div','profile-thumb','◉'));
       const meta=h('div');meta.append(h('h3','',d.name),h('p','',d.cards+' cards na coleção'));title.append(meta);pane.append(title);
       if(d.favorite){const fav=block('★ Card favorito',d.favorite.name);fav.classList.add('public-section','public-favorite');const art=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');art.addEventListener('click',()=>showCard(d.favorite));fav.prepend(art);pane.append(fav);}
@@ -358,13 +359,13 @@
       const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
       for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));chip.title=game.name;gameIcons.append(chip);}
       favorites.append(gameIcons);pane.append(favorites);
-      if(d.pet){const pet=block('🐾 Pet: '+d.pet.name,`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);pet.prepend(petVisual(d.pet));pane.append(pet);
+      if(d.pet){const pet=block('🐾 Pet: '+d.pet.name,`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);pet.classList.add('public-section','public-pet');pet.prepend(petVisual(d.pet));pane.append(pet);
         if(d.pet.status==='ativo'){const actions=h('div','social-actions');actions.append(button('💗 Acariciar',()=>visitPet(uid,'pet')));
           const opts=items.treats||[];if(opts.length){const select=h('select','select-input');opts.forEach(t=>{const o=h('option','',t.name+' (+'+t.food+')');o.value=t.sku;select.append(o);});
             actions.append(select,button('🍪 Alimentar',()=>visitPet(uid,'feed',select.value),'soft-action'));}
           else actions.append(button('Comprar petiscos →',()=>{$('profilesModal').hidden=true;chooseTab('loja','treat3');},'soft-action'));
           pane.append(actions);}}
-      else pane.append(block('Sem pet','Este membro ainda não adotou uma Pequena Lenda.'));
+      else {const noPet=block('Sem pet','Este membro ainda não adotou uma Pequena Lenda.');noPet.classList.add('public-section','public-pet');pane.append(noPet);}
     }catch(err){toast(err.message);}
   }
   async function visitPet(owner,action,sku='biscoito'){
@@ -725,7 +726,7 @@
       for(const btn of nav.querySelectorAll('button'))btn.classList.toggle('selected',btn.dataset.group===group);};
     for(const group of groups){const btn=button(group,()=>showGroup(group),'admin-tab');btn.dataset.group=group;nav.append(btn);}
     pane.prepend(nav);showGroup('Geral');
-    $('adminModal').hidden=false;}catch(err){toast('⚠ '+err.message);}}
+    $('adminModal').hidden=false;document.body.classList.add('page-open');$('adminContent').scrollTop=0;}catch(err){toast('⚠ '+err.message);}}
   $('login').onclick=login;
   $('settings').onclick=()=>{
     $('modal').hidden=false;
@@ -770,16 +771,19 @@
   $('dailyCard').onclick=async()=>{const result=await safeRun(()=>API('/api/daily/card',{}),'Card diário recebido!');if(result?.card)showCard(result.card,`+${result.card.bonus_coins??result.card_bonus??state.game?.rules?.['card_bonus_'+result.card.rarity]??1} moedas pelo card!`);};
   document.querySelectorAll('[data-tab]').forEach(btn=>btn.addEventListener('click',()=>chooseTab(btn.dataset.tab)));
   document.querySelectorAll('[data-card-tab]').forEach(btn=>btn.addEventListener('click',()=>cardPane(btn.dataset.cardTab).catch(err=>toast(err.message))));
-  $('closeCardDetail').onclick=closeCardDetail;$('closeAdmin').onclick=()=>{$('adminModal').hidden=true;};
-  for(const id of ['modal','cardModal','adminModal','profilesModal'])$(id).addEventListener('click',e=>{if(e.target===$(id)){if(id==='cardModal')closeCardDetail();else $(id).hidden=true;}});
-  window.addEventListener('keydown',e=>{if(e.key==='Escape')for(const id of ['modal','adminModal','profilesModal'])$(id).hidden=true;closeCardDetail();});
+  $('closeCardDetail').onclick=closeCardDetail;$('closeAdmin').onclick=()=>{$('adminModal').hidden=true;document.body.classList.remove('page-open');};
+  $('backToMyProfile').onclick=()=>{$('publicProfilePage').hidden=true;$('profilesModal').hidden=true;chooseTab('perfil');};
+  for(const id of ['modal','cardModal','profilesModal'])$(id).addEventListener('click',e=>{if(e.target===$(id)){if(id==='cardModal')closeCardDetail();else $(id).hidden=true;}});
+  window.addEventListener('keydown',e=>{if(e.key==='Escape')for(const id of ['modal','profilesModal'])$(id).hidden=true;closeCardDetail();});
   
   async function showWelcome(me){
     $('loginScreen').hidden=true;$('homeScreen').hidden=true;
     const splash=$('splashScreen');splash.hidden=false;splash.classList.remove('splash-fade');
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     await new Promise(resolve=>setTimeout(resolve,reduced?100:1050));
-    renderProfile(me);prefetchTabs();await loadUiAssets();await chooseTab('perfil');
+    renderProfile(me);await chooseTab('perfil');
+    // Trabalho secundário só depois da primeira tela pronta.
+    setTimeout(()=>{prefetchTabs();loadUiAssets().catch(()=>{});},300);
     if(!reduced){splash.classList.add('splash-fade');await new Promise(resolve=>setTimeout(resolve,550));}
     splash.hidden=true;splash.classList.remove('splash-fade');
   }
@@ -787,6 +791,7 @@
   updateInstallButton();
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();state.installEvent=e;updateInstallButton();});
   window.addEventListener('appinstalled',()=>{state.installEvent=null;updateInstallButton();toast('Recanto instalado com sucesso!');});
+  window.matchMedia('(display-mode: standalone)').addEventListener?.('change',updateInstallButton);
   setInterval(updateCountdowns,1000);
   (async()=>{
     const params=new URLSearchParams(location.search);
@@ -835,10 +840,8 @@
           });
         });
         const check=()=>reg.update().catch(()=>{});
-        window.addEventListener('focus',check);
-        document.addEventListener('visibilitychange',()=>{if(!document.hidden)check();});
-        setInterval(()=>{if(!document.hidden)check();},30*60*1000);
-        check();
+        // Evita múltiplas verificações de atualização a cada retorno ao PWA.
+        setInterval(()=>{if(!document.hidden)check();},60*60*1000);
       }catch(_){/* O Recanto também funciona sem Service Worker */}
     });
   }
