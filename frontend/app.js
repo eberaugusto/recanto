@@ -51,7 +51,9 @@
   const labels={perfil:'Perfil',cards:'Cards',inventario:'Inventário',pet:'Pet',loja:'Loja',missoes:'Missões'};
   const tierLabels={comum:'Comum',raro:'Raro',lendário:'Lendário',prismático:'Prismático'};
   const state={assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:8,cardPage:1,cardPageSize:12,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:matchMedia('(min-width:768px)').matches?'raridade':'padrao',missing:false,newOnly:false},detailClosing:false};
-  const toast=(message)=>{const el=$('toast');el.textContent=message;el.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>{el.hidden=true;},4800);};
+  const toast=(message)=>{const el=$('toast');el.textContent=message;el.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>{el.hidden=true;},4000);};
+  $('toast').addEventListener('click',()=>{$('toast').hidden=true;clearTimeout(toast.timer);});
+  $('toast').title='Clique para dispensar';
   const report=msg=>{$('message').textContent=msg||'';};
   const button=(text,handler,style='main-action')=>{const b=h('button',style,text);b.type='button';b.addEventListener('click',handler);return b;};
   const block=(title,body)=>{const div=h('div','game-box');if(title)div.append(h('h3','',title));if(body)div.append(h('p','',body));return div;};
@@ -84,8 +86,8 @@
     btn.disabled=installed;
     btn.querySelector('span').textContent='Instalar';
   }
-  function renderProfile(me){state.account=me;$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);$('desktopWallet').textContent=money(me.coins);$('desktopCards').textContent=money(me.cards);$('desktopTreats').textContent=money(me.treats);$('desktopUserName').textContent=me.name;$('desktopProfileName').textContent=me.name;avatar($('userAvatar'),me.name,me.avatar_url);avatar($('desktopAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.toggle('has-card',!!me.last_card);recent.setAttribute('aria-label',me.last_card?'Ampliar último card: '+me.last_card.name:'Nenhum card obtido ainda');recent.onclick=me.last_card?()=>showCard(me.last_card,'Último card recebido'):null;if(me.last_card&&me.last_card.image_url){const img=h('img');img.src=me.last_card.image_url;img.alt=me.last_card.name;recent.append(img);}else recent.textContent=me.last_card?me.last_card.name:'?';}
-  $('latestCard').addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&state.account?.last_card){e.preventDefault();showCard(state.account.last_card,'Último card recebido');}});
+  function renderProfile(me){state.account=me;$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);$('desktopWallet').textContent=money(me.coins);$('desktopCards').textContent=money(me.cards);$('desktopTreats').textContent=money(me.treats);$('desktopUserName').textContent=me.name;$('desktopProfileName').textContent=me.name;avatar($('userAvatar'),me.name,me.avatar_url);avatar($('desktopAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.toggle('has-card',false);recent.setAttribute('aria-label','Nenhum card favorito selecionado');recent.onclick=null;recent.textContent='?';const profileId=me.name;API('/api/cards/favorite').then(({card})=>{if(state.account?.name!==profileId)return;recent.replaceChildren();recent.classList.toggle('has-card',!!card);recent.setAttribute('aria-label',card?'Ampliar card favorito: '+card.name:'Nenhum card favorito selecionado');recent.onclick=card?()=>showCard(card,'Card favorito'):null;recent.onkeydown=card?(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showCard(card,'Card favorito');}}:null;if(card?.image_url){const img=h('img');img.src=card.image_url;img.alt=card.name;recent.append(img);}else recent.textContent=card?.name||'?';}).catch(()=>{});}
+
   async function refreshProfile(){if(!state.account)return;const me=await API('/api/me');if(me.authenticated)renderProfile(me);else showLogin();}
   function showLogin(){resetCachedData();state.adminReady=false;state.petPreviewLoaded=false;$('adminModal').hidden=true;document.body.classList.remove('page-open');$('settingsAdmin').hidden=true;state.account=null;$('loginScreen').hidden=false;$('splashScreen').hidden=true;$('homeScreen').hidden=true;$('modal').hidden=true;}
   async function refreshActive(force=false){if(!state.account)return;
@@ -280,7 +282,9 @@
       nav.append(previous,caption,next);container.append(nav);
     }
   }
+  let currentCardPaneRequest=0;
   async function cardPane(tab){
+    const requestId=++currentCardPaneRequest;
     if(state.cardTab!==tab)state.cardPage=1;
     state.cardTab=tab;document.querySelectorAll('[data-card-tab]').forEach(el=>el.classList.toggle('mini-active',el.dataset.cardTab===tab));
     const p=$('cardsPane');p.replaceChildren();p.dataset.mode=tab;$('cardFilters').hidden=tab==='trocas';
@@ -308,7 +312,7 @@
       const results=h('div','filtered-cards');p.append(results);renderCardFilters(data.items,new Set(mine.items.map(c=>c.card_id)),'catalogo',results);
     }
     if(tab==='trocas'){
-      const [community,trades,mine]=await Promise.all([API('/api/community'),API('/api/trades'),API('/api/cards')]);$('cardsCount').textContent='Negociações';
+      const [community,trades,mine]=await Promise.all([API('/api/community'),API('/api/trades'),API('/api/cards')]);if(requestId!==currentCardPaneRequest||state.cardTab!==tab)return;$('cardsCount').textContent='Negociações';
       const form=block('Propor uma troca','Escolha um membro e indique a carta sua e a carta dele. A troca só acontece quando a outra pessoa aceitar.');
       const members=community.members.filter(m=>m.cards.length);const mineCards=mine.items;
       if(members.length&&mineCards.length){
@@ -321,7 +325,7 @@
       tradeProposals.append(form,h('h3','section-heading','Minhas propostas'));
       if(!trades.items.length)tradeProposals.append(block('Sem propostas','As negociações aparecerão aqui.'));
       for(const t of trades.items){const row=block(`${t.from_name} ↔ ${t.to_name}`,`${t.offered?.name||'Card'} ↔ ${t.wanted?.name||'Card'} · ${t.status}`);row.classList.add('trade-row');if(t.can_accept){row.append(button('Aceitar',()=>actTrade(t.id,'accept')));row.append(button('Recusar',()=>actTrade(t.id,'reject'),'soft-action'));}if(t.can_cancel)row.append(button('Cancelar proposta',()=>actTrade(t.id,'cancel'),'soft-action'));tradeProposals.append(row);}
-      const [offers,eco]=await Promise.all([API('/api/coin-offers'),API('/api/card-economy')]);
+      const [offers,eco]=await Promise.all([API('/api/coin-offers'),API('/api/card-economy')]);if(requestId!==currentCardPaneRequest||state.cardTab!==tab)return;
       const prices=Object.entries(eco.minimum_offers).map(([tier,v])=>`${tierLabels[tier]}: ${v}`).join(' • ');
       const bid=block('Oferecer moedas por card',`Valores mínimos: ${prices}. A oferta reserva suas moedas até a decisão do dono.`);
       const candidates=community.members.filter(m=>m.cards.length);
@@ -341,7 +345,9 @@
         if(offer.can_cancel)row.append(button('Cancelar e receber reembolso',()=>decideCoinOffer(offer.id,'cancel'),'soft-action'));
         tradeOffers.append(row);
       }
-      tradeColumns.append(tradeProposals,tradeOffers);p.append(tradeColumns);
+      const pending=h('section','trade-section trade-pending');pending.append(h('h3','section-heading','Propostas e ofertas'));
+      for(const entry of [...tradeProposals.querySelectorAll('.game-box')].slice(1)){pending.append(entry);}for(const entry of [...tradeOffers.querySelectorAll('.game-box')].slice(1)){pending.append(entry);}
+      tradeColumns.append(tradeProposals,tradeOffers,pending);p.replaceChildren(tradeColumns);
     }
   }
     async function decideCoinOffer(id,action){await safeRun(()=>API(`/api/coin-offers/${id}/decide`,{action}),'Oferta atualizada!');}
@@ -431,7 +437,7 @@
         if(d.avatar_url){const img=h('img');img.src=d.avatar_url;img.alt=d.name;title.append(img);}else title.append(h('div','profile-thumb','◉'));
         const meta=h('div');meta.append(h('h3','',d.name),h('p','',d.cards+' cards na coleção'));title.append(meta);pane.append(title);
         if(d.favorite){const fav=block('★ Card favorito',d.favorite.name);fav.classList.add('public-section','public-favorite');
-          const art=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');art.addEventListener('click',()=>showCard(d.favorite));fav.prepend(art);pane.append(fav);}
+          const art=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');art.setAttribute('role','button');art.tabIndex=0;art.addEventListener('click',()=>showCard(d.favorite));art.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showCard(d.favorite);}});fav.prepend(art);pane.append(fav);}
         const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section');const line=h('div','public-badges');
         (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip',b.icon);badge.title=b.title;line.append(badge);});
         if(!d.badges?.length)line.append(h('p','','Nenhum selo por enquanto.'));badges.append(line);pane.append(badges);
@@ -458,7 +464,7 @@
       const title=h('div','public-identity');
       if(d.avatar_url){const img=h('img');img.src=d.avatar_url;img.alt=d.name;title.append(img);}else title.append(h('div','profile-thumb','◉'));
       const meta=h('div','public-identity-info');meta.append(h('h3','',d.name),h('span','public-online','● Perfil da comunidade'),h('p','public-card-count',`${d.cards} card(s) na coleção`));title.append(meta);hero.append(title);
-      if(d.favorite){const recent=h('div','public-hero-favorite');recent.append(mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover'),h('strong','','Card favorito: '+d.favorite.name));hero.append(recent);}
+      if(d.favorite){const recent=h('div','public-hero-favorite');const cover=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');cover.tabIndex=0;cover.setAttribute('role','button');cover.setAttribute('aria-label','Ampliar card favorito de '+d.name);cover.addEventListener('click',()=>showCard(d.favorite,'Card favorito de '+d.name));cover.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showCard(d.favorite,'Card favorito de '+d.name);}});recent.append(cover,h('strong','','Card favorito: '+d.favorite.name));hero.prepend(recent);}
       main.append(hero);
       const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section','public-badges');const line=h('div','public-badges-row');
       (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip',b.icon);badge.title=b.title;line.append(badge);});
@@ -1167,6 +1173,7 @@
     openAdmin(); // Validação real do ID continua no backend.
   };
   $('closeSettings').onclick=()=>{$('modal').hidden=true;};
+  if(matchMedia('(min-width:768px)').matches){const t=$('missionTimer');const title=$('missionsScreen').querySelector('.content-head h1');if(t&&title)title.after(t);}
   $('logout').onclick=async()=>{try{await API('/api/auth/logout',{});showLogin();}catch(err){toast(err.message);}};
   $('notificationsToggle').onclick=toggleNotifications;
   $('darkModeToggle').onclick=toggleDarkMode;

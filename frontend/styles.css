@@ -1421,3 +1421,39 @@ body.dark-mode .discord-widget-help{color:#bac6f2;}
     display:block;width:100%;height:100%;object-fit:cover;
   }
 }
+
+/* RECANTO 0.1.11 — CORRECOES VISUAIS EXCLUSIVAS DO DESKTOP */
+@media (min-width:768px){
+  #toast.toast{position:fixed!important;z-index:9999;left:auto!important;right:24px!important;top:94px!important;bottom:auto!important;width:min(340px,calc(100vw - 48px))!important;max-width:340px;padding:13px 28px 13px 16px;font-size:14px;line-height:1.4;cursor:pointer;border-radius:14px;text-align:left;box-shadow:0 7px 24px #171c5b3d;}
+  #toast.toast::after{content:'×';position:absolute;right:11px;top:6px;font-size:22px;color:#fff;opacity:.85;}
+  #shopScreen .shop-daily-coins{margin:0!important;width:min(100%,490px)!important;max-width:490px!important;min-height:94px!important;padding:16px 18px!important;gap:15px;justify-content:flex-start;}
+  #shopScreen .shop-daily-text{flex:0 1 190px!important;}
+  #shopScreen .shop-daily-coins .white-action{flex:0 0 auto;min-height:42px;white-space:nowrap;}
+  #cardsPane[data-mode="trocas"] .trade-columns{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:16px;align-items:start;}
+  #cardsPane[data-mode="trocas"] .trade-section{display:flex;flex-direction:column;gap:12px;min-width:0;}
+  #cardsPane[data-mode="trocas"] .trade-section .game-box{width:100%;margin:0;min-width:0;}
+  #cardsPane[data-mode="trocas"] .trade-section>.section-heading{color:#25377d;font-size:18px;}
+  #cardsScreen .mini-tabs button:not(.mini-active),#inventoryScreen .mini-tabs button:not(.mini-active){color:#283c84!important;background:#f3f5ff!important;border-color:#cbd3f4!important;opacity:1!important;}
+  #missionsScreen .content-head{display:flex!important;justify-content:flex-start;align-items:center;gap:24px;}
+  #missionsScreen .content-head h1{flex:0 0 auto;}
+  #missionsScreen #missionTimer{margin:0!important;font-size:17px!important;font-weight:800!important;color:#2a3e87!important;white-space:nowrap;}
+  #missionsScreen .content-head #missionCount{margin-left:auto;}
+  #cardsPane .catalog-highlights{grid-template-columns:minmax(245px,.84fr) minmax(0,1.6fr)!important;}
+  #cardsPane .catalog-highlights>.catalog-summary{grid-column:1!important;grid-row:1!important;}
+  #cardsPane .catalog-highlights>.featured-collection-banner{grid-column:2!important;grid-row:1!important;max-width:none!important;width:100%!important;justify-self:stretch!important;}
+  #profileContent .profile-games .game-icons{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;align-items:center;justify-items:center;}
+  #profileContent .profile-games .game-icon{width:clamp(49px,4.5vw,69px);height:clamp(49px,4.5vw,69px);border-radius:50%!important;}
+  #profileContent .profile-games .game-icon img{border-radius:50%;}
+  #profileContent .profile-avatar{top:54px!important;width:clamp(170px,15vw,220px)!important;}
+  #profileContent .desktop-left-column>.desktop-profile-hero{min-height:358px!important;height:358px!important;flex-basis:358px!important;}
+  #profileContent .desktop-identity{top:112px!important;}
+  #profileContent .desktop-pet-widget{min-height:305px;}
+  #profileContent .profile-discord-widget{min-height:380px;}
+  .public-profile-hero{gap:22px!important;}
+  .public-hero-favorite{margin:0!important;order:-1;width:clamp(130px,13vw,180px)!important;cursor:pointer;}
+  .public-hero-favorite .item-cover{height:clamp(182px,18vw,245px)!important;object-fit:cover!important;cursor:zoom-in;}
+  .public-hero-favorite .item-cover:focus-visible{outline:3px solid #5865f2;outline-offset:4px;}
+  .public-profile-hero .public-identity{flex:1;min-width:0;}
+}
+/* O detalhe do card deve ficar acima da pagina de outro usuario. */
+#cardModal:not([hidden]){position:fixed!important;inset:0!important;z-index:99999!important;}
