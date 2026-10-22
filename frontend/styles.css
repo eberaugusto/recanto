@@ -947,3 +947,120 @@ body.dark-mode .discord-widget-help{color:#bac6f2;}
 
 /* O iframe de TFT nao deve capturar gestos de rolagem na tela pequena. */
 @media(max-width:767px){.pet-visual .pet-khada-embed{pointer-events:none;}}
+
+
+/* =============================================================
+   RECANTO 0.1.5 — Ajustes exclusivos para desktop (>= 768 px).
+   Cards: fluxo sem colunas automaticas, legibilidade e resumo/destaque lado a lado.
+   ============================================================= */
+@media (min-width:768px){
+  .desktop-sidebar-note{display:none!important;}
+  .desktop-topbar{padding:12px 25px;gap:22px;}
+  .desktop-search{min-height:50px;font-size:16px;}
+  .desktop-coins{padding:9px 15px;gap:10px;min-width:126px;}
+  .desktop-coins span{font-size:16px;font-weight:800;}
+  .desktop-coins small{font-size:13px;font-weight:600;}
+  .desktop-user{font-size:15px;font-weight:700;max-width:220px;}
+  .desktop-user-avatar{width:48px;height:48px;}
+  .desktop-side-link{font-size:16px;}
+
+  /* A grade automatica antiga jogava os blocos em colunas soltas. */
+  .content-page #cardsPane{display:flex!important;flex-direction:column!important;gap:16px;min-width:0;align-items:stretch;}
+  #cardsScreen .scroll-content{display:flex;flex-direction:column;gap:16px;min-height:0;padding-bottom:40px;}
+  #cardsScreen .daily-card-box{width:100%;min-height:100px;padding:18px 25px;border-radius:20px;flex-wrap:nowrap;}
+  #cardsScreen .daily-card-info{display:flex;align-items:center;gap:16px;min-width:0;}
+  #cardsScreen .daily-icon{width:54px;height:54px;font-size:30px;flex:none;}
+  #cardsScreen .daily-card-box strong{font-size:18px;color:#273879;line-height:1.3;}
+  #cardsScreen .daily-card-box p{font-size:15px;color:#536394;line-height:1.35;margin-top:6px;}
+  #cardsScreen .daily-card-box .main-action{font-size:15px;min-height:46px;padding:12px 24px;flex:none;}
+  #cardsScreen .mini-tabs{gap:12px;}
+  #cardsScreen .mini-tabs button{font-size:16px;min-height:50px;color:#30438e;background:#f6f7ff;border:1px solid #cfd6f4;border-radius:14px;}
+  #cardsScreen .mini-tabs .mini-active{background:white;color:#263fba;border-color:#aab8ec;}
+  #cardsScreen .card-filters{padding:18px 20px;border-radius:18px;background:#f7f9ff;border:1px solid #d6def7;gap:15px;}
+  #cardsScreen .filters-top{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}
+  #cardsScreen .filters-top .filter-label:last-child{grid-column:auto;}
+  #cardsScreen .filter-label span{font-size:15px;font-weight:750;color:#263875;}
+  #cardsScreen .filter-label .select-input{min-height:45px;padding:11px 13px;font-size:15px;color:#283978;border-radius:12px;}
+  #cardsScreen .filters-checks{gap:24px;}
+  #cardsScreen .filter-check{font-size:15px;color:#354a88;gap:9px;}
+  #cardsScreen .filter-check input{width:18px;height:18px;}
+  #cardsPane .catalog-highlights{width:100%;display:grid;grid-template-columns:minmax(245px,1fr) minmax(340px,640px);gap:16px;align-items:stretch;min-width:0;}
+  #cardsPane .catalog-summary{display:flex;flex-direction:column;justify-content:center;margin:0;min-height:170px;border-radius:20px;padding:22px 25px;}
+  #cardsPane .catalog-summary h3{font-size:21px;color:#253b8e;}
+  #cardsPane .catalog-summary p{font-size:15px;color:#53648e;line-height:1.55;}
+  #cardsPane .catalog-highlights .featured-collection-banner{grid-column:auto!important;width:100%;max-width:none;height:170px;min-height:170px;max-height:170px;margin:0;align-self:stretch;padding:22px 24px;border-radius:20px;}
+  #cardsPane .catalog-highlights .featured-collection-banner small{font-size:13px;}
+  #cardsPane .catalog-highlights .featured-collection-banner strong{font-size:26px;}
+  #cardsPane .catalog-highlights .featured-collection-banner span{font-size:15px;}
+  #cardsPane .filtered-cards{width:100%;min-width:0;}
+  #cardsPane .card-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:18px;align-items:start;}
+  #cardsPane .card-tile{width:100%;min-width:0;gap:9px;padding:12px 12px 16px;border-radius:18px;box-shadow:0 4px 14px #2739800f;}
+  #cardsPane .card-tile .card-art{width:100%;aspect-ratio:3/4;height:auto;max-height:480px;}
+  #cardsPane .card-tile strong{font-size:18px;color:#27397a;line-height:1.35;}
+  #cardsPane .card-tile small{font-size:15px;color:#53638e;}
+  #cardsPane .game-box{max-width:none;min-height:0;padding:20px 24px;}
+  #cardsPane .game-box h3{font-size:19px;color:#263976;}
+  #cardsPane .game-box p{font-size:15px;line-height:1.6;color:#53628b;}
+  #cardsPane > .soft-action{align-self:flex-start;min-width:220px;min-height:46px;font-size:15px;}
+  #cardsPane .trade-columns{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start;}
+  #cardsPane .trade-section{display:flex;flex-direction:column;gap:15px;min-width:0;}
+  #cardsPane .trade-section .section-heading{font-size:20px;color:#263976;margin:0 0 2px;}
+  #cardsPane .trade-section .game-box{margin:0;width:100%;}
+  #cardsPane .trade-section label{display:block;margin:10px 0 5px;font-size:15px;color:#35457e;}
+  #cardsPane .trade-section .select-input,#cardsPane .trade-section .text-input{min-height:45px;font-size:15px;}
+  #cardsPane .trade-section .main-action,#cardsPane .trade-section .soft-action{font-size:15px;padding:12px 18px;}
+  /* Perfil de outros membros: mesmos cartões e ritmo do perfil principal. */
+  .full-page.public-profile-page{position:absolute!important;inset:81px 0 0 254px!important;z-index:4;padding:20px clamp(18px,2vw,34px) 30px;background:#eef2ff;}
+  .public-profile-page .full-page-header{max-width:none;justify-content:space-between;margin:0 0 14px;}
+  .public-profile-page .full-page-header h2{font-size:27px;color:#243682;}
+  .public-profile-page .full-page-header .soft-action{font-size:15px;padding:12px 18px;}
+  .public-profile-scroll{max-width:none;width:100%;padding:6px 0 45px;overflow-y:auto;}
+  .public-profile-scroll .public-back-search{font-size:15px;margin-bottom:16px;}
+  .public-profile-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,.94fr);align-items:start;gap:var(--recanto-card-gap);}
+  .public-profile-main,.public-profile-aside{display:flex;flex-direction:column;gap:var(--recanto-card-gap);min-width:0;}
+  .public-profile-layout .public-profile-hero,.public-profile-layout .public-section,.public-profile-layout .game-box{margin:0!important;width:100%;min-width:0;}
+  .public-profile-hero{display:flex;align-items:center;min-height:305px;padding:28px;background:#fff;border-radius:23px;color:#283b87;box-shadow:0 7px 26px #273a810e;}
+  .public-profile-hero .public-identity{display:flex;align-items:center;gap:22px;min-width:0;width:100%;}
+  .public-profile-hero .public-identity>img,.public-profile-hero .profile-thumb{width:clamp(110px,14vw,176px);height:clamp(110px,14vw,176px);border-radius:50%;flex:none;object-fit:cover;}
+  .public-profile-hero .public-identity-info{min-width:0;}
+  .public-profile-hero .public-identity-info h3{font-size:clamp(22px,2vw,30px);line-height:1.2;color:#27397e;overflow-wrap:anywhere;margin:0 0 12px;}
+  .public-profile-hero .public-online{font-size:13px;background:#e5f8ee;color:#18875a;padding:6px 12px;border-radius:99px;}
+  .public-profile-hero .public-identity-info p{font-size:17px;color:#51628f;margin:14px 0 0;}
+  .public-profile-layout .game-box{padding:20px;border-radius:22px;}
+  .public-profile-layout .game-box h3{font-size:19px;color:#273983;}
+  .public-profile-layout .game-box p{font-size:15px;color:#5f6d94;}
+  .public-profile-layout .public-badges-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;}
+  .public-profile-layout .badge-chip{width:58px;height:58px;font-size:27px;}
+  .public-profile-layout .game-icon{width:65px;height:65px;}
+  .public-profile-layout .public-pet .pet-visual{height:255px;}
+  .public-profile-layout .public-favorite .item-cover{max-height:180px;object-fit:contain;margin-bottom:14px;}
+  .public-profile-layout .social-actions{display:flex;flex-wrap:wrap;gap:10px;}
+}
+@media(min-width:768px) and (max-width:1080px){
+  #cardsPane .catalog-highlights{grid-template-columns:minmax(220px,.9fr) minmax(230px,1.1fr);}
+  #cardsPane .card-grid{gap:12px;}
+  .public-profile-page{left:205px!important;}
+  .public-profile-layout{grid-template-columns:minmax(0,1fr) minmax(220px,.84fr);}
+}
+@media(min-width:768px) and (max-width:890px){
+  #cardsPane .catalog-highlights{grid-template-columns:1fr;}
+  #cardsPane .card-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;}
+  #cardsPane .trade-columns,.public-profile-layout{grid-template-columns:1fr;}
+  .public-profile-hero{min-height:240px;}
+}
+
+/* Indicadores objetivos quando o 3D nao possui fonte valida ou falha ao renderizar. */
+.pet-model-hint{position:absolute;left:10px;right:10px;bottom:10px;z-index:3;
+  padding:7px 10px;border-radius:9px;background:rgba(35,47,105,.90);color:#fff;
+  font-size:12px;line-height:1.4;text-align:center;pointer-events:none;}
+.pet-model-hint-error{background:rgba(147,40,51,.94);}
+.pet-model-check{display:block;width:max-content;max-width:100%;margin:5px auto 10px;
+  font-size:12px;font-weight:700;color:#354bc1;text-decoration:underline;text-underline-offset:3px;}
+.pet-visual .pet-khada-embed{z-index:1;}
+.pet-visual .pet-fallback{z-index:0;}
+.pet-visual .model-error{z-index:3;background:#fff9;border-radius:7px;padding:5px;}
+
+@media(min-width:768px){
+ .public-profile-hero .profile-thumb{display:grid;place-items:center;
+   background:linear-gradient(145deg,#b9c6fb,#e6eaff);color:#6679cd;font-size:56px;line-height:1;}
+}

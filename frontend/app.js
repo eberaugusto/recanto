@@ -6,7 +6,7 @@
   const TAB_SOFT_TTL=20000;
   const getCache=new Map();
   const cacheable=url=>/^(\/api\/(game\/config|achievements|games\/preferences|shop|daily\/status|catalog|cards|inventory|pets|missions|collections\/featured|assets|community\/profiles))(\?|$|\/)/.test(url);
-  function resetCachedData(){getCache.clear();for(const k of Object.keys(tabLoadedAt))delete tabLoadedAt[k];}
+  function resetCachedData(){getCache.clear();for(const k of Object.keys(tabLoadedAt))delete tabLoadedAt[k];if(typeof state!=='undefined')state.petPreviewLoaded=false;}
   const API = async (url, data) => {
     if(data===undefined && cacheable(url)){
       const prev=getCache.get(url);
@@ -256,7 +256,7 @@
   }
   async function cardPane(tab){
     state.cardTab=tab;document.querySelectorAll('[data-card-tab]').forEach(el=>el.classList.toggle('mini-active',el.dataset.cardTab===tab));
-    const p=$('cardsPane');p.replaceChildren();$('cardFilters').hidden=tab==='trocas';
+    const p=$('cardsPane');p.replaceChildren();p.dataset.mode=tab;$('cardFilters').hidden=tab==='trocas';
     if(tab==='colecao'){
       const [data,fav]=await Promise.all([API('/api/cards'),API('/api/cards/favorite')]);
       const counts={};for(const c of data.items)counts[c.card_id]=(counts[c.card_id]||0)+1;
@@ -269,13 +269,15 @@
     if(tab==='catalogo'){
       const [data,mine]=await Promise.all([API('/api/catalog'),API('/api/cards')]);
       $('cardsCount').textContent=`${data.items.length} cards no catálogo`;
-      p.append(block('Todos os cards','Limites globais: Comum 3 • Raro 2 • Lendário 1 • Prismático 1.'));
+      const catalogIntro=h('div','catalog-highlights');
+      const catalogSummary=block('Todos os cards','Limites globais: Comum 3 • Raro 2 • Lendário 1 • Prismático 1.');
+      catalogSummary.classList.add('catalog-summary');catalogIntro.append(catalogSummary);
       const featured=await API('/api/collections/featured');
       const banner=h('button','featured-collection-banner');banner.type='button';
       if(featured.image_url){banner.style.backgroundImage=`linear-gradient(90deg,rgba(19,24,88,.78),rgba(19,24,88,.12)),url("${featured.image_url.replaceAll('"','%22')}")`;}
       banner.append(h('small','','✦ COLEÇÃO EM DESTAQUE'),h('strong','',featured.name),h('span','','Ver os cards desta coleção →'));
       banner.onclick=()=>{state.cardFilters.collection=featured.name;cardPane('catalogo').catch(e=>toast(e.message));};
-      p.append(banner);
+      catalogIntro.append(banner);p.append(catalogIntro);
       const results=h('div','filtered-cards');p.append(results);renderCardFilters(data.items,new Set(mine.items.map(c=>c.card_id)),'catalogo',results);
     }
     if(tab==='trocas'){
@@ -288,9 +290,10 @@
         const theirs=h('select','select-input');const update=()=>{theirs.replaceChildren();const mem=members.find(m=>m.key===memberSelect.value);(mem?.cards||[]).forEach(c=>{const o=h('option','',c.name+' — '+c.rarity+' #'+c.owned_id);o.value=c.owned_id;theirs.append(o);});};memberSelect.addEventListener('change',update);update();
         form.append(h('label','','Membro'),memberSelect,h('label','','Sua carta'),mySelect,h('label','','Carta desejada'),theirs,button('Enviar proposta',()=>safeRun(()=>API('/api/trades',{to_user:memberSelect.value,offered_owned_id:Number(mySelect.value),wanted_owned_id:Number(theirs.value)}),'Proposta enviada!')));
       }else form.append(h('p','',mineCards.length?'Ainda não há outros jogadores com cartas cadastradas.':'Primeiro obtenha um card para oferecer.'));
-      p.append(form,h('h3','section-heading','Minhas propostas'));
-      if(!trades.items.length)p.append(block('Sem propostas','As negociações aparecerão aqui.'));
-      for(const t of trades.items){const row=block(`${t.from_name} ↔ ${t.to_name}`,`${t.offered?.name||'Card'} ↔ ${t.wanted?.name||'Card'} · ${t.status}`);row.classList.add('trade-row');if(t.can_accept){row.append(button('Aceitar',()=>actTrade(t.id,'accept')));row.append(button('Recusar',()=>actTrade(t.id,'reject'),'soft-action'));}if(t.can_cancel)row.append(button('Cancelar proposta',()=>actTrade(t.id,'cancel'),'soft-action'));p.append(row);}
+      const tradeColumns=h('div','trade-columns');const tradeProposals=h('section','trade-section');const tradeOffers=h('section','trade-section');
+      tradeProposals.append(form,h('h3','section-heading','Minhas propostas'));
+      if(!trades.items.length)tradeProposals.append(block('Sem propostas','As negociações aparecerão aqui.'));
+      for(const t of trades.items){const row=block(`${t.from_name} ↔ ${t.to_name}`,`${t.offered?.name||'Card'} ↔ ${t.wanted?.name||'Card'} · ${t.status}`);row.classList.add('trade-row');if(t.can_accept){row.append(button('Aceitar',()=>actTrade(t.id,'accept')));row.append(button('Recusar',()=>actTrade(t.id,'reject'),'soft-action'));}if(t.can_cancel)row.append(button('Cancelar proposta',()=>actTrade(t.id,'cancel'),'soft-action'));tradeProposals.append(row);}
       const [offers,eco]=await Promise.all([API('/api/coin-offers'),API('/api/card-economy')]);
       const prices=Object.entries(eco.minimum_offers).map(([tier,v])=>`${tierLabels[tier]}: ${v}`).join(' • ');
       const bid=block('Oferecer moedas por card',`Valores mínimos: ${prices}. A oferta reserva suas moedas até a decisão do dono.`);
@@ -304,13 +307,14 @@
         bid.append(h('label','','Quem receberá a oferta'),selectMember,h('label','','Card desejado'),selectCard,h('label','','Moedas ofertadas'),value,
           button('Enviar oferta em moedas',()=>safeRun(()=>API('/api/coin-offers',{to_user:selectMember.value,wanted_owned_id:Number(selectCard.value),amount:Number(value.value)}),'Oferta enviada e moedas reservadas!')));
       }else bid.append(h('p','','Ainda não há cartas disponíveis de outros membros.'));
-      p.append(bid,h('h3','section-heading','Ofertas de moedas'));
-      if(!offers.items.length)p.append(block('Nenhuma oferta','As propostas em moedas aparecerão aqui.'));
+      tradeOffers.append(bid,h('h3','section-heading','Ofertas de moedas'));
+      if(!offers.items.length)tradeOffers.append(block('Nenhuma oferta','As propostas em moedas aparecerão aqui.'));
       for(const offer of offers.items){const row=block(`${offer.buyer_name} → ${offer.seller_name}`,`${offer.card_name} • ${money(offer.amount)} moedas • ${offer.status}`);
         if(offer.can_accept){row.append(button('Aceitar oferta',()=>decideCoinOffer(offer.id,'accept')));row.append(button('Recusar',()=>decideCoinOffer(offer.id,'reject'),'soft-action'));}
         if(offer.can_cancel)row.append(button('Cancelar e receber reembolso',()=>decideCoinOffer(offer.id,'cancel'),'soft-action'));
-        p.append(row);
+        tradeOffers.append(row);
       }
+      tradeColumns.append(tradeProposals,tradeOffers);p.append(tradeColumns);
     }
   }
     async function decideCoinOffer(id,action){await safeRun(()=>API(`/api/coin-offers/${id}/decide`,{action}),'Oferta atualizada!');}
@@ -389,25 +393,64 @@
     let seq=0;input.addEventListener('input',()=>{const n=++seq;setTimeout(()=>{if(n===seq)search();},250);});await search();
   }
   async function openPublicProfile(uid){
-    try{const [d,items]=await Promise.all([API('/api/community/profiles/'+encodeURIComponent(uid)),API('/api/inventory')]);
+    try{
+      const [d,items]=await Promise.all([API('/api/community/profiles/'+encodeURIComponent(uid)),API('/api/inventory')]);
       $('profilesModal').hidden=true;$('publicProfilePage').hidden=false;
-      const pane=$('publicProfileContent');pane.replaceChildren();pane.append(button('← Voltar à busca',()=>{$('publicProfilePage').hidden=true;searchProfiles();},'soft-action'));
-      const title=h('div','public-identity');if(d.avatar_url){const img=h('img');img.src=d.avatar_url;img.alt=d.name;title.append(img);}else title.append(h('div','profile-thumb','◉'));
-      const meta=h('div');meta.append(h('h3','',d.name),h('p','',d.cards+' cards na coleção'));title.append(meta);pane.append(title);
-      if(d.favorite){const fav=block('★ Card favorito',d.favorite.name);fav.classList.add('public-section','public-favorite');const art=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');art.addEventListener('click',()=>showCard(d.favorite));fav.prepend(art);pane.append(fav);}
-      const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section');const line=h('div','public-badges');(d.badges||[]).forEach(b=>{const badge=h('span','badge-chip',b.icon);badge.title=b.title;line.append(badge);});
-      if(!d.badges?.length)line.append(h('p','','Nenhum selo por enquanto.'));badges.append(line);pane.append(badges);
-      const favorites=block('🎮 Jogos favoritos');favorites.classList.add('public-section');
+      const pane=$('publicProfileContent');pane.replaceChildren();
+      // No celular, preservar a composição 0.1.4 já aprovada; o dashboard vale apenas para PC.
+      if(!matchMedia('(min-width:768px)').matches){
+        pane.append(button('← Voltar à busca',()=>{$('publicProfilePage').hidden=true;searchProfiles();},'soft-action'));
+        const title=h('div','public-identity');
+        if(d.avatar_url){const img=h('img');img.src=d.avatar_url;img.alt=d.name;title.append(img);}else title.append(h('div','profile-thumb','◉'));
+        const meta=h('div');meta.append(h('h3','',d.name),h('p','',d.cards+' cards na coleção'));title.append(meta);pane.append(title);
+        if(d.favorite){const fav=block('★ Card favorito',d.favorite.name);fav.classList.add('public-section','public-favorite');
+          const art=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');art.addEventListener('click',()=>showCard(d.favorite));fav.prepend(art);pane.append(fav);}
+        const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section');const line=h('div','public-badges');
+        (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip',b.icon);badge.title=b.title;line.append(badge);});
+        if(!d.badges?.length)line.append(h('p','','Nenhum selo por enquanto.'));badges.append(line);pane.append(badges);
+        const favorites=block('🎮 Jogos favoritos');favorites.classList.add('public-section');
+        const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
+        for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));chip.title=game.name;gameIcons.append(chip);}
+        favorites.append(gameIcons);pane.append(favorites);
+        if(d.pet){const pet=block('🐾 Pet: '+d.pet.name,`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);
+          pet.classList.add('public-section','public-pet');pet.prepend(petVisual(d.pet));pane.append(pet);
+          if(d.pet.status==='ativo'){
+            const actions=h('div','social-actions');actions.append(button('💗 Acariciar',()=>visitPet(uid,'pet')));
+            const opts=items.treats||[];if(opts.length){const select=h('select','select-input');opts.forEach(t=>{const o=h('option','',t.name+' (+'+t.food+')');o.value=t.sku;select.append(o);});
+              actions.append(select,button('🍪 Alimentar',()=>visitPet(uid,'feed',select.value),'soft-action'));}
+            else actions.append(button('Comprar petiscos →',()=>{$('publicProfilePage').hidden=true;chooseTab('loja','treat3');},'soft-action'));
+            pane.append(actions);
+          }
+        }else{const noPet=block('Sem pet','Este membro ainda não adotou uma Pequena Lenda.');noPet.classList.add('public-section','public-pet');pane.append(noPet);}
+        return;
+      }
+      const back=button('← Voltar à busca',()=>{$('publicProfilePage').hidden=true;searchProfiles();},'soft-action public-back-search');
+      pane.append(back);
+      const layout=h('div','public-profile-layout');const main=h('div','public-profile-main');const aside=h('div','public-profile-aside');
+      const hero=h('section','public-profile-hero');
+      const title=h('div','public-identity');
+      if(d.avatar_url){const img=h('img');img.src=d.avatar_url;img.alt=d.name;title.append(img);}else title.append(h('div','profile-thumb','◉'));
+      const meta=h('div','public-identity-info');meta.append(h('h3','',d.name),h('span','public-online','● Membro da comunidade'),h('p','',`${d.cards} card(s) na coleção`));title.append(meta);hero.append(title);
+      main.append(hero);
+      const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section','public-badges');const line=h('div','public-badges-row');
+      (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip',b.icon);badge.title=b.title;line.append(badge);});
+      if(!d.badges?.length)line.append(h('p','','Nenhum selo por enquanto.'));badges.append(line);main.append(badges);
+      const favorites=block('🎮 Jogos favoritos');favorites.classList.add('public-section','public-games');
       const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
       for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));chip.title=game.name;gameIcons.append(chip);}
-      favorites.append(gameIcons);pane.append(favorites);
-      if(d.pet){const pet=block('🐾 Pet: '+d.pet.name,`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);pet.classList.add('public-section','public-pet');pet.prepend(petVisual(d.pet));pane.append(pet);
-        if(d.pet.status==='ativo'){const actions=h('div','social-actions');actions.append(button('💗 Acariciar',()=>visitPet(uid,'pet')));
+      favorites.append(gameIcons);main.append(favorites);
+      if(d.favorite){const fav=block('★ Card favorito',d.favorite.name);fav.classList.add('public-section','public-favorite');
+        const art=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');art.addEventListener('click',()=>showCard(d.favorite));fav.prepend(art);aside.append(fav);}
+      if(d.pet){const pet=block('🐾 Pequena Lenda: '+d.pet.name,`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);pet.classList.add('public-section','public-pet');pet.prepend(petVisual(d.pet));aside.append(pet);
+        if(d.pet.status==='ativo'){
+          const actions=h('div','social-actions');actions.append(button('💗 Acariciar',()=>visitPet(uid,'pet')));
           const opts=items.treats||[];if(opts.length){const select=h('select','select-input');opts.forEach(t=>{const o=h('option','',t.name+' (+'+t.food+')');o.value=t.sku;select.append(o);});
             actions.append(select,button('🍪 Alimentar',()=>visitPet(uid,'feed',select.value),'soft-action'));}
-          else actions.append(button('Comprar petiscos →',()=>{$('profilesModal').hidden=true;chooseTab('loja','treat3');},'soft-action'));
-          pane.append(actions);}}
-      else {const noPet=block('Sem pet','Este membro ainda não adotou uma Pequena Lenda.');noPet.classList.add('public-section','public-pet');pane.append(noPet);}
+          else actions.append(button('Comprar petiscos →',()=>{$('publicProfilePage').hidden=true;chooseTab('loja','treat3');},'soft-action'));
+          aside.append(actions);
+        }
+      }else{const noPet=block('Sem pet','Este membro ainda não adotou uma Pequena Lenda.');noPet.classList.add('public-section','public-pet');aside.append(noPet);}
+      layout.append(main,aside);pane.append(layout);
     }catch(err){toast(err.message);}
   }
   async function visitPet(owner,action,sku='biscoito'){
@@ -467,11 +510,23 @@
     // Muitos modelos simultaneos na lista de adocao esgotam WebGL em celulares.
     if(!model || thumbnail){
       if(!model && !reduced)wrap.classList.add('pet-preview-moving');
+      if(!model && !thumbnail){
+        const note=h('span','pet-model-hint','Modelo 3D não configurado');
+        note.title='Abra Gestão do Recanto → Pets e associe um ID Khada TFT real ou uma URL pública de arquivo .glb.';
+        wrap.append(note);
+      }
       return wrap;
     }
     const khada=khadaEmbedUrl(model);
     if(!khada && !/^(https:\/\/|\/models\/)/i.test(model)){
-      wrap.dataset.modelError='invalid-url';return wrap;
+      wrap.dataset.modelError='invalid-url';
+      wrap.append(h('span','pet-model-hint pet-model-hint-error','URL 3D inválida: use ID do Khada ou arquivo .glb por HTTPS.'));
+      return wrap;
+    }
+    if(!khada && !/\.glb(?:[?#]|$)/i.test(model)){
+      wrap.dataset.modelError='not-glb';
+      wrap.append(h('span','pet-model-hint pet-model-hint-error','O endereço salvo não é um arquivo .glb direto.'));
+      return wrap;
     }
     let visible=false,started=false,loaded=false;
     let view=null;
@@ -491,8 +546,20 @@
         iframe.setAttribute('allow','autoplay; fullscreen');
         iframe.src=khada;
         // O embed gratuito inclui rodape e marca do Khada; nunca os ocultamos.
-        iframe.addEventListener('load',()=>fallback.classList.add('fallback-hidden'),{once:true});
+        iframe.addEventListener('load',()=>{
+          fallback.classList.add('fallback-hidden');
+          wrap.classList.add('khada-frame-loaded');
+          // O evento load não confirma que o ID exista dentro do iframe externo.
+        },{once:true});
+        iframe.addEventListener('error',()=>{
+          fallback.classList.remove('fallback-hidden');
+          wrap.dataset.modelError='khada-iframe';
+        });
         wrap.append(iframe);
+        const link=h('a','pet-model-check','Testar modelo no Khada ↗');
+        link.href=khada;link.target='_blank';link.rel='noopener noreferrer';
+        link.title='Se a cena ficar vazia, confirme o ID no catálogo Khada de Pequenas Lendas (TFT).';
+        wrap.after(link);
         return;
       }
       view=h('model-viewer','pet-model');
@@ -524,7 +591,7 @@
       view.addEventListener('error',()=>{
         loaded=false;view.classList.remove('model-loaded');fallback.classList.remove('fallback-hidden');
         if(!reduced)wrap.classList.add('pet-preview-moving');
-        if(large && !wrap.querySelector('.model-error'))wrap.append(h('small','model-error','3D indisponível. Verifique o arquivo .glb e o acesso HTTPS/CORS.'));
+        if(!wrap.querySelector('.model-error'))wrap.append(h('small','model-error','Falha no GLB: confirme URL pública, extensão .glb e permissão CORS.'));
       });
       view.addEventListener('finished',()=>{
         if(visible && !reduced && view.dataset.idleAnimation){view.animationName=view.dataset.idleAnimation;view.play();}
@@ -748,7 +815,7 @@
       const label=h('label','admin-field','Substituir GLB animado (opcional; em produção requer Cloudinary ou URL pública .glb)');
       modelFile=h('input','text-input');modelFile.type='file';modelFile.accept='.glb,model/gltf-binary';label.append(modelFile);form.append(label);
       const khadaLabel=h('label','admin-field','ID do modelo no Khada (TFT, opcional)');
-      khadaInput=h('input','text-input');khadaInput.type='text';khadaInput.inputMode='numeric';khadaInput.placeholder='Ex.: 103086';khadaLabel.append(khadaInput);form.append(khadaLabel);
+      khadaInput=h('input','text-input');khadaInput.type='text';khadaInput.inputMode='numeric';khadaInput.placeholder='ID real de uma Pequena Lenda no Khada (TFT)';khadaLabel.append(khadaInput);form.append(khadaLabel);
       inputs.model_url.addEventListener('input',()=>{khadaInput.value='';});
       form.append(h('small','','Somente Idle: o GLB deve conter a animação Idle ou um único clipe. Alternativamente, informe um ID de Pequena Lenda no Khada TFT.'));
     }
@@ -762,6 +829,9 @@
         if(imageFile?.files.length)data.image_url=await uploadArtwork(imageFile.files[0]);
         if(modelFile?.files.length)data.model_url=await uploadModel(modelFile.files);
         else if(khadaInput?.value.trim())data.model_url=khadaTftUrl(khadaInput.value);
+        if(data.model_url && !khadaEmbedUrl(data.model_url) && !/\.glb(?:[?#]|$)/i.test(data.model_url)){
+          throw Error('Modelo inválido: informe um ID Khada TFT ou URL direta de um .glb. Um PNG/JPG não é um modelo 3D.');
+        }
         return API('/api/admin/catalog-management/'+group+'/'+encodeURIComponent(current.id),data);
       },'Alterações salvas.');
       if(result)await refresh(current.id);
@@ -876,7 +946,7 @@
     const [pn,pni]=adminField('Nome da Pequena Lenda','');const [pe,pei]=adminField('Emoji para fallback','🐾');const [pu,pui]=adminField('Imagem de capa (HTTPS ou /uploads/...)','');
     const petFile=h('input','text-input');petFile.type='file';petFile.accept='image/png,image/jpeg,image/webp';
     const [modelurl,mui]=adminField('URL do modelo .glb ou embed Khada (opcional)','');
-    const [khadaRow,khadaId]=adminField('ID do Khada (Pequena Lenda TFT, opcional)','');khadaId.inputMode='numeric';khadaId.placeholder='ID numérico do Khada';
+    const [khadaRow,khadaId]=adminField('ID do Khada (Pequena Lenda TFT, opcional)','');khadaId.inputMode='numeric';khadaId.placeholder='ID do modelo encontrado em Khada → Tacticians';
     const modelFile=h('input','text-input');modelFile.type='file';modelFile.multiple=true;modelFile.accept='.glb,.gltf,.bin,.png,.jpg,.jpeg,.webp';
     const animKeys=[['idle_animation','Parado / idle'],['pet_animation','Carinho'],['feed_animation','Alimentação'],['vet_animation','Veterinário']];
     const animInputs={};const fields=[];
@@ -887,6 +957,9 @@
       button('Cadastrar Pequena Lenda',()=>safeRun(async()=>{
         const image_url=petFile.files.length?await uploadArtwork(petFile.files[0]):pui.value;
         const model_url=modelFile.files.length?await uploadModel(modelFile.files):(khadaId.value.trim()?khadaTftUrl(khadaId.value):mui.value);
+        if(model_url && !khadaEmbedUrl(model_url) && !/\.glb(?:[?#]|$)/i.test(model_url)){
+          throw Error('Modelo inválido: use o ID do Khada TFT ou URL direta de arquivo .glb.');
+        }
         const animations=Object.fromEntries(Object.entries(animInputs).map(([key,inp])=>[key,inp.value]));
         return API('/api/admin/pets',{name:pni.value,emoji:pei.value,image_url,model_url,...animations});
       },'Pequena Lenda cadastrada!')));pane.append(pet);
