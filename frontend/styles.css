@@ -1075,8 +1075,28 @@ body.dark-mode .discord-widget-help{color:#bac6f2;}
     height:clamp(256px,29dvh,332px)!important;
     margin-top:clamp(103px,12dvh,145px)!important;
   }
-  #profileContent .profile-panel-inner{top:29%;bottom:7%;}
-  #profileContent .last-card-art{max-height:calc(100% - 25px);}
+  /* No mobile, o divisor deve ficar centralizado sob a foto, mais curto e
+     com respiro extra abaixo do texto "Último Card". */
+  #profileContent .profile-panel-inner{
+    top:29%;
+    bottom:8.5%;
+    left:8%;
+    right:8%;
+    grid-template-columns:minmax(0,1fr) 1px minmax(0,1fr);
+    gap:5.5%;
+  }
+  #profileContent .profile-divider{
+    align-self:center;
+    height:76%;
+  }
+  #profileContent .last-card{
+    justify-content:flex-end;
+    gap:10px;
+    padding-bottom:12px;
+  }
+  #profileContent .last-card-art{
+    max-height:calc(100% - 38px);
+  }
   #profileContent .profile-badges{margin-top:0!important;}
   #profileContent .desktop-left-column>.profile-header{margin-top:calc(24px + env(safe-area-inset-top,0px));}
 }
