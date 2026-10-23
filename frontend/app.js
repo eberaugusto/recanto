@@ -585,7 +585,7 @@
         if(offer.can_cancel)row.append(button('Cancelar e receber reembolso',()=>decideCoinOffer(offer.id,'cancel'),'soft-action'));
         offerHistory.append(row);
       }
-      const pending=h('section','trade-section trade-pending');
+      const pending=h('section','trade-section trade-pending');pending.append(h('h3','section-heading','Propostas e ofertas'));
       pending.append(proposalHistory,offerHistory);
       tradeColumns.append(tradeProposals,tradeOffers,pending);p.replaceChildren(tradeColumns);
     }
@@ -940,17 +940,30 @@
     }
     const layout=h('div','poro-layout');const care=h('section','poro-care-column');const adventures=h('section','poro-expeditions-column');
     layout.append(care,adventures);pane.append(layout);
-    const show=block(pet.nickname||poroSpeciesName(pet.name),pet.status==='vet'?'Seu Poro precisa de resgate.':'Cuide de seu companheiro todos os dias.');
-    show.classList.add('poro-main-card');show.prepend(petPortrait(pet,true));care.append(show);
+    const petName=pet.nickname||poroSpeciesName(pet.name);
+    const show=h('section','game-box poro-main-card');
+    show.append(h('div','poro-name-banner',petName),petPortrait(pet,true));
+    care.append(show);
+
+    const statusCard=block('Status do Poro',pet.status==='missao'
+      ?`📍 Em missão • 🍎 Fome: ${pet.food}/100 • 💕 Felicidade: ${pet.happiness}/100 • 🍪 Petiscos: ${data.treats}`
+      :pet.status==='vet'
+        ?`🏥 No veterinário • Resgate por ${money(pet.rescue_cost)} moedas. Prazo: ${pet.vet_deadline?new Date(pet.vet_deadline).toLocaleString('pt-BR'):'—'}`
+        :`🏠 Em casa • 🍎 Fome: ${pet.food}/100 • 💕 Felicidade: ${pet.happiness}/100 • 🍪 Petiscos: ${data.treats}`
+    );
+    statusCard.classList.add('poro-status-card');
+    care.append(statusCard);
+
     const rename=block('Nome do Poro');rename.classList.add('poro-config-card');
     const renameRow=h('div','poro-inline-control');const nickname=h('input','text-input');nickname.type='text';nickname.maxLength=40;
-    nickname.value=pet.nickname||poroSpeciesName(pet.name);nickname.setAttribute('aria-label','Novo nome do Poro');
+    nickname.value=petName;nickname.setAttribute('aria-label','Novo nome do Poro');
     const saveName=async()=>{
       const name=nickname.value.trim();if(name.length<2||name.length>40){toast('Digite um nome entre 2 e 40 caracteres.');return;}
       await safeRun(()=>API('/api/pets/rename',{nickname:name}),'Nome do Poro atualizado!');
     };
     nickname.addEventListener('keydown',e=>{if(e.key==='Enter')saveName();});
-    renameRow.append(nickname,button('Renomear',saveName,'soft-action'));rename.append(renameRow);care.append(rename);
+    renameRow.append(nickname,button('Renomear',saveName,'soft-action'));rename.append(renameRow);adventures.append(rename);
+
     const equip=block('🏆 Item colecionável',pet.equipped_collectible?'Equipado: '+pet.equipped_collectible.name:'Escolha um item do inventário para equipar no retrato do Poro.');
     equip.classList.add('poro-config-card');
     const inv=await API('/api/inventory');
@@ -965,7 +978,8 @@
     }else equipmentRow.append(h('p','poro-item-empty','Colecionáveis ganhos em expedições aparecerão aqui.'));
     equip.append(equipmentRow);
     if(pet.equipped_collectible){const info=button('Ver item equipado',()=>showProfileItemDetail(pet.equipped_collectible,'collectible'),'soft-action poro-item-detail');equip.append(info);}
-    care.append(equip);
+    adventures.append(equip);
+
     if(pet.status==='missao'){
       const expedition=data.expedition;
       const mission=block('🗺️ Em missão',`Seu Poro está em ${expedition?.name||'uma aventura'} e não pode receber carinho nem comida.`);
@@ -978,17 +992,21 @@
       return;
     }
     if(pet.status==='vet'){
-      care.append(block('🏥 Veterinário',`Resgate por ${money(pet.rescue_cost)} moedas. Prazo: ${pet.vet_deadline?new Date(pet.vet_deadline).toLocaleString('pt-BR'):'—'}`));
-      care.append(button('Resgatar Poro',()=>safeRun(()=>API('/api/pets/rescue',{}),'Companheiro resgatado!')));
+      const rescueCard=block('🏥 Veterinário','Resgate seu Poro para ele voltar a receber cuidados e sair em novas expedições.');
+      rescueCard.classList.add('poro-rescue-card');
+      rescueCard.append(button('Resgatar Poro',()=>safeRun(()=>API('/api/pets/rescue',{}),'Companheiro resgatado!')));
+      care.append(rescueCard);
       adventures.append(block('🗺️ Expedições','Resgate seu Poro no veterinário para voltar a explorar.'));
       return;
     }
-    care.append(block('Estado do Poro',`🍎 Fome: ${pet.food}/100 • 💕 Felicidade: ${pet.happiness}/100 • 🍪 Petiscos: ${data.treats}`));
+
+    const careCard=block('Cuidados','Alimente seu Poro com um petisco do inventário ou faça carinho nele.');
+    careCard.classList.add('poro-care-actions-card');
     const actions=h('div','pet-actions');
-    if(inv.treats.length){const choose=h('select','select-input');inv.treats.forEach(t=>{const opt=h('option','',t.name+' (+'+t.food+' fome) · '+t.quantity);opt.value=t.sku;choose.append(opt);});care.append(choose);
+    if(inv.treats.length){const choose=h('select','select-input');inv.treats.forEach(t=>{const opt=h('option','',t.name+' (+'+t.food+' fome) · '+t.quantity);opt.value=t.sku;choose.append(opt);});careCard.append(choose);
       actions.append(button('🍪 Alimentar',()=>petCare('feed',choose.value)));}
     else actions.append(button('Petiscos na Loja →',()=>chooseTab('loja','treat3')));
-    actions.append(button('💗 Acariciar',()=>petCare('pet'),'soft-action'));care.append(actions);
+    actions.append(button('💗 Acariciar',()=>petCare('pet'),'soft-action'));careCard.append(actions);care.append(careCard);
     const ex=block('🗺️ Expedições dos Poros','Envie seu Poro em uma aventura. Ele não poderá receber cuidados durante a missão e voltará com fome.');
     for(const option of data.expedition_options||[]){
       const row=h('div','expedition-choice');
@@ -1014,14 +1032,6 @@
     catch(_){/* assets opcionais; UI padrao continua funcionando */}
   }
   function applyUiAssets(){
-    // O favicon faz parte das artes configuraveis, sem afetar os icones do PWA.
-    const favicon=document.querySelector('link[rel="icon"]');
-    if(favicon){
-      const chosen=(state.assets||[]).find(asset=>asset.key==='favicon' && asset.image_url);
-      favicon.href=chosen?.image_url||'/icons/icon-192.png';
-      const ext=(chosen?.image_url||'').toLowerCase().split('?')[0];
-      favicon.type=ext.endsWith('.svg')?'image/svg+xml':ext.endsWith('.webp')?'image/webp':/\.jpe?g$/.test(ext)?'image/jpeg':'image/png';
-    }
     // Limpa personalizacoes antigas para permitir remover/alterar uma imagem.
     for(const host of document.querySelectorAll('.asset-icon-host')){
       host.querySelectorAll(':scope > .ui-asset-icon').forEach(img=>img.remove());
@@ -1120,9 +1130,8 @@
   async function logout(){await safeRun(()=>API('/api/auth/logout',{}));showLogin();}
   async function uploadArtwork(file){
     if(!file)return '';
-    const svg=file.name.toLowerCase().endsWith('.svg') || file.type==='image/svg+xml';
     const form=new FormData();form.append('image',file);
-    const response=await fetch(svg?'/api/admin/upload-svg':'/api/admin/upload',{method:'POST',credentials:'same-origin',body:form});
+    const response=await fetch('/api/admin/upload',{method:'POST',credentials:'same-origin',body:form});
     const result=await response.json();if(!response.ok)throw Error(result.detail||'Falha ao enviar imagem');
     return result.image_url;
   }
@@ -1405,25 +1414,22 @@
     },'Capa atualizada!')));pane.append(covers);
     const ach=block('Criar selo','A conquista pode ser automática ou depender de futura integração de voz.');const [an,ani]=adminField('Título','');const [ad,adi]=adminField('Descrição','');const [ai,aii]=adminField('Emoji','🏅');const [at,ati]=adminField('Meta numérica','1','number');const type=h('select','select-input');for(const [code,label] of Object.entries({trade:'Trocas',card:'Cards recebidos',adopt:'Poros adotados',pet:'Carinhos',feed:'Alimentações',mission:'Missões resgatadas',voice_minutes:'Minutos em voz (integração futura)'})){const o=h('option','',label);o.value=code;type.append(o);}ach.append(an,ad,ai,at,type,button('Criar selo',()=>safeRun(()=>API('/api/admin/achievements',{title:ani.value,description:adi.value,icon:aii.value,event:type.value,target:Number(ati.value)}),'Selo criado!')));pane.append(ach);
     // Gerenciador de assets: aplica a arte a elementos sem alterar seus cliques ou regras.
-    const assetPane=block('🖼️ Central de Assets','Personalize o favicon, menus de PC e celular, logos, jogos e fundos. Envie PNG/JPG/WEBP ou SVG seguro; as artes ficam salvas no servidor (Cloudinary em produção).');
+    const assetPane=block('🖼️ Central de Assets','Personalize jogos, logos, fundos, icones do menu e elementos da interface. Imagens PNG/JPG/WEBP ate 4 MB; em servidor online, use URL HTTPS persistente.');
     const existingAssets=(await API('/api/assets')).items;
     const baseSlots=[
-      ['favicon','link[rel="icon"]','image','Favicon (aba do navegador)'],
       ['logo-login','#loginScreen .brand-logo','image','Logo na tela de login'],
       ['logo-loading','#splashScreen .splash-logo','image','Logo na tela de carregamento'],
       ['fundo-login','#loginScreen','background','Fundo do login'],
       ['fundo-app','#homeScreen','background','Fundo geral do aplicativo'],
       ['barra-inferior','.bottom-nav','background','Barra inferior'],
-      ['menu-config','.desktop-side-link#desktopSettings','icon','Ícone Configurações (PC)'],
       ['botao-config','#settings','icon','Icone de configuracoes'],
       ['botao-perfis','#searchUsers','icon','Icone da busca de perfis'],
-      ['nav-feed','[data-tab="feed"] .nav-circle, .desktop-side-link[data-tab="feed"]','icon','Ícone Feed'],
-      ['nav-perfil','[data-tab="perfil"] .nav-circle, .desktop-side-link[data-tab="perfil"]','icon','Icone Perfil'],
-      ['nav-cards','[data-tab="cards"] .nav-circle, .desktop-side-link[data-tab="cards"]','icon','Icone Cards'],
-      ['nav-inventario','[data-tab="inventario"] .nav-circle, .desktop-side-link[data-tab="inventario"]','icon','Icone Inventario'],
-      ['nav-pet','[data-tab="pet"] .nav-circle, .desktop-side-link[data-tab="pet"]','icon','Ícone dos Poros'],
-      ['nav-loja','[data-tab="loja"] .nav-circle, .desktop-side-link[data-tab="loja"]','icon','Icone Loja'],
-      ['nav-missoes','[data-tab="missoes"] .nav-circle, .desktop-side-link[data-tab="missoes"]','icon','Icone Missoes'],
+      ['nav-perfil','[data-tab="perfil"] .nav-circle','icon','Icone Perfil'],
+      ['nav-cards','[data-tab="cards"] .nav-circle','icon','Icone Cards'],
+      ['nav-inventario','[data-tab="inventario"] .nav-circle','icon','Icone Inventario'],
+      ['nav-pet','[data-tab="pet"] .nav-circle','icon','Ícone dos Poros'],
+      ['nav-loja','[data-tab="loja"] .nav-circle','icon','Icone Loja'],
+      ['nav-missoes','[data-tab="missoes"] .nav-circle','icon','Icone Missoes'],
       ['moedas-perfil','.stats-list .stat:nth-child(1) .stat-icon','icon','Icone de moedas'],
       ['cards-perfil','.stats-list .stat:nth-child(2) .stat-icon','icon','Icone de cards'],
       ['petiscos-perfil','.stats-list .stat:nth-child(3) .stat-icon','icon','Icone de petiscos'],
@@ -1438,10 +1444,10 @@
     const [customSelectorRow,customSelector]=adminField('Seletor CSS do elemento personalizado (opcional)','');
     const modeSelect=h('select','select-input');for(const [key,label] of [['background','Imagem de fundo'],['icon','Icone sobre o elemento'],['image','Imagem (tag img)']]){const op=h('option','',label);op.value=key;modeSelect.append(op);}
     const [assetUrlRow,assetUrl]=adminField('URL HTTPS da imagem ou /uploads/...','');
-    const assetFile=h('input','text-input');assetFile.type='file';assetFile.accept='.svg,image/svg+xml,image/png,image/jpeg,image/webp';
+    const assetFile=h('input','text-input');assetFile.type='file';assetFile.accept='image/png,image/jpeg,image/webp';
     const assetPreview=h('div','admin-asset-preview');
     const preview=()=>{const entry=existingAssets.find(a=>a.key===chooseSlot.value);assetPreview.replaceChildren();if(entry?.image_url){const pic=h('img');pic.src=entry.image_url;pic.alt='Arte atual';assetPreview.append(pic,h('span','',entry.image_url));}else assetPreview.append(h('span','', 'Nenhuma imagem configurada para este elemento.'));};
-    chooseSlot.onchange=()=>{const sel=allSlots.find(row=>row[0]===chooseSlot.value);modeSelect.value=sel?.[2]||'background';assetUrl.value=existingAssets.find(row=>row.key===chooseSlot.value)?.image_url||'';assetFile.value='';preview();};chooseSlot.onchange();
+    chooseSlot.onchange=()=>{const sel=allSlots.find(row=>row[0]===chooseSlot.value);modeSelect.value=sel?.[2]||'background';preview();};chooseSlot.onchange();
     const saveAsset=async(remove=false)=>{
       const slot=allSlots.find(row=>row[0]===chooseSlot.value);
       const key=customKey.value.trim()||chooseSlot.value;
@@ -1449,7 +1455,7 @@
       const mode=customKey.value.trim()?modeSelect.value:(slot?.[2]||'icon');
       const image_url=remove?'':(assetFile.files.length?await uploadArtwork(assetFile.files[0]):assetUrl.value.trim());
       const result=await API('/api/admin/assets',{key,selector,mode,image_url});
-      if(result.ok){assetFile.value='';assetUrl.value='';const all=await API('/api/assets');state.assets=all.items||[];existingAssets.splice(0,existingAssets.length,...state.assets);applyUiAssets();preview();}
+      if(result.ok){assetFile.value='';assetUrl.value='';const all=await API('/api/assets');state.assets=all.items;applyUiAssets();}
       return result;
     };
     assetPane.append(h('label','','Elemento a personalizar'),chooseSlot,customKeyRow,customSelectorRow,
@@ -1457,7 +1463,7 @@
       h('label','','Ou envie um arquivo de imagem'),assetFile,assetPreview,
       button('Salvar imagem',()=>safeRun(()=>saveAsset(false),'Asset salvo!')),
       button('Remover imagem do elemento',()=>safeRun(()=>saveAsset(true),'Asset removido.'),'soft-action'));
-    assetPane.append(h('p','asset-help','Os ícones de menu alteram PC e celular juntos. O favicon muda a aba do navegador; o ícone de instalação do PWA continua separado. SVGs perigosos são recusados. Para outros elementos, use chave e seletor CSS.'));
+    assetPane.append(h('p','asset-help','Para outros elementos, use uma chave personalizada e um seletor CSS, por exemplo #shopWallet ou .product-cover. O modo fundo preserva os cliques e textos. Para jogos, escolha o nome da lista.'));
     pane.append(assetPane);
     const missionData={items:[]};
     const missionBlock=block('Missões do Recanto','Crie e edite missões únicas, diárias ou semanais. As semanais entram na semana atual; após a próxima segunda-feira, cadastre/reative as missões da nova semana.');
@@ -1652,7 +1658,6 @@
   // Não use visualViewport.height: o teclado do iOS/Android encolhe e desloca o app.
   window.addEventListener('pageshow',syncViewport,{passive:true});
   loadTheme();
-  loadUiAssets().catch(()=>{});
   updateInstallButton();
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();state.installEvent=e;updateInstallButton();});
   window.addEventListener('appinstalled',()=>{state.installEvent=null;updateInstallButton();toast('Recanto instalado com sucesso!');});
