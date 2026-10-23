@@ -2035,3 +2035,101 @@ body.dark-mode .expedition-cover {background:#263655!important;}
 #cardsPane[data-mode="trocas"] .trade-section>.game-box>label {margin:5px 0 0!important;}
 #cardsPane[data-mode="trocas"] .trade-section>.game-box>h3 {margin:0 0 2px!important;}
 #cardsPane[data-mode="trocas"] .trade-section>.game-box>.main-action {margin-top:8px!important;}
+
+/* RECANTO 0.1.23 — contêineres neutros, sem o retângulo escuro que emoldurava os cards. */
+#cardsPane .catalog-highlights,
+#cardsPane .card-pagination,
+body.dark-mode #homeScreen #cardsPane .catalog-highlights,
+body.dark-mode #homeScreen #cardsPane .card-pagination {
+  background:transparent!important;background-color:transparent!important;
+  border:0!important;box-shadow:none!important;
+}
+#cardsPane .catalog-highlights{padding:0!important;border-radius:0!important;}
+#cardsPane .card-pagination{border-radius:0!important;}
+@media(max-width:767px){
+  #cardsPane .card-pagination{padding:14px 0 24px!important;margin:10px 0 22px!important;}
+}
+
+/* Trocas: formulários alinhados em cima, histórico organizado numa linha abaixo no PC. */
+#cardsPane[data-mode="trocas"] .trade-columns{min-width:0;}
+#cardsPane[data-mode="trocas"] .trade-section,
+#cardsPane[data-mode="trocas"] .trade-history-group,
+body.dark-mode #homeScreen #cardsPane[data-mode="trocas"] .trade-section,
+body.dark-mode #homeScreen #cardsPane[data-mode="trocas"] .trade-history-group{
+  background:transparent!important;background-color:transparent!important;
+  border:0!important;box-shadow:none!important;padding:0!important;
+}
+#cardsPane[data-mode="trocas"] .trade-section .game-box{align-self:stretch;}
+#cardsPane[data-mode="trocas"] .trade-pending .section-heading{margin:0!important;}
+@media(min-width:768px){
+  #cardsPane[data-mode="trocas"] .trade-columns{
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:24px!important;align-items:start;width:100%;
+  }
+  #cardsPane[data-mode="trocas"] .trade-pending{
+    grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    align-items:start;gap:14px 24px!important;
+  }
+  #cardsPane[data-mode="trocas"] .trade-pending>.section-heading{grid-column:1/-1;}
+  #cardsPane[data-mode="trocas"] .trade-history-group{min-width:0;gap:12px;}
+  #cardsPane[data-mode="trocas"] .trade-section>.game-box{padding:24px!important;}
+}
+@media(min-width:768px) and (max-width:960px){
+  #cardsPane[data-mode="trocas"] .trade-columns{grid-template-columns:1fr!important;}
+  #cardsPane[data-mode="trocas"] .trade-pending{grid-column:1;grid-template-columns:1fr!important;}
+}
+
+/* Página Poros: cuidados à esquerda e expedições à direita no computador. */
+#petPane .poro-layout{display:flex;flex-direction:column;gap:20px;min-width:0;width:100%;}
+#petPane .poro-care-column,#petPane .poro-expeditions-column{display:flex;flex-direction:column;align-items:stretch;gap:16px;min-width:0;}
+#petPane .poro-layout .game-box{margin:0;min-width:0;max-width:100%;}
+#petPane .poro-inline-control,#petPane .poro-equipment-control{display:flex;align-items:center;gap:10px;min-width:0;}
+#petPane .poro-inline-control .text-input,#petPane .poro-equipment-control .select-input{flex:1 1 auto;width:100%;min-width:0;}
+#petPane .poro-inline-control .soft-action,#petPane .poro-equipment-control .main-action{flex:0 0 auto;white-space:nowrap;}
+#petPane .poro-item-detail{align-self:flex-start;}
+#petPane .poro-item-empty{margin:0;font-size:14px;line-height:1.5;}
+#petPane .poro-expeditions-column .expedition-choice{gap:12px;}
+#petPane .poro-expeditions-column .expedition-choice .soft-action{align-self:flex-start;}
+@media(min-width:768px){
+  #petPane .poro-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:24px;}
+  #petPane .poro-main-card .pet-visual-large{height:clamp(240px,29vw,370px)!important;}
+}
+@media(max-width:767px){
+  #petPane .poro-inline-control,#petPane .poro-equipment-control{flex-wrap:wrap;}
+  #petPane .poro-inline-control button,#petPane .poro-equipment-control button{flex:1 0 100%;}
+}
+
+/* Item circular sempre preso ao canto superior direito do retrato do Poro. */
+.pet-visual .poro-equipped-chip{
+  position:absolute;z-index:15;right:10px;top:10px;
+  display:grid;place-items:center;width:clamp(42px,5vw,60px);height:clamp(42px,5vw,60px);
+  padding:2px;border:2px solid rgba(255,255,255,.8);border-radius:50%;overflow:hidden;
+  background:#5360dd;color:#fff;box-shadow:0 3px 12px rgba(13,23,67,.38);
+  cursor:zoom-in;touch-action:manipulation;transition:transform .2s ease,filter .2s ease;
+}
+.pet-visual .poro-equipped-chip:hover{transform:scale(1.07);filter:brightness(1.08);}
+.pet-visual .poro-equipped-chip:focus-visible{outline:3px solid #8a9cff;outline-offset:2px;}
+.pet-visual .poro-equipped-chip .icon-artwork,.pet-visual .poro-equipped-chip img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+.pet-visual .poro-equipped-chip .icon-emoji{font-size:25px;line-height:1;}
+.desktop-pet-content .pet-visual .poro-equipped-chip{right:10px;top:10px;}
+.public-pet .pet-visual .poro-equipped-chip{right:10px;top:10px;}
+
+/* Perfil mobile: retrato compacto com item equipado, sem carregar outro modelo 3D. */
+#profileContent .mobile-pet-widget{display:none;}
+@media(max-width:767px){
+  #profileContent .mobile-pet-widget:not([hidden]){
+    display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;
+    border-radius:20px;padding:16px;background:#fff;color:#303872;
+  }
+  body.dark-mode #profileContent .mobile-pet-widget{background:#1b2949;color:#fff;}
+  #profileContent .mobile-pet-widget h2{font-size:17px;margin:0;}
+  #profileContent .mobile-pet-content{display:grid;grid-template-columns:110px minmax(0,1fr);grid-template-rows:auto auto;gap:5px 14px;align-items:center;}
+  #profileContent .mobile-pet-content .pet-visual{grid-row:1/3;width:110px;height:110px;margin:0;border-radius:16px;}
+  #profileContent .mobile-pet-content .poro-equipped-chip{width:38px;height:38px;top:5px;right:5px;}
+  #profileContent .mobile-pet-content strong{align-self:end;font-size:16px;overflow-wrap:anywhere;}
+  #profileContent .mobile-pet-content span:not(.icon-emoji):not(.pet-model-hint){align-self:start;font-size:13px;}
+}
+
+/* Inventário: ações de colecionáveis, sem ultrapassar a largura do cartão. */
+#inventoryPane .collectible-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+#inventoryPane .collectible-actions button{flex:1 1 120px;min-width:0;white-space:normal;font-size:12px;padding:10px;}

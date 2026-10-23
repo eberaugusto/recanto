@@ -304,6 +304,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
         species_id: Mapped[int] = mapped_column(ForeignKey('pet_species.id'), nullable=False)
         nickname: Mapped[str | None] = mapped_column(String(40), nullable=True)
+        equipped_collectible_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
         status: Mapped[str] = mapped_column(String(15), default='ativo')
         food: Mapped[int] = mapped_column(Integer, default=85)
         happiness: Mapped[int] = mapped_column(Integer, default=85)
@@ -378,7 +379,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     connection.execute(text(f'ALTER TABLE pet_species ADD COLUMN {field} VARCHAR(512)' if field == 'model_url' else f'ALTER TABLE pet_species ADD COLUMN {field} VARCHAR(80)'))
     # 0.1.21: migracoes aditivas, sem perder Poros, expedicoes ou colecoes antigas.
     for table, fields in {
-        'user_pets': {'nickname': 'VARCHAR(40)'},
+        'user_pets': {'nickname': 'VARCHAR(40)', 'equipped_collectible_id': 'INTEGER'},
         'pet_expeditions': {
             'reward_card_id': 'INTEGER',
             'reward_collectible_id': 'INTEGER',
@@ -746,8 +747,14 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         nextfeed = (naive_to_utc(obj.last_feed_at) + timedelta(minutes=15)).isoformat() if obj.last_feed_at else None
         nextpet = (naive_to_utc(obj.last_pet_at) + timedelta(minutes=5)).isoformat() if obj.last_pet_at else None
         deadline = (naive_to_utc(obj.vet_since) + timedelta(days=setting(db, 'vet_dead_days'))).isoformat() if obj.vet_since and obj.status == 'vet' else None
+        equipped = None
+        if obj.equipped_collectible_id is not None:
+            owned = db.get(InventoryCollectible, (obj.user_id, obj.equipped_collectible_id))
+            item = db.get(Collectible, obj.equipped_collectible_id) if owned and owned.quantity > 0 else None
+            if item:
+                equipped = collectible_dict(item, owned.quantity, owned.acquired_at)
         return {'species_id': sp.id, 'name': sp.name, 'emoji': sp.emoji, 'image_url': sp.image_url, **model_fields(sp),
-                'nickname': obj.nickname or sp.name, 'status': obj.status, 'food': obj.food, 'happiness': obj.happiness,
+                'nickname': obj.nickname or sp.name, 'equipped_collectible': equipped, 'status': obj.status, 'food': obj.food, 'happiness': obj.happiness,
                 'rescue_cost': setting(db, 'vet_cost'), 'vet_deadline': deadline,
                 'next_feed': nextfeed, 'next_pet': nextpet}
 
@@ -782,10 +789,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 'status': t.status, 'created_at': t.created_at.isoformat() if t.created_at else None,
                 'offered_owned_id': t.offered_id, 'wanted_owned_id': t.wanted_id}
 
-    def collectible_dict(obj, quantity=None):
+    def collectible_dict(obj, quantity=None, acquired_at=None):
         payload={'id':obj.id, 'name':obj.name, 'description':obj.description,
                  'image_url':obj.image_url, 'emoji':obj.emoji}
         if quantity is not None:payload['quantity']=quantity
+        if acquired_at is not None:payload['acquired_at']=naive_to_utc(acquired_at).isoformat()
         return payload
 
     def owned_collectibles(db, uid):
@@ -793,7 +801,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             InventoryCollectible.collectible_id==Collectible.id).where(
             InventoryCollectible.user_id==uid,InventoryCollectible.quantity>0).order_by(
             Collectible.name)).all()
-        return [collectible_dict(item,row.quantity) for row,item in rows]
+        return [collectible_dict(item,row.quantity,row.acquired_at) for row,item in rows]
 
     def expedition_settings(db, code):
         base=EXPEDITIONS[code]
@@ -1445,6 +1453,41 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             progress(db, uid, 'adopt')
             achievement_event(db, uid, 'adopt')
         return {'ok': True, 'message': f'{nickname} foi adotado!'}
+
+    @app.post('/api/pets/rename')
+    async def rename_poro(request: Request):
+        uid=me(request)
+        data=json_body(await request.json(), ('nickname',))
+        nickname=str(data['nickname'] or '').strip()
+        if not 2 <= len(nickname) <= 40 or any(ord(ch) < 32 or ord(ch) == 127 for ch in nickname):
+            raise HTTPException(422, detail='Nome do Poro deve ter de 2 a 40 caracteres, sem caracteres de controle')
+        with writing() as db:
+            pet=db.get(UserPet,uid)
+            if pet is None or pet.status=='morto':
+                raise HTTPException(409, detail='Adote um Poro antes de mudar o nome')
+            pet.nickname=nickname
+        return {'ok':True,'nickname':nickname}
+
+    @app.post('/api/pets/equip-collectible')
+    async def equip_poro_collectible(request: Request):
+        uid=me(request)
+        data=json_body(await request.json(), ('collectible_id',))
+        raw_id=data['collectible_id']
+        item_id=None if raw_id is None else integer(raw_id)
+        if item_id is not None and item_id <= 0:
+            raise HTTPException(422, detail='Colecionável inválido')
+        with writing() as db:
+            pet=db.get(UserPet,uid)
+            if pet is None or pet.status=='morto':
+                raise HTTPException(409, detail='Você precisa de um Poro para equipar itens')
+            item=None
+            if item_id is not None:
+                owned=db.get(InventoryCollectible,(uid,item_id))
+                item=db.get(Collectible,item_id)
+                if not owned or owned.quantity < 1 or not item:
+                    raise HTTPException(403, detail='Este colecionável não pertence ao seu inventário')
+            pet.equipped_collectible_id=item_id
+        return {'ok':True,'collectible_id':item_id,'equipped':item_id is not None}
 
     @app.post('/api/pets/care')
     async def care(request: Request):
