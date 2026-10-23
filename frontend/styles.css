@@ -1532,3 +1532,37 @@ body.dark-mode .discord-widget-help{color:#bac6f2;}
   #cardModal.favorite-fullscreen .detail-art{max-width:88vw;max-height:72dvh;}
   #cardModal.favorite-fullscreen .detail-art img{max-height:72dvh;}
 }
+
+/* Recanto 0.1.14 — recompensa diária da Loja compacta à DIREITA no PC.
+   O bloco é independente da grade de produtos e não desloca os itens. */
+@media (min-width: 768px) {
+  #shopScreen #shopContent > .shop-daily-coins {
+    box-sizing: border-box !important;
+    width: min(100%, 385px) !important;
+    max-width: 385px !important;
+    min-height: 82px !important;
+    margin: 0 0 0 auto !important;
+    align-self: flex-end !important;
+    justify-self: end !important;
+    padding: 14px 16px !important;
+    gap: 12px !important;
+    justify-content: space-between !important;
+  }
+  #shopScreen #shopContent > .shop-daily-coins .shop-daily-text {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+  #shopScreen #shopContent > .shop-daily-coins .shop-daily-text strong {
+    font-size: 15px !important;
+  }
+  #shopScreen #shopContent > .shop-daily-coins .shop-daily-text p {
+    font-size: 12px !important;
+  }
+  #shopScreen #shopContent > .shop-daily-coins .white-action {
+    flex: 0 0 auto !important;
+    padding: 10px 12px !important;
+    min-height: 40px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+  }
+}
