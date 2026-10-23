@@ -802,7 +802,10 @@
     }catch(err){toast(err.message);}
   }
   async function openPack(id){
-    const result=await safeRun(()=>API('/api/inventory/packs/'+id+'/open',{}));
+    // O servidor concede as moedas de TODOS os cards em uma única transação.
+    // A confirmação do saldo não espera pela animação de revelação do pack.
+    const result=await safeRun(()=>API('/api/inventory/packs/'+id+'/open',{}),null,
+      response=>applyConfirmedCoins({coins_balance:response.coins_balance,coins_gained:response.bonus_coins}));
     if(!result)return;
     state.reveal=result.cards;state.revealBonus=result.bonus_coins;state.revealIndex=0;state.revealFace=false;
     $('packReveal').hidden=false;showRevealStep();
@@ -813,7 +816,8 @@
     flip.classList.remove('is-revealed');modal.className='pack-reveal';state.revealFace=false;
     $('revealExit').hidden=true;
     if(index>=cards.length){$('flipStage').hidden=true;$('revealHint').textContent='Pacote completo!';
-      $('revealCounter').textContent=`🪙 +${state.revealBonus||0} moedas · `+cards.map(c=>c.name).join(' · ');
+      const total=cards.reduce((sum,c)=>sum+Number(c.bonus_coins||0),0);
+      $('revealCounter').textContent=`🪙 +${money(total)} moedas no total · `+cards.map(c=>`${c.name} (+${money(c.bonus_coins||0)})`).join(' · ');
       $('revealNext').hidden=true;$('revealExit').hidden=false;return;}
     $('flipStage').hidden=false;$('revealNext').hidden=false;
     front.replaceChildren();const c=cards[index];
@@ -832,7 +836,7 @@
   function revealNext(){const cards=state.reveal;if(!cards||!cards.length)return;
     const card=cards[state.revealIndex];if(!card)return;
     if(!state.revealFace){state.revealFace=true;$('packReveal').className='pack-reveal tier-'+card.rarity;
-      $('flipCard').classList.add('is-revealed');$('revealCounter').textContent=(tierLabels[card.rarity]||card.rarity)+` · 🪙 +${card.bonus_coins||0} moeda(s)`;
+      $('flipCard').classList.add('is-revealed');$('revealCounter').textContent=(tierLabels[card.rarity]||card.rarity)+` · 🪙 +${money(card.bonus_coins||0)} moeda(s)`;
       $('revealNext').textContent=state.revealIndex===cards.length-1?'Ver resumo':'Próximo card';
     }else{state.revealIndex++;showRevealStep();}
   }
@@ -2034,7 +2038,34 @@
     pane.append(missionBlock);
     const integrations=block('Integrações','Missões de voz e mensagens requerem RECANTO_BOT_SECRET no Render e um pequeno envio de eventos pelo seu bot existente. Notificações exigem chaves VAPID e o job agendado; consulte o guia no ZIP.');
     pane.append(integrations);
-    const settings=block('Valores configuráveis','Recompensas, preços e prazos.');for(const [key,value] of Object.entries(opts.settings)){const [fld,inp]=adminField(key,value,'number');settings.append(fld,button('Salvar '+key,()=>safeRun(()=>API('/api/admin/settings',{key,value:Number(inp.value)}),'Valor salvo!'),'soft-action'));}pane.append(settings);
+    // Recompensas por card em destaque, separadas das outras opções numéricas.
+    const rarityRewards=block('Moedas recebidas por raridade',
+      'Cada Card resgatado ou revelado em um pack concede as moedas da sua raridade. Em packs, as recompensas de todos os Cards são somadas. Valores de 0 a 1.000.000 moedas.');
+    rarityRewards.classList.add('admin-rarity-rewards');
+    const rarityRewardFields=h('div','admin-rarity-reward-grid');
+    for(const tier of ['comum','raro','lendário','prismático']){
+      const key='card_bonus_'+tier;
+      const [field,input]=adminField(tierLabels[tier]+' (moedas por Card)',String(opts.settings[key]??0),'number');
+      input.min='0';input.max='1000000';input.step='1';input.inputMode='numeric';
+      const status=h('small','admin-reward-status','');
+      const save=button('Salvar '+tierLabels[tier],async()=>{
+        const value=Number(input.value);
+        if(input.value.trim()===''||!Number.isSafeInteger(value)||value<0||value>1000000){
+          toast('Informe um valor inteiro de 0 a 1.000.000 moedas.');return;
+        }
+        const result=await safeRun(()=>API('/api/admin/settings',{key,value}),`Recompensa ${tierLabels[tier]}: ${money(value)} moedas.`);
+        if(result){opts.settings[key]=result.value;input.value=String(result.value);status.textContent='✓ Salvo: '+money(result.value)+' moedas por Card';if(state.game?.rules)state.game.rules[key]=result.value;}
+      },'soft-action');
+      const slot=h('div','admin-rarity-reward-item tier-'+tier);slot.append(field,save,status);rarityRewardFields.append(slot);
+    }
+    rarityRewards.append(rarityRewardFields);pane.append(rarityRewards);
+    const settings=block('Outros valores configuráveis','Preços, prazos e demais recompensas.');
+    for(const [key,value] of Object.entries(opts.settings)){
+      if(key.startsWith('card_bonus_'))continue;
+      const [fld,inp]=adminField(key,value,'number');
+      settings.append(fld,button('Salvar '+key,()=>safeRun(()=>API('/api/admin/settings',{key,value:Number(inp.value)}),'Valor salvo!'),'soft-action'));
+    }
+    pane.append(settings);
     if(game.local_development && ['localhost','127.0.0.1'].includes(location.hostname)){
       const dev=block('Ferramentas de teste local','Simulações exclusivas do ambiente local.');
       dev.append(button('Adicionar 5.000 moedas para minha conta',()=>safeRun(()=>API('/api/dev/grant-coins',{amount:5000}),'Moedas de teste adicionadas!')));

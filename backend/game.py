@@ -1377,18 +1377,23 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 reserved=db.scalars(select(ReservedCard).where(ReservedCard.pack_id==pack_id).order_by(ReservedCard.position)).all()
             if len(reserved)!=quantity: raise HTTPException(409, detail='Pacote incompleto; contacte o administrador')
             result=[]
+            bonus=0
             for r in reserved:
                 card=db.get(Card,r.card_id)
                 if not card: raise HTTPException(409, detail='Card indisponível')
-                result.append(grant_card(db,uid,{'id':card.id,'name':card.name,'rarity':card.rarity,'image_url':card.image_url,'collection':card.collection_name}))
+                # Cada card do pack rende moedas segundo SUA raridade, sem teto de 5.
+                reward=card_bonus(db,card.rarity)
+                granted=grant_card(db,uid,{'id':card.id,'name':card.name,'rarity':card.rarity,'image_url':card.image_url,'collection':card.collection_name})
+                granted['bonus_coins']=reward
+                result.append(granted)
+                bonus+=reward
             pack.opened_at=utcnow()
-            bonus=sum(card_bonus(db,card['rarity']) for card in result)
-            for card in result:
-                card['bonus_coins']=card_bonus(db,card['rarity'])
-            wallet(db,uid).coins+=bonus
+            balance=wallet(db,uid)
+            balance.coins+=bonus
+            coins_balance=balance.coins
             progress(db,uid,'pack')
             for card in result:publish_feed(db,uid,'pack_card',card=feed_card(card),pack_size=(3 if pack.sku=='pack3' else 5))
-        return {'ok':True,'cards':result,'bonus_coins':bonus}
+        return {'ok':True,'cards':result,'bonus_coins':bonus,'coins_balance':coins_balance}
 
     @app.get('/api/cards/favorite')
     def get_favorite(request: Request):
@@ -1827,10 +1832,13 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         json_body(data, ('key', 'value'))
         key = str(data['key'])
         value = integer(data['value'])
-        if key not in DEFAULTS or not 0 <= value <= 100000:
+        # As recompensas por raridade são independentes dos demais limites de
+        # economia. Zero desativa a recompensa e valores altos são aceitos.
+        if key not in DEFAULTS:
             raise HTTPException(422, detail='Configuração inválida')
-        if key.startswith('card_bonus_') and not 1 <= value <= 5:
-            raise HTTPException(422, detail='Recompensas por raridade devem ficar entre 1 e 5 moedas')
+        ceiling=1000000 if key.startswith('card_bonus_') else 100000
+        if not 0 <= value <= ceiling:
+            raise HTTPException(422, detail=f'Informe um valor inteiro entre 0 e {ceiling:,}'.replace(',', '.'))
         if key in ('neglect_hours', 'vet_dead_days') and value < 1:
             raise HTTPException(422, detail='O prazo deve ser no mínimo 1')
         with writing() as db:

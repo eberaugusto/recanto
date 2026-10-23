@@ -2522,3 +2522,12 @@ body.dark-mode .poro-stat-header{color:#eaf0ff;}
   .detail-art.recanto-framed-art{--recanto-frame-thickness:9px;}
   #cardModal.favorite-fullscreen .detail-art.recanto-framed-art{width:min(82vw,380px)!important;max-width:min(82vw,380px)!important;}
 }
+
+/* RECANTO v0.2.6 — editor compacto de moedas por raridade. */
+.admin-rarity-reward-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:10px;}
+.admin-rarity-reward-item{display:flex;flex-direction:column;gap:9px;min-width:0;padding:14px;border:1px solid rgba(92,109,175,.2);border-radius:14px;}
+.admin-rarity-reward-item .admin-field{display:flex;flex-direction:column;gap:7px;}
+.admin-rarity-reward-item input{width:100%;min-width:0;}
+.admin-rarity-reward-item button{align-self:stretch;}
+.admin-rarity-reward-item .admin-reward-status{min-height:1em;font-size:12px;}
+@media(max-width:640px){.admin-rarity-reward-grid{grid-template-columns:1fr;}}
