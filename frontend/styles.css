@@ -2133,3 +2133,51 @@ body.dark-mode #homeScreen #cardsPane[data-mode="trocas"] .trade-history-group{
 /* Inventário: ações de colecionáveis, sem ultrapassar a largura do cartão. */
 #inventoryPane .collectible-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
 #inventoryPane .collectible-actions button{flex:1 1 120px;min-width:0;white-space:normal;font-size:12px;padding:10px;}
+
+/* Recanto 0.1.24 — sobreposições, retrato, ícones e respiro final. */
+/* Override do overlay circular: X contrastante em ambos os temas, mesmo com
+   regras globais de tema escuro e favorito aplicadas antes. */
+#cardModal.profile-info-fullscreen .card-detail-dialog{
+  display:flex;flex-direction:column;align-items:center;
+  text-align:center;position:relative;
+}
+#cardModal.profile-info-fullscreen #cardDetail{
+  width:100%;margin:0 auto;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:flex-start;
+  flex-direction:column;text-align:center;gap:15px;
+}
+#cardModal.profile-info-fullscreen #cardDetail > * {margin-left:auto;margin-right:auto;}
+#cardModal.profile-info-fullscreen .profile-info-description,
+#cardModal.profile-info-fullscreen .profile-info-note,
+#cardModal.profile-info-fullscreen .profile-info-progress,
+#cardModal.profile-info-fullscreen .profile-info-status {text-align:center;max-width:420px;}
+#cardModal.profile-info-fullscreen .detail-x{
+  align-self:flex-end;flex:0 0 auto;float:none;
+  width:42px;height:42px;display:grid;place-items:center;
+  padding:0;border-radius:50%;border:1px solid rgba(255,255,255,.23);
+  background:#263655!important;background-color:#263655!important;
+  color:#fff!important;font-size:22px;line-height:1;cursor:pointer;
+}
+body.dark-mode #cardModal.profile-info-fullscreen .detail-x{
+  background:#263655!important;background-color:#263655!important;
+  color:#fff!important;border-color:#526284!important;
+}
+#cardModal.profile-info-fullscreen .detail-x:hover{background:#334973!important;}
+/* Amarelo do tema Recanto, com espessura moderada e foto intacta. */
+#profileContent .profile-avatar .avatar{
+  border:4px solid #ffc400!important;box-sizing:border-box;
+  border-radius:50%;
+}
+/* SVGs enviados preservam proporção e não expandem os itens do menu PC. */
+.desktop-side-link.asset-icon-host{display:flex!important;justify-content:flex-start;}
+.desktop-side-link > .ui-asset-icon{
+  width:24px!important;height:24px!important;min-width:24px!important;
+  max-width:24px!important;max-height:24px!important;object-fit:contain;
+}
+/* Um espaço real no final da região rolável, preservado depois do último card. */
+@media (min-width:768px){
+  .content-page .scroll-content{padding-bottom:84px!important;scroll-padding-bottom:84px;}
+  #profileContent{padding-bottom:70px!important;}
+  #publicProfilePage .scroll-content{padding-bottom:84px!important;}
+  #feedScreen .scroll-content{padding-bottom:84px!important;}
+}
