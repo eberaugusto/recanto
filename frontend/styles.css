@@ -2561,3 +2561,37 @@ body.dark-mode .poro-stat-header{color:#eaf0ff;}
 }
 /* Sem moldura enviada, permanece o contorno colorido padrão da raridade. */
 .recanto-framed-art:not(.custom-collection-frame)::after { content:none; }
+
+/* RECANTO v0.2.8 — Cards de coleção SEM achatamento no PC.
+   A imagem e a moldura preservam sempre 2:3, mesmo em telas largas.
+   O limite antigo de 480px truncava a altura e transformava o Card em quadrado. */
+@media (min-width:768px) {
+  #cardsPane .filtered-cards .card-grid {
+    display:grid!important;
+    grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))!important;
+    gap:18px!important;
+    align-items:start!important;
+  }
+  #cardsPane .filtered-cards .card-tile {
+    min-width:0!important;
+    width:100%!important;
+    align-self:start!important;
+  }
+  #cardsPane .filtered-cards .card-tile>.card-art.recanto-framed-art {
+    display:block!important;
+    width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    aspect-ratio:2 / 3!important;
+    flex:none!important;
+  }
+}
+/* O mobile mantém duas colunas, com a mesma proporção vertical da arte. */
+@media (max-width:767px) {
+  #cardsPane .filtered-cards .card-tile>.card-art.recanto-framed-art {
+    height:auto!important;
+    max-height:none!important;
+    aspect-ratio:2 / 3!important;
+  }
+}
