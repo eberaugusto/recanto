@@ -2266,3 +2266,55 @@ body.dark-mode #profilesPane .profiles-search{
   caret-color:#f8faff;
 }
 body.dark-mode #profilesPane .profiles-search::placeholder{color:#bdc8e2 !important;opacity:1;}
+
+
+/* RECANTO 0.2.0 — lista de adoção sem colunas apertadas no celular. */
+@media (max-width: 767px) {
+  #petPane .pet-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 18px !important;
+    width: 100%;
+    align-items: stretch;
+  }
+  #petPane .pet-grid > .game-box {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    padding: 18px !important;
+    gap: 14px;
+  }
+  #petPane .pet-grid .pet-visual {
+    width: 100%;
+    height: clamp(245px, 74vw, 375px);
+    aspect-ratio: auto;
+    min-height: 0;
+  }
+  #petPane .pet-grid .poro-nickname-label,
+  #petPane .pet-grid .poro-nickname,
+  #petPane .pet-grid .main-action {width:100%;min-width:0;max-width:100%;}
+  #petPane .pet-grid .poro-nickname {min-height:46px;}
+}
+
+/* RECANTO 0.2.0 — botões de busca e configurações acompanham o tema. */
+#profileContent .header-actions .settings-button,
+#profileContent .header-actions .settings-button.search-icon-button {
+  background: #f7f8ff !important;
+  color: #273760 !important;
+  border: 1px solid #d7def5 !important;
+  box-shadow: none !important;
+}
+#profileContent .header-actions .settings-button svg {
+  color: inherit !important;
+  fill: none;
+}
+body.dark-mode #profileContent .header-actions .settings-button,
+body.dark-mode #profileContent .header-actions .settings-button.search-icon-button {
+  background: #1b2949 !important;
+  color: #f7f9ff !important;
+  border-color: #41547b !important;
+}
+#profileContent .header-actions .settings-button:focus-visible {
+  outline: 3px solid #f4cb54;
+  outline-offset: 3px;
+}

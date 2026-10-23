@@ -260,7 +260,9 @@
         const pic=h('div','feed-avatar');avatar(pic,item.user.name,item.user.avatar_url);
         const box=h('div','feed-entry-body');const header=h('div','feed-head');
         header.append(h('strong','',item.user.name));
-        const time=h('time','feed-time',new Date(item.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}));time.dateTime=item.created_at;header.append(time);
+        const feedTimestamp=new Date(item.created_at);
+        const feedClock=Number.isNaN(feedTimestamp.getTime())?'—':new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(feedTimestamp);
+        const time=h('time','feed-time',feedClock);time.dateTime=item.created_at;time.title='Horário de Brasília';header.append(time);
         const msg=h('p','feed-description');feedMessage(msg,item);
         const actions=h('div','feed-actions');const like=button(`${item.liked?'♥':'♡'} ${item.likes}`,async()=>{
           like.disabled=true;
@@ -1576,6 +1578,35 @@
     coinActions.append(button('Adicionar moedas',()=>adjustCoins('add')),button('Remover moedas',()=>adjustCoins('remove'),'danger-action'));
     const coinStatus=h('p','admin-entry-status','');
     coinTool.append(userIdRow,amountRow,coinActions,coinStatus);pane.append(coinTool);
+    // Exclusivo dos administradores: zera apenas as publicações do Feed.
+    const feedTool=block('Limpar Feed',
+      'Remove todas as publicações e curtidas da comunidade. Cards, Poros, moedas, missões, selos e o limite diário de recompensas permanecem intactos. Esta operação não pode ser desfeita.');
+    const [feedConfirmField,feedConfirmInput]=adminField('Digite LIMPAR FEED para confirmar','');
+    feedConfirmInput.autocomplete='off';
+    feedConfirmInput.setAttribute('aria-label','Confirmação da limpeza do Feed');
+    const feedClearButton=button('Apagar todas as publicações do Feed',async()=>{
+      if(feedConfirmInput.value.trim()!=='LIMPAR FEED'){
+        toast('Digite LIMPAR FEED para confirmar.');return;
+      }
+      if(!window.confirm('Excluir TODAS as publicações e curtidas do Feed? Essa operação não pode ser desfeita.'))return;
+      feedClearButton.disabled=true;
+      const result=await safeRun(()=>API('/api/admin/feed/clear',
+        {confirmation:feedConfirmInput.value.trim()}),
+        r=>`${r.removed} publicação(ões) removida(s) do Feed.`);
+      if(result){
+        feedConfirmInput.value='';
+        tabLoadedAt.feed=0;
+        loadFeedRefresh().catch(()=>{});
+        feedResult.textContent=`Feed limpo. ${result.removed} publicação(ões) removida(s).`;
+      }else feedClearButton.disabled=false;
+    },'danger-action');
+    feedClearButton.disabled=true;
+    feedConfirmInput.addEventListener('input',()=>{
+      feedClearButton.disabled=feedConfirmInput.value.trim()!=='LIMPAR FEED';
+    });
+    const feedResult=h('p','admin-entry-status','');
+    feedTool.append(feedConfirmField,feedClearButton,feedResult);pane.append(feedTool);
+
     const reset=block('Limpar progresso para testes','ATENÇÃO: apaga o progresso de TODOS os usuários (cards obtidos, moedas, Poros, trocas, selos e missões). As contas Discord e os catálogos permanecem. A operação não pode ser desfeita.');
     const [field,confirmation]=adminField('Digite LIMPAR TUDO para confirmar','');
     const resetButton=button('Apagar progresso de todos os usuários',async()=>{
@@ -1587,9 +1618,10 @@
     resetButton.disabled=true;
     confirmation.addEventListener('input',()=>resetButton.disabled=confirmation.value.trim()!=='LIMPAR TUDO');
     reset.append(field,resetButton);pane.append(reset);
-    const groups=['Geral','Economia','Cards','Loja','Poros','Missões','Selos','Assets','Usuários','Integrações'];
+    const groups=['Geral','Feed','Economia','Cards','Loja','Poros','Missões','Selos','Assets','Usuários','Integrações'];
     const classify=(name)=>{
       const x=name.toLowerCase();
+      if(x.includes('limpar feed'))return 'Feed';
       if(x.includes('valores configuráveis'))return 'Economia';
       if(x.includes('cadastrar card')||x.includes('gerenciar cards')||x.includes('coleção'))return 'Cards';
       if(x.includes('gerenciar itens')||x.includes('capa'))return 'Loja';

@@ -632,6 +632,23 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 'data':json.loads(e.payload),'likes':counts.get(e.id,0),'liked':e.id in liked} for e in entries],
                 'reward_today':day_state.count if day_state else 0,'reward_limit':20}
 
+    @app.post('/api/admin/feed/clear')
+    async def admin_clear_feed(request: Request):
+        # Exclui somente as publicações e seus likes. Não altera a carteira,
+        # o progresso ou o limite diário já consumido por cada membro.
+        admin_id = only_admin(request)
+        payload = json_body(await request.json(), ('confirmation',))
+        if payload['confirmation'] != 'LIMPAR FEED':
+            raise HTTPException(422, detail='Digite LIMPAR FEED para confirmar')
+        with writing() as db:
+            removed = db.scalar(select(func.count()).select_from(FeedEvent)) or 0
+            db.execute(delete(FeedLike))
+            db.execute(delete(FeedEvent))
+        logging.getLogger('recanto.admin').info(
+            'Limpeza do Feed: admin=%s publicacoes_removidas=%s', admin_id, removed)
+        return {'ok': True, 'removed': int(removed), 'scope': 'feed',
+                'detail': 'Publicações e curtidas removidas. Histórico de recompensas preservado.'}
+
     @app.post('/api/feed/{event_id}/like')
     def like_feed(event_id:int,request:Request):
         uid=me(request)
