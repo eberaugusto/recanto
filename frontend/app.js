@@ -48,7 +48,9 @@
 
   const h = (tag, className='', content='') => {const el=document.createElement(tag);if(className)el.className=className;if(content!==undefined&&content!==null)el.textContent=String(content);return el;};
   const money = n=>Number(n||0).toLocaleString('pt-BR');
-  const labels={feed:'Feed',perfil:'Perfil',cards:'Cards',inventario:'Inventário',pet:'Pet',loja:'Loja',missoes:'Missões'};
+  const poroLegacyText = value => String(value ?? '').replace(/Pequenas Lendas/gi,'Poros').replace(/Pequena Lenda/gi,'Poro').replace(/\bpets\b/gi,'Poros').replace(/\bpet\b/gi,'Poro');
+  const poroSpeciesName = value => /^Pequena Lenda — exemplo (\d+)$/i.test(String(value || '')) ? String(value).replace(/Pequena Lenda/i,'Poro') : value;
+  const labels={feed:'Feed',perfil:'Perfil',cards:'Cards',inventario:'Inventário',pet:'Poros',loja:'Loja',missoes:'Missões'};
   const tierLabels={comum:'Comum',raro:'Raro',lendário:'Lendário',prismático:'Prismático'};
   const state={assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:8,cardPage:1,cardPageSize:12,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:matchMedia('(min-width:768px)').matches?'raridade':'padrao',missing:false,newOnly:false},detailClosing:false};
   const toast=(message)=>{const el=$('toast');el.textContent=message;el.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>{el.hidden=true;},4000);};
@@ -123,7 +125,7 @@
     const line=h('div','badge-strip');
     const visible=Math.max(8,state.badgesVisible||8);
     const shown=ach.items.slice(0,visible);
-    for(const a of shown){const chip=h('button','badge-chip'+(a.locked?' locked':''),a.icon);chip.title=a.title+' — '+a.description+(a.available?'':' (integração com Discord futuramente)');chip.addEventListener('click',()=>toast(chip.title));line.append(chip);}
+    for(const a of shown){const chip=h('button','badge-chip'+(a.locked?' locked':''),a.icon);chip.title=poroLegacyText(a.title)+' — '+poroLegacyText(a.description)+(a.available?'':' (integração com Discord futuramente)');chip.addEventListener('click',()=>toast(chip.title));line.append(chip);}
     b.append(line);
     if(ach.items.length>8){
       const remaining=Math.max(0,ach.items.length-shown.length);
@@ -150,7 +152,7 @@
   let feedLoading=false;
   function feedImageText(parent, item, kind){
     if(!item)return;
-    const token=h('span','feed-entity '+(kind==='card'?'feed-rarity-'+String(item.rarity||'comum').normalize('NFD').replace(/[\u0300-\u036f]/g,''):'feed-pet-name'),item.name||'Item');
+    const token=h('span','feed-entity '+(kind==='card'?'feed-rarity-'+String(item.rarity||'comum').normalize('NFD').replace(/[\u0300-\u036f]/g,''):'feed-pet-name'),(kind==='pet'?poroSpeciesName(item.name):item.name)||'Item');
     token.tabIndex=0;
     if(item.image_url){
       const preview=h('span','feed-preview');const img=h('img');img.src=item.image_url;img.loading='lazy';img.alt=item.name||'Prévia';preview.append(img);token.append(preview);
@@ -163,7 +165,7 @@
     if(item.kind==='expedition_start'){add(' enviou ');pet(d.pet);add(' para uma Expedição.');}
     else if(item.kind==='daily_card'){add(' conseguiu ');card(d.card);add(' no Resgate Diário.');}
     else if(item.kind==='pack_card'){add(' conseguiu ');card(d.card);add(' no Pack de '+(Number(d.pack_size)||'?')+' Cards.');}
-    else if(item.kind==='expedition_card'){add(' teve seu pet ');pet(d.pet);add(' retornando da Expedição com ');card(d.card);add('.');}
+    else if(item.kind==='expedition_card'){add(' teve seu Poro ');pet(d.pet);add(' retornando da Expedição com ');card(d.card);add('.');}
     else if(item.kind==='trade_cards'){add(' trocou ');card(d.card_a);add(' por ');card(d.card_b);add(' com '+(d.other||'outro membro')+'.');}
     else if(item.kind==='trade_coins'){add(' trocou ');card(d.card);add(' por '+(Number(d.coins)||0)+' moedas com '+(d.other||'outro membro')+'.');}
     else if(item.kind==='badge'){add(' conquistou o selo ');if(d.badge?.icon)add(d.badge.icon+' ');feedImageText(row,{name:d.badge?.name,image_url:d.badge?.image_url},'pet');add('!');}
@@ -306,9 +308,9 @@
     try{
       const data=await API('/api/pets');
       const pet=data.pet;content.replaceChildren();
-      if(!pet){content.append(h('p','', 'Você ainda não adotou uma Pequena Lenda.'));state.petPreviewLoaded=true;return;}
+      if(!pet){content.append(h('p','', 'Você ainda não adotou um Poro.'));state.petPreviewLoaded=true;return;}
       content.append(petVisual(pet,false));
-      content.append(h('p','desktop-pet-name',pet.name));
+      content.append(h('p','desktop-pet-name',poroSpeciesName(pet.name)));
       content.append(h('p','',pet.status==='ativo'?'Em casa':pet.status==='vet'?'No veterinário':pet.status==='missao'?'Em missão':'Falecido'));
       for(const [label,val] of [['Bem-estar',pet.happiness],['Fome',pet.food]]){
         if(val==null)continue;
@@ -317,7 +319,7 @@
         content.append(row,meter);
       }
       state.petPreviewLoaded=true;
-    }catch(_){content.replaceChildren(h('p','', 'Pet temporariamente indisponível. Abra a aba Pet para tentar novamente.'));}
+    }catch(_){content.replaceChildren(h('p','', 'Poro temporariamente indisponível. Abra a aba Poros para tentar novamente.'));}
     finally{state.petPreviewLoading=false;}
   }
 
@@ -510,7 +512,7 @@
         row.append(info,button('Abrir',()=>openPack(pack.id)));pane.append(row);}
       pane.append(button('Ver pacotes na Loja →',()=>chooseTab('loja','pack3'),'soft-action'));
     }else{
-      if(!d.treats.length)pane.append(block('Sem itens de pet','Compre petiscos exclusivamente na Loja.'));
+      if(!d.treats.length)pane.append(block('Sem itens para Poros','Compre petiscos exclusivamente na Loja.'));
       for(const t of d.treats){const row=h('div','inventory-row');row.append(mediaCover(null,t.emoji,t.name,'item-cover'));
         const info=h('div','inventory-meta');info.append(h('strong','',t.name),h('p','',`${t.quantity} disponível(is) • +${t.food} fome`));row.append(info);
         row.append(button('Presentear',()=>giftDialog(t),'soft-action'));pane.append(row);}
@@ -589,7 +591,7 @@
         const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
         for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));chip.title=game.name;gameIcons.append(chip);}
         favorites.append(gameIcons);pane.append(favorites);
-        if(d.pet){const pet=block('🐾 Pet: '+d.pet.name,`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);
+        if(d.pet){const pet=block('🐾 Poro: '+poroSpeciesName(d.pet.name),`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);
           pet.classList.add('public-section','public-pet');pet.prepend(petVisual(d.pet));pane.append(pet);
           if(d.pet.status==='ativo'){
             const actions=h('div','social-actions');actions.append(button('💗 Acariciar',()=>visitPet(uid,'pet')));
@@ -598,7 +600,7 @@
             else actions.append(button('Comprar petiscos →',()=>{$('publicProfilePage').hidden=true;chooseTab('loja','treat3');},'soft-action'));
             pane.append(actions);
           }
-        }else{const noPet=block('Sem pet','Este membro ainda não adotou uma Pequena Lenda.');noPet.classList.add('public-section','public-pet');pane.append(noPet);}
+        }else{const noPet=block('Sem Poro','Este membro ainda não adotou um Poro.');noPet.classList.add('public-section','public-pet');pane.append(noPet);}
         return;
       }
       const back=button('← Voltar à busca',()=>{$('publicProfilePage').hidden=true;searchProfiles();},'soft-action public-back-search');
@@ -617,7 +619,7 @@
       const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
       for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));chip.title=game.name;gameIcons.append(chip);}
       favorites.append(gameIcons);main.append(favorites);
-      if(d.pet){const pet=block('🐾 Pequena Lenda: '+d.pet.name,`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);pet.classList.add('public-section','public-pet');pet.prepend(petVisual(d.pet));aside.append(pet);
+      if(d.pet){const pet=block('🐾 Poro: '+poroSpeciesName(d.pet.name),`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);pet.classList.add('public-section','public-pet');pet.prepend(petVisual(d.pet));aside.append(pet);
         if(d.pet.status==='ativo'){
           const actions=h('div','social-actions');actions.append(button('💗 Acariciar',()=>visitPet(uid,'pet')));
           const opts=items.treats||[];if(opts.length){const select=h('select','select-input');opts.forEach(t=>{const o=h('option','',t.name+' (+'+t.food+')');o.value=t.sku;select.append(o);});
@@ -625,7 +627,7 @@
           else actions.append(button('Comprar petiscos →',()=>{$('publicProfilePage').hidden=true;chooseTab('loja','treat3');},'soft-action'));
           aside.append(actions);
         }
-      }else{const noPet=block('Sem pet','Este membro ainda não adotou uma Pequena Lenda.');noPet.classList.add('public-section','public-pet');aside.append(noPet);}
+      }else{const noPet=block('Sem Poro','Este membro ainda não adotou um Poro.');noPet.classList.add('public-section','public-pet');aside.append(noPet);}
       layout.append(main,aside);pane.append(layout);
     }catch(err){toast(err.message);}
   }
@@ -679,7 +681,7 @@
   }
   function petVisual(species,large=false,thumbnail=false){
     const wrap=h('div','pet-visual'+(large?' pet-visual-large':''));
-    const fallback=mediaCover(species.image_url,species.emoji||'🐾',species.name,'pet-fallback');
+    const fallback=mediaCover(species.image_url,species.emoji||'🐾',poroSpeciesName(species.name),'pet-fallback');
     wrap.append(fallback);
     const model=String(species.model_url||'').trim();
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -688,7 +690,7 @@
       if(!model && !reduced)wrap.classList.add('pet-preview-moving');
       if(!model && !thumbnail){
         const note=h('span','pet-model-hint','Modelo 3D não configurado');
-        note.title='Abra Gestão do Recanto → Pets e associe um ID Khada TFT real ou uma URL pública de arquivo .glb.';
+        note.title='Abra Gestão do Recanto → Poros e associe um ID Khada TFT real ou uma URL pública de arquivo .glb.';
         wrap.append(note);
       }
       return wrap;
@@ -717,7 +719,7 @@
     function startViewer(){
       if(khada){
         const iframe=h('iframe','pet-khada-embed');
-        iframe.title='Pequena Lenda animada em repouso: '+species.name;
+        iframe.title='Poro animado em repouso: '+poroSpeciesName(species.name);
         iframe.loading='lazy';iframe.referrerPolicy='strict-origin-when-cross-origin';
         iframe.setAttribute('allow','autoplay; fullscreen');
         iframe.src=khada;
@@ -734,12 +736,12 @@
         wrap.append(iframe);
         const link=h('a','pet-model-check','Testar modelo no Khada ↗');
         link.href=khada;link.target='_blank';link.rel='noopener noreferrer';
-        link.title='Se a cena ficar vazia, confirme o ID no catálogo Khada de Pequenas Lendas (TFT).';
+        link.title='Se a cena ficar vazia, confirme o ID no catálogo Khada TFT (se o modelo for compatível).';
         wrap.after(link);
         return;
       }
       view=h('model-viewer','pet-model');
-      view.setAttribute('alt','Modelo 3D de '+species.name);
+      view.setAttribute('alt','Modelo 3D de '+poroSpeciesName(species.name));
       view.setAttribute('camera-controls','');
       view.setAttribute('shadow-intensity','0.65');
       view.setAttribute('exposure','1.1');view.setAttribute('environment-image','neutral');
@@ -804,43 +806,43 @@
     setTimeout(()=>symbol.remove(),850);
   }
   async function petCare(action,sku='biscoito'){
-    const result=await safeRun(()=>API('/api/pets/care',{action,treat_sku:sku}),action==='feed'?'Pet alimentado!':'Seu pet recebeu carinho!');
+    const result=await safeRun(()=>API('/api/pets/care',{action,treat_sku:sku}),action==='feed'?'Poro alimentado!':'Seu Poro recebeu carinho!');
     if(result)petReaction(action);
   }
   async function loadPet(){
     const data=await API('/api/pets');const pane=$('petPane');pane.replaceChildren();const pet=data.pet;
     state.activePet=pet;
-    $('petStatus').textContent=pet?({ativo:'Em casa','vet':'No veterinário','morto':'Falecido','missao':'Em missão'}[pet.status]):'Sem pet';
+    $('petStatus').textContent=pet?({ativo:'Em casa','vet':'No veterinário','morto':'Falecido','missao':'Em missão'}[pet.status]):'Sem Poro';
     if(!pet||pet.status==='morto'){
-      pane.append(block(pet?'Seu pet faleceu':'Escolha sua Pequena Lenda',pet?'O prazo de resgate terminou. Você pode adotar outra Pequena Lenda.':'Você pode adotar apenas uma Pequena Lenda por vez. Cuide dela diariamente.'));
+      pane.append(block(pet?'Seu Poro faleceu':'Escolha seu Poro',pet?'O prazo de resgate terminou. Você pode adotar outro Poro.':'Você pode adotar apenas um Poro por vez. Cuide dele diariamente.'));
       const grid=h('div','pet-grid');data.species.forEach(s=>{
-        const row=block(s.name,'Pequena Lenda disponível para adoção');row.prepend(petVisual(s,false,true));
-        row.append(button('Adotar',()=>safeRun(()=>API('/api/pets/adopt',{species_id:s.id}),'Pequena Lenda adotada!')));grid.append(row);
+        const row=block(poroSpeciesName(s.name),'Poro disponível para adoção');row.prepend(petVisual(s,false,true));
+        row.append(button('Adotar',()=>safeRun(()=>API('/api/pets/adopt',{species_id:s.id}),'Poro adotado!')));grid.append(row);
       });pane.append(grid);return;
     }
-    const show=block(pet.name,pet.status==='vet'?'Sua Pequena Lenda precisa de resgate.':'Cuide de seu companheiro todos os dias.');
+    const show=block(poroSpeciesName(pet.name),pet.status==='vet'?'Seu Poro precisa de resgate.':'Cuide de seu companheiro todos os dias.');
     show.prepend(petVisual(pet,true));pane.append(show);
     if(pet.status==='missao'){
       const expedition=data.expedition;
-      pane.append(block('🗺️ Em missão',`Seu pet está em ${expedition?.name||'uma aventura'} e não pode receber carinho nem comida.`));
-      const when=h('p','expedition-time',expedition?.ready?'Sua Pequena Lenda voltou!':'Volta em: '+countdown(expedition?.ends_at));pane.append(when);
-      if(expedition?.ready)pane.append(button('Receber recompensas',async()=>{const result=await safeRun(()=>API('/api/pets/expedition/collect',{}),r=>`+${r.coins_gained} moedas${r.card?' e um card!':''}`);if(result?.card)showCard(result.card,'Card encontrado pela Pequena Lenda!');}));
+      pane.append(block('🗺️ Em missão',`Seu Poro está em ${expedition?.name||'uma aventura'} e não pode receber carinho nem comida.`));
+      const when=h('p','expedition-time',expedition?.ready?'Seu Poro voltou!':'Volta em: '+countdown(expedition?.ends_at));pane.append(when);
+      if(expedition?.ready)pane.append(button('Receber recompensas',async()=>{const result=await safeRun(()=>API('/api/pets/expedition/collect',{}),r=>`+${r.coins_gained} moedas${r.card?' e um card!':''}`);if(result?.card)showCard(result.card,'Card encontrado pelo Poro!');}));
       return;
     }
     if(pet.status==='vet'){
       pane.append(block('🏥 Veterinário',`Resgate por ${money(pet.rescue_cost)} moedas. Prazo: ${pet.vet_deadline?new Date(pet.vet_deadline).toLocaleString('pt-BR'):'—'}`));
-      pane.append(button('Resgatar pet',()=>safeRun(()=>API('/api/pets/rescue',{}),'Companheiro resgatado!')));return;
+      pane.append(button('Resgatar Poro',()=>safeRun(()=>API('/api/pets/rescue',{}),'Companheiro resgatado!')));return;
     }
-    pane.append(block('Estado do pet',`🍎 Fome: ${pet.food}/100 • 💕 Felicidade: ${pet.happiness}/100 • 🍪 Petiscos: ${data.treats}`));
+    pane.append(block('Estado do Poro',`🍎 Fome: ${pet.food}/100 • 💕 Felicidade: ${pet.happiness}/100 • 🍪 Petiscos: ${data.treats}`));
     const actions=h('div','pet-actions');const inv=await API('/api/inventory');
     if(inv.treats.length){const choose=h('select','select-input');inv.treats.forEach(t=>{const opt=h('option','',t.name+' (+'+t.food+' fome) · '+t.quantity);opt.value=t.sku;choose.append(opt);});pane.append(choose);
       actions.append(button('🍪 Alimentar',()=>petCare('feed',choose.value)));}
     else actions.append(button('Petiscos na Loja →',()=>chooseTab('loja','treat3')));
     actions.append(button('💗 Acariciar',()=>petCare('pet'),'soft-action'));pane.append(actions);
-    const ex=block('🗺️ Expedições da Pequena Lenda','Envie seu pet em uma aventura. Ele não poderá receber cuidados durante a missão e voltará com fome.');
+    const ex=block('🗺️ Expedições dos Poros','Envie seu Poro em uma aventura. Ele não poderá receber cuidados durante a missão e voltará com fome.');
     for(const option of data.expedition_options||[]){
       const row=h('div','expedition-choice');row.append(h('strong','',option.name),h('small','',`${option.minutes/60}h • -${option.food} fome • ${option.coins[0]}–${option.coins[1]} moedas • ${option.card_chance}% chance de card`));
-      row.append(button('Enviar',()=>safeRun(()=>API('/api/pets/expedition/start',{mission:option.id}),'Sua Pequena Lenda iniciou a missão!'),'soft-action'));ex.append(row);
+      row.append(button('Enviar',()=>safeRun(()=>API('/api/pets/expedition/start',{mission:option.id}),'Seu Poro iniciou a missão!'),'soft-action'));ex.append(row);
     }pane.append(ex);
   }
   function gameIcon(game){
@@ -897,8 +899,8 @@
       const items=data.items.filter(x=>x.kind===kind);
       if(!items.length)section.append(h('p','mission-placeholder','Nenhuma missão disponível nesta categoria.'));
       for(const m of items){
-        const box=block(m.title,`Progresso: ${m.progress}/${m.goal} · Recompensa: 🪙 ${m.reward}`);
-        box.classList.add('mission-card');box.prepend(mediaCover(m.image_url,m.emoji||'🎯',m.title,'mission-cover'));
+        const box=block(poroLegacyText(m.title),`Progresso: ${m.progress}/${m.goal} · Recompensa: 🪙 ${m.reward}`);
+        box.classList.add('mission-card');box.prepend(mediaCover(m.image_url,m.emoji||'🎯',poroLegacyText(m.title),'mission-cover'));
         const bar=h('div','mission-meter');const fill=h('div','mission-fill');fill.style.width=Math.min(100,100*m.progress/m.goal)+'%';bar.append(fill);box.append(bar);
         const action=button(m.claimed?'✓ Resgatada':m.progress>=m.goal?'Resgatar recompensa':'Em andamento',()=>safeRun(()=>API('/api/missions/'+m.code+'/claim',{}),`+${m.reward} moedas!`));
         action.disabled=m.claimed||m.progress<m.goal;box.append(action);section.append(box);
@@ -991,9 +993,9 @@
       const label=h('label','admin-field','Substituir GLB animado (opcional; em produção requer Cloudinary ou URL pública .glb)');
       modelFile=h('input','text-input');modelFile.type='file';modelFile.accept='.glb,model/gltf-binary';label.append(modelFile);form.append(label);
       const khadaLabel=h('label','admin-field','ID do modelo no Khada (TFT, opcional)');
-      khadaInput=h('input','text-input');khadaInput.type='text';khadaInput.inputMode='numeric';khadaInput.placeholder='ID real de uma Pequena Lenda no Khada (TFT)';khadaLabel.append(khadaInput);form.append(khadaLabel);
+      khadaInput=h('input','text-input');khadaInput.type='text';khadaInput.inputMode='numeric';khadaInput.placeholder='ID de um modelo Khada TFT compatível';khadaLabel.append(khadaInput);form.append(khadaLabel);
       inputs.model_url.addEventListener('input',()=>{khadaInput.value='';});
-      form.append(h('small','','Somente Idle: o GLB deve conter a animação Idle ou um único clipe. Alternativamente, informe um ID de Pequena Lenda no Khada TFT.'));
+      form.append(h('small','','Somente Idle: o GLB deve conter a animação Idle ou um único clipe. Alternativamente, informe um ID de modelo Khada TFT compatível.'));
     }
     const actions=h('div','admin-action-row');
     const save=button('Salvar alterações',async()=>{
@@ -1129,7 +1131,7 @@
       ['name','Nome do produto','text'],['price','Preço em moedas','number'],
       ['image_url','Imagem HTTPS ou /uploads/... (vazio remove)','text']
     ],existingCatalog));
-    pane.append(adminCatalogEditor('pets','Gerenciar Pequenas Lendas',[
+    pane.append(adminCatalogEditor('pets','Gerenciar Poros',[
       ['name','Nome','text'],['emoji','Emoji','text'],['image_url','Capa HTTPS (vazio remove)','text'],
       ['model_url','URL do modelo .glb OU embed Khada (vazio remove)','text'],
       ['idle_animation','Animação idle (opcional)','text'],['pet_animation','Animação de carinho (opcional)','text'],
@@ -1137,7 +1139,7 @@
     ],existingCatalog));
     pane.append(adminCatalogEditor('achievements','Gerenciar selos cadastrados',[
       ['title','Título','text'],['description','Descrição','text'],['icon','Emoji','text'],
-      ['event','Evento','select',[['trade','Trocas'],['card','Cards recebidos'],['adopt','Pets adotados'],['pet','Carinhos'],['feed','Alimentações'],['mission','Missões resgatadas'],['voice_minutes','Voz no Discord']]],
+      ['event','Evento','select',[['trade','Trocas'],['card','Cards recebidos'],['adopt','Poros adotados'],['pet','Carinhos'],['feed','Alimentações'],['mission','Missões resgatadas'],['voice_minutes','Voz no Discord']]],
       ['target','Meta','number'],['image_url','Imagem HTTPS (vazio remove)','text']
     ],existingCatalog));
     const featured=block('Coleção em destaque','Banner que aparece no Catálogo. Existem três coleções padrão: Celebridades, Personagens e Memes.');
@@ -1145,11 +1147,11 @@
     const [featuredUrlLabel,featuredUrl]=adminField('URL da capa (opcional)','');
     const featuredFile=h('input','text-input');featuredFile.type='file';featuredFile.accept='image/png,image/jpeg,image/webp';
     featured.append(featuredNameLabel,featuredUrlLabel,h('label','','Ou escolha uma capa'),featuredFile,button('Salvar destaque',()=>safeRun(async()=>API('/api/admin/collections/featured',{name:featuredName.value,image_url:featuredFile.files.length?await uploadArtwork(featuredFile.files[0]):featuredUrl.value}),'Coleção em destaque atualizada!')));pane.append(featured);
-    const pet=block('Cadastrar Pequena Lenda','Aceita imagem, modelo 3D GLB/GLTF e nomes de animações do arquivo.');
-    const [pn,pni]=adminField('Nome da Pequena Lenda','');const [pe,pei]=adminField('Emoji para fallback','🐾');const [pu,pui]=adminField('Imagem de capa (HTTPS ou /uploads/...)','');
+    const pet=block('Cadastrar Poro','Aceita imagem, modelo 3D GLB/GLTF e nomes de animações do arquivo.');
+    const [pn,pni]=adminField('Nome do Poro','');const [pe,pei]=adminField('Emoji para fallback','🐾');const [pu,pui]=adminField('Imagem de capa (HTTPS ou /uploads/...)','');
     const petFile=h('input','text-input');petFile.type='file';petFile.accept='image/png,image/jpeg,image/webp';
     const [modelurl,mui]=adminField('URL do modelo .glb ou embed Khada (opcional)','');
-    const [khadaRow,khadaId]=adminField('ID do Khada (Pequena Lenda TFT, opcional)','');khadaId.inputMode='numeric';khadaId.placeholder='ID do modelo encontrado em Khada → Tacticians';
+    const [khadaRow,khadaId]=adminField('ID de modelo Khada TFT (opcional)','');khadaId.inputMode='numeric';khadaId.placeholder='ID do modelo encontrado em Khada → Tacticians';
     const modelFile=h('input','text-input');modelFile.type='file';modelFile.multiple=true;modelFile.accept='.glb,.gltf,.bin,.png,.jpg,.jpeg,.webp';
     const animKeys=[['idle_animation','Parado / idle'],['pet_animation','Carinho'],['feed_animation','Alimentação'],['vet_animation','Veterinário']];
     const animInputs={};const fields=[];
@@ -1157,7 +1159,7 @@
     pet.append(pn,pe,pu,h('label','','Ou envie uma capa PNG/JPG/WEBP (até 4 MB)'),petFile,modelurl,
       khadaRow,h('small','','Para modelos TFT do Khada: encontre o ID em modelviewer.lol e cole acima. O embed gratuito conserva marca e barra do Khada.'),
       h('label','','Ou selecione .glb; para .gltf, selecione também .bin e texturas (até 40 MB no total)'),modelFile,...fields,
-      button('Cadastrar Pequena Lenda',()=>safeRun(async()=>{
+      button('Cadastrar Poro',()=>safeRun(async()=>{
         const image_url=petFile.files.length?await uploadArtwork(petFile.files[0]):pui.value;
         const model_url=modelFile.files.length?await uploadModel(modelFile.files):(khadaId.value.trim()?khadaTftUrl(khadaId.value):mui.value);
         if(model_url && !khadaEmbedUrl(model_url) && !/\.glb(?:[?#]|$)/i.test(model_url)){
@@ -1165,7 +1167,7 @@
         }
         const animations=Object.fromEntries(Object.entries(animInputs).map(([key,inp])=>[key,inp.value]));
         return API('/api/admin/pets',{name:pni.value,emoji:pei.value,image_url,model_url,...animations});
-      },'Pequena Lenda cadastrada!')));pane.append(pet);
+      },'Poro cadastrado!')));pane.append(pet);
     const covers=block('Capas da Loja e Missões','As capas são opcionais. Elas aparecem nos produtos e nas missões, sem alterar as regras.');
     const source=h('select','select-input');[['shop','Produtos da Loja'],['mission','Missões diárias']].forEach(([value,label])=>{const o=h('option','',label);o.value=value;source.append(o);});
     const target=h('select','select-input');const fillTargets=()=>{
@@ -1176,7 +1178,7 @@
       const image_url=coverFile.files.length?await uploadArtwork(coverFile.files[0]):coverUrl.value;
       return API('/api/admin/covers',{kind:source.value,key:target.value,image_url});
     },'Capa atualizada!')));pane.append(covers);
-    const ach=block('Criar selo','A conquista pode ser automática ou depender de futura integração de voz.');const [an,ani]=adminField('Título','');const [ad,adi]=adminField('Descrição','');const [ai,aii]=adminField('Emoji','🏅');const [at,ati]=adminField('Meta numérica','1','number');const type=h('select','select-input');for(const [code,label] of Object.entries({trade:'Trocas',card:'Cards recebidos',adopt:'Pets adotados',pet:'Carinhos',feed:'Alimentações',mission:'Missões resgatadas',voice_minutes:'Minutos em voz (integração futura)'})){const o=h('option','',label);o.value=code;type.append(o);}ach.append(an,ad,ai,at,type,button('Criar selo',()=>safeRun(()=>API('/api/admin/achievements',{title:ani.value,description:adi.value,icon:aii.value,event:type.value,target:Number(ati.value)}),'Selo criado!')));pane.append(ach);
+    const ach=block('Criar selo','A conquista pode ser automática ou depender de futura integração de voz.');const [an,ani]=adminField('Título','');const [ad,adi]=adminField('Descrição','');const [ai,aii]=adminField('Emoji','🏅');const [at,ati]=adminField('Meta numérica','1','number');const type=h('select','select-input');for(const [code,label] of Object.entries({trade:'Trocas',card:'Cards recebidos',adopt:'Poros adotados',pet:'Carinhos',feed:'Alimentações',mission:'Missões resgatadas',voice_minutes:'Minutos em voz (integração futura)'})){const o=h('option','',label);o.value=code;type.append(o);}ach.append(an,ad,ai,at,type,button('Criar selo',()=>safeRun(()=>API('/api/admin/achievements',{title:ani.value,description:adi.value,icon:aii.value,event:type.value,target:Number(ati.value)}),'Selo criado!')));pane.append(ach);
     // Gerenciador de assets: aplica a arte a elementos sem alterar seus cliques ou regras.
     const assetPane=block('🖼️ Central de Assets','Personalize jogos, logos, fundos, icones do menu e elementos da interface. Imagens PNG/JPG/WEBP ate 4 MB; em servidor online, use URL HTTPS persistente.');
     const existingAssets=(await API('/api/assets')).items;
@@ -1191,7 +1193,7 @@
       ['nav-perfil','[data-tab="perfil"] .nav-circle','icon','Icone Perfil'],
       ['nav-cards','[data-tab="cards"] .nav-circle','icon','Icone Cards'],
       ['nav-inventario','[data-tab="inventario"] .nav-circle','icon','Icone Inventario'],
-      ['nav-pet','[data-tab="pet"] .nav-circle','icon','Icone Pet'],
+      ['nav-pet','[data-tab="pet"] .nav-circle','icon','Ícone dos Poros'],
       ['nav-loja','[data-tab="loja"] .nav-circle','icon','Icone Loja'],
       ['nav-missoes','[data-tab="missoes"] .nav-circle','icon','Icone Missoes'],
       ['moedas-perfil','.stats-list .stat:nth-child(1) .stat-icon','icon','Icone de moedas'],
@@ -1233,7 +1235,7 @@
     const missionBlock=block('Missões do Recanto','Crie e edite missões únicas, diárias ou semanais. As semanais entram na semana atual; após a próxima segunda-feira, cadastre/reative as missões da nova semana.');
     const existing=h('select','select-input');
     existing.append(Object.assign(h('option','','Nova missão'),{value:''}));
-    missionsTask.then(data=>{missionData.items=data.items||[];for(const row of missionData.items){const o=h('option','',row.title+' ['+row.code+']');o.value=row.code;existing.append(o);}})
+    missionsTask.then(data=>{missionData.items=data.items||[];for(const row of missionData.items){const o=h('option','',poroLegacyText(row.title)+' ['+row.code+']');o.value=row.code;existing.append(o);}})
       .catch(err=>{missionBlock.append(h('p','', 'Missões indisponíveis: '+err.message));});
     const mFields={};
     for(const [key,label,value] of [['code','Código único (ex: voz_30)',''],['title','Título',''],['goal','Meta numérica','1'],['reward','Recompensa em moedas','10'],['emoji','Emoji','🎯'],['image_url','Capa URL HTTPS (opcional)','']]){
@@ -1241,7 +1243,7 @@
       mFields[key]=inp;missionBlock.append(wrap);
     }
     const missionType=h('select','select-input');for(const [v,t] of [['unica','Única'],['diaria','Diária'],['semanal','Semanal']]){const opt=h('option','',t);opt.value=v;missionType.append(opt);}
-    const missionEvent=h('select','select-input');for(const [v,t] of [['adopt','Adotar pet'],['trade','Trocar card'],['daily_card','Resgatar card'],['daily_coins','Resgatar moedas'],['pet','Acariciar pet'],['feed','Alimentar pet'],['pack','Abrir pack'],['voice_minutes','Minutos em canal de voz'],['message_count','Mensagens de texto']]){const opt=h('option','',t);opt.value=v;missionEvent.append(opt);}
+    const missionEvent=h('select','select-input');for(const [v,t] of [['adopt','Adotar Poro'],['trade','Trocar card'],['daily_card','Resgatar card'],['daily_coins','Resgatar moedas'],['pet','Acariciar Poro'],['feed','Alimentar Poro'],['pack','Abrir pack'],['voice_minutes','Minutos em canal de voz'],['message_count','Mensagens de texto']]){const opt=h('option','',t);opt.value=v;missionEvent.append(opt);}
     const enabled=h('input');enabled.type='checkbox';enabled.checked=true;
     existing.onchange=()=>{const row=missionData.items.find(m=>m.code===existing.value);if(!row)return;
       for(const key of Object.keys(mFields))mFields[key].value=row[key]??'';
@@ -1274,7 +1276,7 @@
     if(game.local_development && ['localhost','127.0.0.1'].includes(location.hostname)){
       const dev=block('Ferramentas de teste local','Simulações exclusivas do ambiente local.');
       dev.append(button('Adicionar 5.000 moedas para minha conta',()=>safeRun(()=>API('/api/dev/grant-coins',{amount:5000}),'Moedas de teste adicionadas!')));
-      dev.append(button('Simular abandono → veterinário',()=>safeRun(()=>API('/api/dev/advance-pet',{stage:'vet'}),'Pet no veterinário!'),'soft-action'));
+      dev.append(button('Simular abandono → veterinário',()=>safeRun(()=>API('/api/dev/advance-pet',{stage:'vet'}),'Poro no veterinário!'),'soft-action'));
       dev.append(button('Simular prazo vencido → morte',()=>safeRun(()=>API('/api/dev/advance-pet',{stage:'death'}),'Prazo encerrado!'),'soft-action'));
       pane.append(dev);
     }
@@ -1303,7 +1305,7 @@
     coinActions.append(button('Adicionar moedas',()=>adjustCoins('add')),button('Remover moedas',()=>adjustCoins('remove'),'danger-action'));
     const coinStatus=h('p','admin-entry-status','');
     coinTool.append(userIdRow,amountRow,coinActions,coinStatus);pane.append(coinTool);
-    const reset=block('Limpar progresso para testes','ATENÇÃO: apaga o progresso de TODOS os usuários (cards obtidos, moedas, pets, trocas, selos e missões). As contas Discord e os catálogos permanecem. A operação não pode ser desfeita.');
+    const reset=block('Limpar progresso para testes','ATENÇÃO: apaga o progresso de TODOS os usuários (cards obtidos, moedas, Poros, trocas, selos e missões). As contas Discord e os catálogos permanecem. A operação não pode ser desfeita.');
     const [field,confirmation]=adminField('Digite LIMPAR TUDO para confirmar','');
     const resetButton=button('Apagar progresso de todos os usuários',async()=>{
       if(confirmation.value.trim()!=='LIMPAR TUDO'){toast('Digite LIMPAR TUDO para confirmar.');return;}
@@ -1314,13 +1316,13 @@
     resetButton.disabled=true;
     confirmation.addEventListener('input',()=>resetButton.disabled=confirmation.value.trim()!=='LIMPAR TUDO');
     reset.append(field,resetButton);pane.append(reset);
-    const groups=['Geral','Economia','Cards','Loja','Pets','Missões','Selos','Assets','Usuários','Integrações'];
+    const groups=['Geral','Economia','Cards','Loja','Poros','Missões','Selos','Assets','Usuários','Integrações'];
     const classify=(name)=>{
       const x=name.toLowerCase();
       if(x.includes('valores configuráveis'))return 'Economia';
       if(x.includes('cadastrar card')||x.includes('gerenciar cards')||x.includes('coleção'))return 'Cards';
       if(x.includes('gerenciar itens')||x.includes('capa'))return 'Loja';
-      if(x.includes('pequena lenda')||x.includes('pequenas lendas'))return 'Pets';
+      if(x.includes('cadastrar poro')||x.includes('gerenciar poros'))return 'Poros';
       if(x.includes('missões do recanto'))return 'Missões';
       if(x.includes('selo'))return 'Selos';
       if(x.includes('assets'))return 'Assets';
