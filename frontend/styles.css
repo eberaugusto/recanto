@@ -2163,6 +2163,34 @@ body.dark-mode #cardModal.profile-info-fullscreen .detail-x{
   color:#fff!important;border-color:#526284!important;
 }
 #cardModal.profile-info-fullscreen .detail-x:hover{background:#334973!important;}
+
+#cardModal.profile-info-fullscreen .card-detail-dialog{
+  background:#f4f6ff!important;
+  color:#2e3a75!important;
+  box-shadow:0 22px 60px rgba(20,28,68,.22)!important;
+  border:1px solid rgba(109,126,212,.18)!important;
+}
+#cardModal.profile-info-fullscreen .profile-info-name,
+#cardModal.profile-info-fullscreen .profile-info-description,
+#cardModal.profile-info-fullscreen .profile-info-progress,
+#cardModal.profile-info-fullscreen .profile-info-note,
+#cardModal.profile-info-fullscreen .profile-info-status{
+  color:#2e3a75!important;
+}
+body.dark-mode #cardModal.profile-info-fullscreen .card-detail-dialog{
+  background:#1a2747!important;
+  color:#f5f7ff!important;
+  box-shadow:0 22px 60px rgba(0,0,0,.45)!important;
+  border:1px solid rgba(86,102,155,.45)!important;
+}
+body.dark-mode #cardModal.profile-info-fullscreen .profile-info-name,
+body.dark-mode #cardModal.profile-info-fullscreen .profile-info-description,
+body.dark-mode #cardModal.profile-info-fullscreen .profile-info-progress,
+body.dark-mode #cardModal.profile-info-fullscreen .profile-info-note,
+body.dark-mode #cardModal.profile-info-fullscreen .profile-info-status{
+  color:#f5f7ff!important;
+}
+
 /* Amarelo do tema Recanto, com espessura moderada e foto intacta. */
 #profileContent .profile-avatar .avatar{
   border:4px solid #ffc400!important;box-sizing:border-box;
