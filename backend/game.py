@@ -1164,12 +1164,12 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
 
     @app.get('/api/collections/card-styles')
     def collection_card_styles(request: Request):
-        # As artes são públicas para todos os membros logados, sem expor opções administrativas.
+        # Molduras prontas por coleção/raridade; o logo já faz parte da própria arte.
         me(request)
         with SessionLocal() as db:
             rows=db.scalars(select(CollectionCardStyle).order_by(CollectionCardStyle.collection_name)).all()
             return {'styles': {row.collection_name: {
-                'frame_url': row.frame_url, 'emblem_url': row.emblem_url
+                'frame_url': row.frame_url
             } for row in rows}}
 
     @app.post('/api/admin/collections/card-styles')
@@ -1177,20 +1177,20 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         only_admin(request)
         data=json_body(await request.json(), ('collection',))
         name=str(data['collection'] or '').strip()
-        if name!='__default__' and not 2<=len(name)<=100:
-            raise HTTPException(422,detail='Informe uma coleção de 2 a 100 caracteres')
+        allowed_rarity_keys={'__rarity__comum','__rarity__raro','__rarity__lendário','__rarity__prismático'}
+        if name not in allowed_rarity_keys and not 2<=len(name)<=100:
+            raise HTTPException(422,detail='Informe uma coleção válida ou uma raridade padrão')
         if len(name)>100:
             raise HTTPException(422,detail='Nome da coleção muito longo')
         frame=safe_artwork(data.get('frame_url'))
-        emblem=safe_artwork(data.get('emblem_url'))
         with writing() as db:
             current=db.get(CollectionCardStyle,name)
             if current is None:
-                db.add(CollectionCardStyle(collection_name=name,frame_url=frame,emblem_url=emblem))
+                db.add(CollectionCardStyle(collection_name=name,frame_url=frame,emblem_url=None))
             else:
                 current.frame_url=frame
-                current.emblem_url=emblem
-        return {'ok':True,'collection':name,'frame_url':frame,'emblem_url':emblem}
+                current.emblem_url=None
+        return {'ok':True,'collection':name,'frame_url':frame}
 
     @app.get('/api/collections/featured')
     def featured_collection(request:Request):

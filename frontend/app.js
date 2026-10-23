@@ -53,35 +53,22 @@
   const labels={feed:'Feed',perfil:'Perfil',cards:'Cards',inventario:'Inventário',pet:'Poros',loja:'Loja',missoes:'Missões'};
   const tierLabels={comum:'Comum',raro:'Raro',lendário:'Lendário',prismático:'Prismático'};
   const state={dailyReward:0,dailyClaimInFlight:false,assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:8,cardPage:1,cardPageSize:12,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:matchMedia('(min-width:768px)').matches?'raridade':'padrao',missing:false,newOnly:false},detailClosing:false};
-  // RECANTO 0.2.4 — identidade visual independente por coleção e raridade.
+  // RECANTO 0.2.5 — molduras prontas por raridade/coleção, sem emblema separado.
   let collectionStyles={};
   let collectionStylesLoaded=false;
   let collectionStylesRequest=null;
-  function cardVisualStyle(collection){
-    const standard=collectionStyles.__default__||{};
-    const special=collectionStyles[collection]||{};
-    return {frame_url:special.frame_url||standard.frame_url||'',emblem_url:special.emblem_url||standard.emblem_url||''};
+  function cardVisualStyle(collection, rarity){
+    const special=collectionStyles[String(collection||'').trim()]||{};
+    const rarityStyle=collectionStyles['__rarity__'+String(rarity||'comum').trim().toLowerCase()]||{};
+    return {frame_url:special.frame_url||rarityStyle.frame_url||''};
   }
   function updateOneCardFrame(art){
     if(!art?.classList?.contains('recanto-framed-art'))return;
     const collection=art.dataset.collection||'Recanto Original';
-    const visual=cardVisualStyle(collection);
+    const rarity=art.dataset.rarity||'comum';
+    const visual=cardVisualStyle(collection, rarity);
     if(visual.frame_url){art.style.setProperty('--recanto-custom-frame',`url(${JSON.stringify(visual.frame_url)})`);art.classList.add('custom-collection-frame');}
     else{art.style.removeProperty('--recanto-custom-frame');art.classList.remove('custom-collection-frame');}
-    const emblem=art.querySelector(':scope > .recanto-card-emblem');
-    if(!emblem)return;
-    const source=emblem.dataset.source||'';
-    if(source===visual.emblem_url)return;
-    emblem.dataset.source=visual.emblem_url;
-    emblem.replaceChildren();
-    if(visual.emblem_url){
-      const image=h('img','recanto-card-emblem-art');image.src=visual.emblem_url;image.alt='';image.loading='lazy';
-      image.onerror=()=>{if(image.isConnected)image.replaceWith(h('span','recanto-card-emblem-letter','R'));};
-      emblem.append(image);
-    }else{
-      // Emblema temporário: o administrador pode enviar o SVG oficial do R.
-      emblem.append(h('span','recanto-card-emblem-letter','R'));
-    }
   }
   function updateAllCardFrames(){document.querySelectorAll('.recanto-framed-art').forEach(updateOneCardFrame);}
   async function loadCollectionCardStyles(force=false){
@@ -96,14 +83,15 @@
   function frameCardArt(item,kind='card-art'){
     const art=h('div',kind+' recanto-framed-art tier-'+(item.rarity||'comum'));
     art.dataset.collection=item.collection||'Recanto Original';
+    art.dataset.rarity=item.rarity||'comum';
     const photo=h('div','recanto-card-photo');
     if(item.image_url){const img=h('img','recanto-card-photo-image');img.src=item.image_url;img.alt=item.name||'Card';img.loading=kind==='detail-art'?'eager':'lazy';photo.append(img);}
     else photo.append(h('span','recanto-card-placeholder','✦'));
-    const emblem=h('span','recanto-card-emblem');emblem.setAttribute('aria-hidden','true');
-    art.append(photo,emblem);updateOneCardFrame(art);
+    art.append(photo);updateOneCardFrame(art);
     if(!collectionStylesLoaded)loadCollectionCardStyles().catch(()=>{});
     return art;
   }
+
 
   const toast=(message)=>{const el=$('toast');el.textContent=message;el.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>{el.hidden=true;},4000);};
   $('toast').addEventListener('click',()=>{$('toast').hidden=true;clearTimeout(toast.timer);});
@@ -1773,64 +1761,91 @@
     const [featuredUrlLabel,featuredUrl]=adminField('URL da capa (opcional)','');
     const featuredFile=h('input','text-input');featuredFile.type='file';featuredFile.accept='image/png,image/jpeg,image/webp,.webp';
     featured.append(featuredNameLabel,featuredUrlLabel,h('label','','Ou escolha uma capa'),featuredFile,button('Salvar destaque',()=>safeRun(async()=>API('/api/admin/collections/featured',{name:featuredName.value,image_url:featuredFile.files.length?await uploadArtwork(featuredFile.files[0]):featuredUrl.value}),'Coleção em destaque atualizada!')));pane.append(featured);
-    // Moldura e R são independentes da imagem do Card e não exigem editar Card por Card.
-    const styleBox=block('Molduras e emblemas por coleção','Configure o fundo da borda e o R de cada coleção. Uma configuração específica substitui a global; sem arte, o Card usa a cor da raridade e um R provisório.');
+    // Molduras prontas: a própria arte já contém logo, ornamentos e bordas.
+    const frameRarityBox=block('Molduras padrão por raridade','Envie um PNG/WebP/SVG pronto para cada raridade. A própria moldura deve conter a logo do servidor e os detalhes visuais.');
+    frameRarityBox.classList.add('admin-collection-frame-editor');
+    const rarityPreview=h('div','admin-frame-preview');
+    const rarityPreviewCard=frameCardArt({name:'Prévia do Card',rarity:'raro',collection:'Recanto Original'},'card-art');
+    rarityPreview.append(rarityPreviewCard,h('small','','A moldura padrão da raridade aparece quando a coleção não tiver uma moldura exclusiva.'));
+    frameRarityBox.append(rarityPreview);
+    const rarityRows={};
+    const rarityFiles={};
+    async function fillRarityRows(){
+      await loadCollectionCardStyles();
+      for(const tier of ['comum','raro','lendário','prismático']){
+        const key='__rarity__'+tier;
+        if(rarityRows[tier])rarityRows[tier].value=(collectionStyles[key]?.frame_url)||'';
+      }
+      updateOneCardFrame(rarityPreviewCard);
+    }
+    for(const tier of ['comum','raro','lendário','prismático']){
+      const wrap=h('div','admin-rarity-frame-row');
+      const label=h('label','','Moldura '+tierLabels[tier]);
+      const input=h('input','text-input');input.type='text';input.placeholder='URL HTTPS ou /uploads/...';
+      const file=h('input','text-input');file.type='file';file.accept='image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg';
+      const saveBtn=button('Salvar '+tierLabels[tier],async()=>{
+        const frame_url=file.files[0]?await uploadArtwork(file.files[0]):input.value.trim();
+        const result=await safeRun(()=>API('/api/admin/collections/card-styles',{collection:'__rarity__'+tier,frame_url}),'Moldura salva!');
+        if(result){collectionStylesLoaded=false;resetCachedData();await loadCollectionCardStyles(true);fillRarityRows();}
+      },'soft-action');
+      wrap.append(label,input,h('label','','Ou envie a moldura pronta'),file,saveBtn);
+      rarityRows[tier]=input;rarityFiles[tier]=file;frameRarityBox.append(wrap);
+    }
+    pane.append(frameRarityBox);
+    fillRarityRows().catch(()=>{});
+
+    const styleBox=block('Molduras exclusivas por coleção','Quando uma coleção tiver moldura própria, ela substitui a moldura padrão da raridade. A moldura já deve incluir o R/logo no próprio arquivo.');
     styleBox.classList.add('admin-collection-frame-editor');
     const styleNames=h('datalist');styleNames.id='cardCollectionStyleOptions';
-    const styleNameRow=h('label','admin-field','Coleção (ou padrão para todas)');
-    const styleName=h('input','text-input');styleName.type='text';styleName.value='__default__';
+    const styleNameRow=h('label','admin-field','Coleção');
+    const styleName=h('input','text-input');styleName.type='text';styleName.value='Recanto Original';
     styleName.setAttribute('list','cardCollectionStyleOptions');styleName.autocomplete='off';
     styleNameRow.append(styleName);
-    const styleHelp=h('p','admin-style-help','Use __default__ para o visual de todas as coleções. Para uma coleção exclusiva, informe o nome exato dela.');
-    const frameUrlRow=adminField('URL HTTPS da arte da borda (PNG, WEBP, JPG ou SVG)','');
-    const emblemUrlRow=adminField('URL HTTPS do R / emblema da coleção (SVG preferencial)','');
-    const frameFile=h('input','text-input');frameFile.type='file';frameFile.accept='image/png,image/jpeg,image/webp,image/svg+xml,.svg';
-    const emblemFile=h('input','text-input');emblemFile.type='file';emblemFile.accept='image/png,image/jpeg,image/webp,image/svg+xml,.svg';
+    const styleHelp=h('p','admin-style-help','Informe o nome exato da coleção. Se nada for cadastrado para ela, o Card usa a moldura padrão da raridade.');
+    const frameUrlRow=adminField('URL HTTPS da moldura pronta (PNG, WEBP, JPG ou SVG)','');
+    const frameFile=h('input','text-input');frameFile.type='file';frameFile.accept='image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg';
     const stylePreview=h('div','admin-frame-preview');
     const previewCard={name:'Prévia do Card',rarity:'raro',collection:'__preview__'};
     const previewArt=frameCardArt(previewCard,'card-art');
     previewArt.dataset.collection='__preview__';
-    stylePreview.append(previewArt,h('small','','Prévia: moldura de raridade Rara e emblema. Coleções exclusivas podem usar outras artes.'));
+    previewArt.dataset.rarity='raro';
+    stylePreview.append(previewArt,h('small','','Prévia da coleção selecionada. Se não houver moldura exclusiva, aparecerá a moldura padrão da raridade.'));
     const savedStyles=h('small','admin-style-help','Carregando configurações...');
     let stylesForAdmin={};
     const refreshStyleInputs=()=>{
-      const name=styleName.value.trim()||'__default__';
+      const name=styleName.value.trim()||'Recanto Original';
       const found=stylesForAdmin[name]||{};
       frameUrlRow[1].value=found.frame_url||'';
-      emblemUrlRow[1].value=found.emblem_url||'';
-      frameFile.value='';emblemFile.value='';
-      collectionStyles.__preview__={frame_url:found.frame_url||null,emblem_url:found.emblem_url||null};
+      frameFile.value='';
+      collectionStyles.__preview__={frame_url:found.frame_url||null};
       updateOneCardFrame(previewArt);
     };
     styleName.addEventListener('change',refreshStyleInputs);
     loadCollectionCardStyles().then(styles=>{
       stylesForAdmin={...styles};
-      const names=new Set(['__default__',...Object.keys(styles)]);
-      for(const n of ['Recanto Original','Celebridades','Personagens','Memes'])names.add(n);
+      const names=new Set(['Recanto Original','Celebridades','Personagens','Memes']);
+      for(const key of Object.keys(styles))if(!key.startsWith('__rarity__'))names.add(key);
       catalogTask.then(catalog=>{
         for(const item of catalog.items||[])names.add(item.collection||'Recanto Original');
         styleNames.replaceChildren(...[...names].sort().map(name=>{const op=h('option');op.value=name;return op;}));
       }).catch(()=>{styleNames.replaceChildren(...[...names].sort().map(name=>{const op=h('option');op.value=name;return op;}));});
-      savedStyles.textContent='Configurações existentes: '+(Object.keys(styles).filter(x=>x!=='__default__').join(' · ')||'nenhuma coleção exclusiva');
+      savedStyles.textContent='Coleções com moldura exclusiva: '+(Object.keys(styles).filter(x=>x && !x.startsWith('__rarity__')).join(' · ')||'nenhuma');
       refreshStyleInputs();
     });
-    styleBox.append(styleNameRow,styleNames,styleHelp,frameUrlRow[0],h('label','','Ou envie a arte da moldura'),frameFile,
-      emblemUrlRow[0],h('label','','Ou envie o R / emblema (SVG, PNG ou WEBP)'),emblemFile,stylePreview,savedStyles,
-      button('Salvar moldura e emblema',async()=>{
+    styleBox.append(styleNameRow,styleNames,styleHelp,frameUrlRow[0],h('label','','Ou envie a moldura pronta'),frameFile,stylePreview,savedStyles,
+      button('Salvar moldura da coleção',async()=>{
         const name=styleName.value.trim();
         if(!name){toast('Informe o nome exato da coleção.');return;}
         const result=await safeRun(async()=>{
           const frame_url=frameFile.files[0]?await uploadArtwork(frameFile.files[0]):frameUrlRow[1].value.trim();
-          const emblem_url=emblemFile.files[0]?await uploadArtwork(emblemFile.files[0]):emblemUrlRow[1].value.trim();
-          return API('/api/admin/collections/card-styles',{collection:name,frame_url,emblem_url});
-        },'Moldura e emblema salvos!');
+          return API('/api/admin/collections/card-styles',{collection:name,frame_url});
+        },'Moldura salva!');
         if(result){
-          // Atualização imediata das miniaturas e visualizações abertas.
           collectionStylesLoaded=false;resetCachedData();
           await loadCollectionCardStyles(true);
           stylesForAdmin={...collectionStyles};
           refreshStyleInputs();
-          savedStyles.textContent='Configurações salvas para: '+name;
+          savedStyles.textContent='Moldura salva para: '+name;
         }
       }));
     pane.append(styleBox);
