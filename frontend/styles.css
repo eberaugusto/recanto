@@ -1877,3 +1877,99 @@ body.dark-mode #missionsScreen .reset-note {
 .game-icon:active {transform:scale(.92);}
 .game-icon:focus-visible {outline:3px solid #ffbd4b;outline-offset:2px;}
 @media (prefers-reduced-motion:reduce){.game-icon{transition:none !important;}}
+
+/* RECANTO 0.1.21 — Inventário, expedições e colecionáveis. */
+.collectible-grid {display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:14px;margin-top:12px;}
+.collectible-item {background:#f0f2ff;border-radius:17px;padding:12px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;min-width:0;}
+.collectible-art {width:100%;height:auto;aspect-ratio:1;display:grid;place-items:center;overflow:hidden;border-radius:13px;font-size:36px;background:#e0e5ff;}
+.collectible-art img {width:100%;height:100%;object-fit:contain;}
+.collectible-item strong {overflow-wrap:anywhere;font-size:15px;}
+.collectible-item small {font-size:13px;}
+.collectible-item p {font-size:12px;margin:0;line-height:1.5;}
+.expedition-choice {display:flex;flex-direction:column;gap:8px;}
+.expedition-cover {width:100%;height:clamp(110px,13vw,180px);display:grid;place-items:center;border-radius:13px;overflow:hidden;background:#e9eaff;font-size:42px;}
+.expedition-cover img {width:100%;height:100%;object-fit:contain;}
+.poro-nickname-label {display:flex;flex-direction:column;gap:8px;font-size:14px;font-weight:700;margin:14px 0;}
+.poro-nickname {min-height:44px;}
+/* Espaço fixo entre o ícone do cabeçalho e o nome do usuário, apenas no celular. */
+@media(max-width:767px) {
+ #profileContent .greeting {gap:14px;}
+ #profileContent .greeting .discord-mark {margin-right:5px;}
+ /* Afasta o símbolo de atualização da saudação ao puxar a página. */
+ #pullRefreshIndicator {top:calc(2px + env(safe-area-inset-top,0px));}
+ .collectible-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+ .mini-tabs button[data-inventory-tab] {font-size:clamp(11px,2.8vw,15px);padding:10px 4px;}
+}
+body.dark-mode .collectible-item {background:#253657!important;color:#fff!important;}
+body.dark-mode .collectible-art {background:#1c2949!important;}
+body.dark-mode .collectible-item :is(strong,small,p) {color:#fff!important;}
+body.dark-mode .expedition-cover {background:#263655!important;}
+/* Recanto 0.1.21 — Artes de selos e jogos preenchem o icone circular.
+   A borda do chip permanece, e a imagem é recortada pelo proprio circulo. */
+.badge-chip:has(.icon-artwork),.game-icon:has(.icon-artwork) {
+  border-radius:50% !important;
+  overflow:hidden !important;
+  padding:0 !important;
+}
+.badge-chip .icon-artwork,.game-icon .icon-artwork,
+.public-badges .badge-chip .icon-artwork,
+.public-games .game-icon .icon-artwork,
+#profileContent .badge-chip .icon-artwork,
+#profileContent .game-icon .icon-artwork {
+  display:block;
+  width:100% !important;
+  height:100% !important;
+  max-width:none !important;
+  max-height:none !important;
+  object-fit:cover !important;
+  object-position:center !important;
+  border-radius:50% !important;
+  padding:0 !important;
+}
+
+/* 0.1.21 — Transição de abas e indicação lateral, exclusivamente no celular. */
+.recanto-swipe-guide{display:none;}
+@media(max-width:767px){
+  .recanto-swipe-guide:not([hidden]){
+    position:absolute;left:0;right:0;top:clamp(170px,38dvh,440px);height:55px;
+    display:flex;align-items:center;justify-content:space-between;
+    z-index:4;pointer-events:none;overflow:visible;
+  }
+  .recanto-swipe-guide > span{
+    display:flex;align-items:center;gap:2px;padding:8px 6px 8px 4px;
+    border-radius:0 18px 18px 0;font-size:25px;font-weight:800;
+    color:#fff;background:#25357fbc;box-shadow:0 4px 12px #132b6a30;
+    animation:recanto-swipe-nudge 2.2s ease-in-out 2;
+  }
+  .recanto-swipe-guide > span[hidden]{display:none!important;}
+  .recanto-swipe-guide .recanto-swipe-guide-right{border-radius:18px 0 0 18px;padding:8px 4px 8px 6px;margin-left:auto;}
+  .recanto-swipe-guide small{font-size:10px;font-weight:700;letter-spacing:.1px;}
+  body.dark-mode .recanto-swipe-guide > span{background:#364872ed;color:#fff;}
+  /* Páginas do Recanto continuam com o seu layout interno; só a entrada/saída é animada. */
+  #profileContent.recanto-slide-enter,#profileContent.recanto-slide-exit,
+  .content-page.recanto-slide-enter,.content-page.recanto-slide-exit{
+    will-change:transform,opacity;backface-visibility:hidden;
+    pointer-events:none;
+  }
+  #profileContent.recanto-slide-enter,.content-page.recanto-slide-enter{z-index:2;}
+  #profileContent.recanto-slide-exit,.content-page.recanto-slide-exit{z-index:1;}
+  .recanto-slide-enter.slide-next{animation:recanto-page-in-right .25s cubic-bezier(.19,.75,.2,1) both!important;}
+  .recanto-slide-enter.slide-prev{animation:recanto-page-in-left .25s cubic-bezier(.19,.75,.2,1) both!important;}
+  .recanto-slide-exit.slide-next{animation:recanto-page-out-left .25s cubic-bezier(.19,.75,.2,1) both!important;}
+  .recanto-slide-exit.slide-prev{animation:recanto-page-out-right .25s cubic-bezier(.19,.75,.2,1) both!important;}
+}
+@keyframes recanto-swipe-nudge{0%,100%{opacity:.7;transform:translateX(0)}50%{opacity:1;transform:translateX(3px)}}
+@keyframes recanto-page-in-right{from{opacity:.65;transform:translate3d(95%,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes recanto-page-in-left{from{opacity:.65;transform:translate3d(-95%,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes recanto-page-out-left{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:.3;transform:translate3d(-32%,0,0)}}
+@keyframes recanto-page-out-right{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:.3;transform:translate3d(32%,0,0)}}
+@media(prefers-reduced-motion:reduce){
+ .recanto-swipe-guide > span{animation:none!important;}
+ .recanto-slide-enter,.recanto-slide-exit{animation:none!important;transform:none!important;}
+}
+/* Ícone de atualização fica acima do cabeçalho mobile, sem encostar na saudação. */
+@media(max-width:767px){
+  #pullRefreshIndicator.pull-refresh-indicator {
+    top:calc(3px + env(safe-area-inset-top,0px));
+  }
+}

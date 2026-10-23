@@ -42,7 +42,7 @@ DEFAULTS = {
     'trade_reward_limit': 2, 'pack3_cost': 700, 'pack5_cost': 550,
     'treat_bundle_cost': 65, 'treat_fruit_cost': 45, 'treat_feast_cost': 90,
     'visit_pet_reward': 3, 'visit_feed_reward': 5, 'visit_owner_reward': 1,
-    'vet_cost': 180, 'neglect_hours': 48,
+    'vet_cost': 180, 'vaccine_cost': 120, 'neglect_hours': 48,
     'vet_dead_days': 3,
 }
 MISSIONS = [
@@ -88,10 +88,11 @@ SEED_CARDS = {
 }
 # Espaços reservados: artes/modelos de Pequenas Lendas devem ser fornecidos pelo administrador.
 SEED_PETS = [('Poro — exemplo 1', '🐾'), ('Poro — exemplo 2', '✨')]
-SHOP_EMOJI = {'pack3':'🃏','pack5':'🎴','treat3':'🍪','fruit':'🍓','feast':'🍖'}
+SHOP_EMOJI = {'pack3':'🃏','pack5':'🎴','treat3':'🍪','fruit':'🍓','feast':'🍖','vaccine':'💉'}
 TREAT_TYPES = {'biscoito':{'name':'Biscoito','food':15,'emoji':'🍪'},
                'fruta':{'name':'Frutinha','food':30,'emoji':'🍓'},
-               'banquete':{'name':'Banquete','food':55,'emoji':'🍖'}}
+               'banquete':{'name':'Banquete','food':55,'emoji':'🍖'},
+               'vacina':{'name':'Vacina','food':0,'emoji':'💉'}}
 MISSION_EMOJI = {'daily_card':'🃏','daily_coins':'🪙','trade':'🔄','pet':'💗','feed':'🍪','adopt':'🐾','pack':'🎁'}
 # O evento voice_minutes não é emitido pelo PWA: precisa de integração Gateway autorizada.
 SEED_BADGES = [
@@ -190,6 +191,35 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
         coins: Mapped[int] = mapped_column(Integer, nullable=False)
         card_award: Mapped[bool] = mapped_column(Boolean, default=False)
+        reward_card_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+        reward_collectible_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+        reward_rarities: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
+    class ExpeditionConfig(Base):
+        __tablename__ = 'expedition_configs'
+        code: Mapped[str] = mapped_column(String(30), primary_key=True)
+        image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+        card_chance: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+        rarity_weights: Mapped[str] = mapped_column(String(512), nullable=False, default='{}')
+        featured_card_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+        collectible_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+        collectible_chance: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    class Collectible(Base):
+        __tablename__ = 'collectibles'
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        name: Mapped[str] = mapped_column(String(100), nullable=False)
+        description: Mapped[str] = mapped_column(String(300), default='')
+        emoji: Mapped[str] = mapped_column(String(30), default='🏆')
+        image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+        active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    class InventoryCollectible(Base):
+        __tablename__ = 'inventory_collectibles'
+        user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
+        collectible_id: Mapped[int] = mapped_column(ForeignKey('collectibles.id'), primary_key=True)
+        quantity: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+        acquired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     class TradeReward(Base):
         __tablename__ = 'trade_rewards'
@@ -273,6 +303,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         __tablename__ = 'user_pets'
         user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
         species_id: Mapped[int] = mapped_column(ForeignKey('pet_species.id'), nullable=False)
+        nickname: Mapped[str | None] = mapped_column(String(40), nullable=True)
         status: Mapped[str] = mapped_column(String(15), default='ativo')
         food: Mapped[int] = mapped_column(Integer, default=85)
         happiness: Mapped[int] = mapped_column(Integer, default=85)
@@ -345,6 +376,21 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             for field in ('model_url', 'idle_animation', 'pet_animation', 'feed_animation', 'vet_animation'):
                 if field not in present:
                     connection.execute(text(f'ALTER TABLE pet_species ADD COLUMN {field} VARCHAR(512)' if field == 'model_url' else f'ALTER TABLE pet_species ADD COLUMN {field} VARCHAR(80)'))
+    # 0.1.21: migracoes aditivas, sem perder Poros, expedicoes ou colecoes antigas.
+    for table, fields in {
+        'user_pets': {'nickname': 'VARCHAR(40)'},
+        'pet_expeditions': {
+            'reward_card_id': 'INTEGER',
+            'reward_collectible_id': 'INTEGER',
+            'reward_rarities': 'VARCHAR(512)',
+        },
+    }.items():
+        if inspect(engine).has_table(table):
+            existing = {column['name'] for column in inspect(engine).get_columns(table)}
+            with engine.begin() as connection:
+                for field, sql_type in fields.items():
+                    if field not in existing:
+                        connection.execute(text(f'ALTER TABLE {table} ADD COLUMN {field} {sql_type}'))
     Base.metadata.create_all(engine)
     with SessionLocal.begin() as db:
         if not db.get(FeaturedCollection,1):
@@ -389,7 +435,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                                  (TradeReward, 'user_id'), (MissionProgress, 'user_id'),
                                  (Claim, 'user_id'), (UserAchievement, 'user_id'),
                                  (AchievementProgress, 'user_id'), (UserPet, 'user_id'),
-                                 (OwnedCard, 'user_id'), (CardCooldown, 'user_id'), (FavoriteGame,'user_id'),
+                                 (OwnedCard, 'user_id'), (CardCooldown, 'user_id'), (FavoriteGame,'user_id'), (InventoryCollectible,'user_id'),
                                  (CoinOffer,'buyer_id'), (CoinOffer,'seller_id'), (PetExpedition,'user_id')):
                     if cls is ReservedCard:
                         packids = db.scalars(select(InventoryPack.id).where(InventoryPack.user_id == uid)).all()
@@ -506,7 +552,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if row.quantity + count < 0:
             raise HTTPException(409, detail='Quantidade insuficiente desse petisco')
         row.quantity += count
-        wallet(db, uid).treats += count
+        # Vacinas são itens médicos no inventário, não petiscos comestíveis.
+        if sku != 'vacina':
+            wallet(db, uid).treats += count
 
     def consume_treat(db, uid, sku):
         if sku not in TREAT_TYPES:
@@ -699,7 +747,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         nextpet = (naive_to_utc(obj.last_pet_at) + timedelta(minutes=5)).isoformat() if obj.last_pet_at else None
         deadline = (naive_to_utc(obj.vet_since) + timedelta(days=setting(db, 'vet_dead_days'))).isoformat() if obj.vet_since and obj.status == 'vet' else None
         return {'species_id': sp.id, 'name': sp.name, 'emoji': sp.emoji, 'image_url': sp.image_url, **model_fields(sp),
-                'status': obj.status, 'food': obj.food, 'happiness': obj.happiness,
+                'nickname': obj.nickname or sp.name, 'status': obj.status, 'food': obj.food, 'happiness': obj.happiness,
                 'rescue_cost': setting(db, 'vet_cost'), 'vet_deadline': deadline,
                 'next_feed': nextfeed, 'next_pet': nextpet}
 
@@ -733,6 +781,44 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 'wanted': {'name': wc.name, 'rarity': wc.rarity, 'image_url': wc.image_url} if wc else None,
                 'status': t.status, 'created_at': t.created_at.isoformat() if t.created_at else None,
                 'offered_owned_id': t.offered_id, 'wanted_owned_id': t.wanted_id}
+
+    def collectible_dict(obj, quantity=None):
+        payload={'id':obj.id, 'name':obj.name, 'description':obj.description,
+                 'image_url':obj.image_url, 'emoji':obj.emoji}
+        if quantity is not None:payload['quantity']=quantity
+        return payload
+
+    def owned_collectibles(db, uid):
+        rows=db.execute(select(InventoryCollectible,Collectible).join(Collectible,
+            InventoryCollectible.collectible_id==Collectible.id).where(
+            InventoryCollectible.user_id==uid,InventoryCollectible.quantity>0).order_by(
+            Collectible.name)).all()
+        return [collectible_dict(item,row.quantity) for row,item in rows]
+
+    def expedition_settings(db, code):
+        base=EXPEDITIONS[code]
+        obj=db.get(ExpeditionConfig,code)
+        try:
+            weights=json.loads(obj.rarity_weights) if obj else WEIGHTS['expedition']
+            weights={tier:max(0,float(weights.get(tier,0))) for tier in TIERS}
+        except (ValueError,TypeError,AttributeError):weights=WEIGHTS['expedition'].copy()
+        return {'id':code,'name':base['name'],'minutes':base['minutes'],
+            'food':base['food'],'coins':base['coins'],
+            'image_url':obj.image_url if obj else None,
+            'card_chance':obj.card_chance if obj else base['card_chance'],
+            'rarity_weights':weights,
+            'featured_card_id':obj.featured_card_id if obj else None,
+            'collectible_id':obj.collectible_id if obj else None,
+            'collectible_chance':obj.collectible_chance if obj else 0}
+
+    def weighted_expedition_card(pool, weights):
+        eligible=[x for x in pool if x['remaining']>0]
+        if not eligible:return None
+        tiers=list({x['rarity'] for x in eligible})
+        chances=[max(0,float(weights.get(t,0))) for t in tiers]
+        if not sum(chances):return None
+        tier=RANDOM.choices(tiers,weights=chances,k=1)[0]
+        return RANDOM.choice([x for x in eligible if x['rarity']==tier])
 
     @app.get('/api/game/config')
     def game_config(request: Request):
@@ -1072,6 +1158,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                  'amount': 3, 'kind': 'treats','food':15,'treat_sku':'biscoito'},
                 {'sku': 'fruit', 'name': 'Frutinha', 'price':setting(db,'treat_fruit_cost'), 'amount':1,'kind':'treats','food':30,'treat_sku':'fruta'},
                 {'sku': 'feast', 'name':'Banquete', 'price':setting(db,'treat_feast_cost'), 'amount':1,'kind':'treats','food':55,'treat_sku':'banquete'},
+                {'sku': 'vaccine', 'name':'Vacina para Poro', 'price':setting(db,'vaccine_cost'), 'amount':1,'kind':'treats','food':0,'treat_sku':'vacina'},
             ]
             covers = {c.sku:c.image_url for c in db.scalars(select(ProductCover)).all()}
             controls = {c.sku:c for c in db.scalars(select(ShopItemControl)).all()}
@@ -1090,17 +1177,18 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         uid = me(request)
         data = json_body(await request.json(), ('sku',))
         sku = str(data['sku'])
-        if sku not in ('pack3', 'pack5', 'treat3', 'fruit', 'feast'):
+        if sku not in ('pack3', 'pack5', 'treat3', 'fruit', 'feast', 'vaccine'):
             raise HTTPException(422, detail='Produto desconhecido')
         with writing() as db:
             item_control = db.get(ShopItemControl, sku)
             if item_control and not item_control.active:
                 raise HTTPException(409, detail='Este item foi removido da Loja')
             w = wallet(db, uid)
-            if sku in ('treat3', 'fruit', 'feast'):
+            if sku in ('treat3', 'fruit', 'feast', 'vaccine'):
                 foodsku,qty,key = {'treat3':('biscoito',3,'treat_bundle_cost'),
                                    'fruit':('fruta',1,'treat_fruit_cost'),
-                                   'feast':('banquete',1,'treat_feast_cost')}[sku]
+                                   'feast':('banquete',1,'treat_feast_cost'),
+                                   'vaccine':('vacina',1,'vaccine_cost')}[sku]
                 cost = setting(db, key)
                 require_coins(db, uid, cost)
                 w.coins -= cost
@@ -1131,7 +1219,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             covers={x.sku:x.image_url for x in db.scalars(select(ProductCover)).all()}
             treats=db.scalars(select(InventoryTreat).where(InventoryTreat.user_id==uid, InventoryTreat.quantity>0)).all()
             return {'packs':[{'id':p.id,'sku':p.sku,'amount':3 if p.sku=='pack3' else 5,'image_url':covers.get(p.sku),'created_at':p.created_at.isoformat()} for p in packs],
-                    'treats':[{'sku':t.sku,'quantity':t.quantity,**TREAT_TYPES[t.sku]} for t in treats if t.sku in TREAT_TYPES]}
+                    'treats':[{'sku':t.sku,'quantity':t.quantity,'image_url':covers.get('vaccine' if t.sku=='vacina' else {'biscoito':'treat3','fruta':'fruit','banquete':'feast'}.get(t.sku)),**TREAT_TYPES[t.sku]} for t in treats if t.sku in TREAT_TYPES],
+                    'collectibles':owned_collectibles(db,uid)}
 
     @app.post('/api/inventory/packs/{pack_id}/open')
     def open_pack(pack_id: int, request: Request):
@@ -1199,7 +1288,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             return {'key':user.id,'name':user.username,'avatar_url':user.avatar_url,'cards':count,
                     'badges':[{'title':x[0],'icon':x[1],'image_url':x[2]} for x in badges],
                     'favorite':favorite_info(db,member_id),
-                    'pet':pet_dict(db,obj), 'favorite_games':user_games(db,member_id)}
+                    'pet':pet_dict(db,obj), 'favorite_games':user_games(db,member_id),
+                    'collectibles':owned_collectibles(db,member_id)}
 
     @app.post('/api/pets/visit/{owner_id}')
     async def visit_pet(owner_id: str,request: Request):
@@ -1258,28 +1348,32 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     'expedition':({'mission':mission.mission,'name':EXPEDITIONS[mission.mission]['name'],
                        'ends_at':naive_to_utc(mission.ends_at).isoformat(),'ready':utcnow()>=naive_to_utc(mission.ends_at)}
                        if (mission:=db.get(PetExpedition,uid)) else None),
-                    'expedition_options':[{'id':k,**v} for k,v in EXPEDITIONS.items()]}
+                    'expedition_options':[expedition_settings(db,k) for k in EXPEDITIONS]}
 
     @app.post('/api/pets/expedition/start')
     async def start_expedition(request:Request):
         uid=me(request);data=json_body(await request.json(),('mission',));key=str(data['mission'])
-        if key not in EXPEDITIONS:raise HTTPException(422,detail='Missão desconhecida')
-        info=EXPEDITIONS[key]
+        if key not in EXPEDITIONS:raise HTTPException(422,detail='Expedição desconhecida')
+        base=EXPEDITIONS[key]
         with writing() as db:
             obj=db.get(UserPet,uid)
             if not obj:raise HTTPException(409,detail='Adote um Poro antes')
             pet_tick(db,obj)
             if obj.status!='ativo':raise HTTPException(409,detail='Seu Poro está indisponível')
-            if obj.food<info['food']+15:raise HTTPException(409,detail='Alimente o Poro antes de enviá-lo à missão')
+            if obj.food<base['food']+15:raise HTTPException(409,detail='Alimente o Poro antes de enviá-lo à expedição')
             if db.get(PetExpedition,uid):raise HTTPException(409,detail='Já existe uma expedição pendente')
+            info=expedition_settings(db,key)
             now=utcnow();obj.status='missao';obj.last_tick_at=now;obj.last_action_at=now
-            coins=RANDOM.randint(*info['coins'])
-            card_award=RANDOM.randrange(100)<info['card_chance']
+            coins=RANDOM.randint(*base['coins'])
+            card_award=RANDOM.randrange(10000)<int(info['card_chance'])*100
+            collect_id=info['collectible_id'] if RANDOM.randrange(10000)<int(info['collectible_chance'])*100 else None
             species=db.get(PetSpecies,obj.species_id)
-            publish_feed(db,uid,'expedition_start',pet={'name':species.name,'image_url':species.image_url,'emoji':species.emoji})
+            publish_feed(db,uid,'expedition_start',pet={'name':obj.nickname or species.name,'image_url':species.image_url,'emoji':species.emoji})
             db.add(PetExpedition(user_id=uid,mission=key,started_at=now,
-                       ends_at=now+timedelta(minutes=info['minutes']),coins=coins,card_award=card_award))
-        return {'ok':True,'ends_at':(now+timedelta(minutes=info['minutes'])).isoformat()}
+                ends_at=now+timedelta(minutes=base['minutes']),coins=coins,
+                card_award=card_award,reward_card_id=info['featured_card_id'] if card_award else None,
+                reward_collectible_id=collect_id,reward_rarities=json.dumps(info['rarity_weights'])))
+        return {'ok':True,'ends_at':(now+timedelta(minutes=base['minutes'])).isoformat()}
 
     @app.post('/api/pets/expedition/collect')
     def collect_expedition(request:Request):
@@ -1287,27 +1381,53 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         with writing() as db:
             row=db.get(PetExpedition,uid);obj=db.get(UserPet,uid)
             if not row or not obj or obj.status!='missao':raise HTTPException(409,detail='Nenhuma expedição em andamento')
-            if utcnow()<naive_to_utc(row.ends_at):raise HTTPException(409,detail='Seu Poro ainda está em missão')
+            if utcnow()<naive_to_utc(row.ends_at):raise HTTPException(409,detail='Seu Poro ainda está em expedição')
             info=EXPEDITIONS[row.mission]
             obj.food=max(0,obj.food-info['food']);obj.happiness=max(0,obj.happiness-6)
             obj.status='ativo';obj.last_tick_at=utcnow();obj.last_action_at=utcnow()
             earned=row.coins;wallet(db,uid).coins+=earned
-            granted=None
+            granted=None;converted_coins=0;new_collectible=None
             if row.card_award:
                 pool=stock(db)
-                if any(c['remaining']>0 for c in pool):
-                    chosen=random_card(pool,'expedition');granted=grant_card(db,uid,chosen)
+                chosen=None
+                if row.reward_card_id:
+                    chosen=next((c for c in pool if c['id']==row.reward_card_id),None)
+                    ref=db.get(Card,row.reward_card_id)
+                    if ref and db.scalar(select(OwnedCard.id).where(OwnedCard.user_id==uid,OwnedCard.card_id==ref.id).limit(1)):
+                        converted_coins=COIN_OFFER_MIN.get(ref.rarity,COIN_OFFER_MIN['comum'])
+                        wallet(db,uid).coins+=converted_coins
+                        chosen=None
+                    elif chosen is None or chosen['remaining']<=0:
+                        chosen=None
+                else:
+                    try:weights=json.loads(row.reward_rarities) if row.reward_rarities else WEIGHTS['expedition']
+                    except (ValueError,TypeError):weights=WEIGHTS['expedition']
+                    chosen=weighted_expedition_card(pool,weights)
+                if chosen and chosen['remaining']>0 and converted_coins==0:
+                    granted=grant_card(db,uid,chosen)
                     wallet(db,uid).coins+=card_bonus(db,granted['rarity'])
                     species=db.get(PetSpecies,obj.species_id)
-                    publish_feed(db,uid,'expedition_card',pet={'name':species.name,'image_url':species.image_url,'emoji':species.emoji},card=feed_card(granted))
+                    publish_feed(db,uid,'expedition_card',pet={'name':obj.nickname or species.name,
+                        'image_url':species.image_url,'emoji':species.emoji},card=feed_card(granted))
+            if row.reward_collectible_id:
+                item=db.get(Collectible,row.reward_collectible_id)
+                if item:
+                    owned=db.get(InventoryCollectible,(uid,item.id))
+                    if owned:owned.quantity+=1
+                    else:db.add(InventoryCollectible(user_id=uid,collectible_id=item.id,quantity=1))
+                    new_collectible=collectible_dict(item)
             db.delete(row)
-        return {'ok':True,'coins_gained':earned,'card':granted}
+        return {'ok':True,'coins_gained':earned,'card':granted,'converted_coins':converted_coins,
+                'collectible':new_collectible}
 
     @app.post('/api/pets/adopt')
     async def adopt(request: Request):
         uid = me(request)
         data = json_body(await request.json(), ('species_id',))
         sid = integer(data['species_id'])
+        nickname=str(data.get('nickname') or '').strip()
+        if not 2<=len(nickname)<=40 or any(ord(ch)<32 for ch in nickname):
+            raise HTTPException(422,detail='Escolha um nome para o Poro, entre 2 e 40 caracteres')
         with writing() as db:
             specie = db.get(PetSpecies, sid)
             if not specie or not specie.active:
@@ -1319,12 +1439,12 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     raise HTTPException(409, detail='Cada jogador pode ter apenas um Poro')
                 db.delete(pet)
                 db.flush()
-            db.add(UserPet(user_id=uid, species_id=sid, status='ativo',
+            db.add(UserPet(user_id=uid, species_id=sid, nickname=nickname, status='ativo',
                            food=85, happiness=85, adopted_at=utcnow(),
                            last_action_at=utcnow(), last_tick_at=utcnow()))
             progress(db, uid, 'adopt')
             achievement_event(db, uid, 'adopt')
-        return {'ok': True, 'message': f'{specie.name} foi adotado!'}
+        return {'ok': True, 'message': f'{nickname} foi adotado!'}
 
     @app.post('/api/pets/care')
     async def care(request: Request):
@@ -1345,6 +1465,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 if obj.last_feed_at and now < naive_to_utc(obj.last_feed_at) + timedelta(minutes=15):
                     raise HTTPException(409, detail='Aguarde 15 minutos antes de alimentar novamente')
                 sku = str(data.get('treat_sku', 'biscoito'))
+                if sku == 'vacina':
+                    raise HTTPException(422, detail='Vacinas só podem ser usadas no veterinário')
                 consume_treat(db, uid, sku)
                 obj.food = min(100, obj.food + TREAT_TYPES[sku]['food'])
                 obj.last_feed_at = now
@@ -1358,6 +1480,20 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             achievement_event(db, uid, action)
             result = pet_dict(db, obj)
         return {'ok': True, 'pet': result}
+
+    @app.post('/api/pets/vaccinate')
+    def vaccinate_poro(request:Request):
+        uid=me(request)
+        with writing() as db:
+            obj=db.get(UserPet,uid)
+            if not obj:raise HTTPException(404,detail='Poro não encontrado')
+            pet_tick(db,obj)
+            if obj.status!='vet':raise HTTPException(409,detail='Vacina disponível quando o Poro está no veterinário')
+            consume_treat(db,uid,'vacina')
+            obj.status='ativo';obj.vet_since=None
+            obj.food=max(obj.food,75);obj.happiness=max(obj.happiness,75)
+            obj.last_action_at=obj.last_tick_at=utcnow()
+        return {'ok':True}
 
     @app.post('/api/pets/rescue')
     def rescue(request: Request):
@@ -1525,6 +1661,97 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             sid = obj.id
         return {'ok': True, 'id': sid}
 
+    # 0.1.21 — expedicoes e colecionaveis, gerenciados apenas por administradores.
+    @app.get('/api/admin/expeditions')
+    def admin_expeditions(request: Request):
+        only_admin(request)
+        with SessionLocal() as db:
+            return {
+                'items':[expedition_settings(db,key) for key in EXPEDITIONS],
+                'cards':[{'id':card.id,'name':card.name,'rarity':card.rarity} for card in db.scalars(
+                    select(Card).where(Card.active.is_(True)).order_by(Card.name)).all()],
+                'collectibles':[collectible_dict(c) for c in db.scalars(
+                    select(Collectible).where(Collectible.active.is_(True)).order_by(Collectible.name)).all()],
+            }
+
+    @app.post('/api/admin/expeditions/{code}')
+    async def admin_save_expedition(code: str, request: Request):
+        only_admin(request)
+        if code not in EXPEDITIONS:raise HTTPException(404,detail='Expedição desconhecida')
+        payload=await request.json()
+        json_body(payload, ('card_chance','rarity_weights','collectible_chance'))
+        chance=integer(payload['card_chance'])
+        collectible_chance=integer(payload['collectible_chance'])
+        if not 0<=chance<=100 or not 0<=collectible_chance<=100:
+            raise HTTPException(422,detail='A chance deve estar entre 0 e 100%')
+        incoming=payload['rarity_weights']
+        if not isinstance(incoming,dict) or set(incoming)!=set(TIERS):
+            raise HTTPException(422,detail='Informe as chances de todas as quatro raridades')
+        if any(type(incoming[key]) not in (int,float) or not 0<=incoming[key]<=100 for key in TIERS):
+            raise HTTPException(422,detail='Probabilidades devem estar entre 0 e 100')
+        weights={key:float(incoming[key]) for key in TIERS}
+        if chance and not sum(weights.values()) and not payload.get('featured_card_id'):
+            raise HTTPException(422,detail='Configure ao menos uma raridade com chance positiva')
+        image_url=safe_artwork(payload.get('image_url'))
+        card_id=payload.get('featured_card_id') or None
+        collectible_id=payload.get('collectible_id') or None
+        if collectible_chance>0 and collectible_id is None:
+            raise HTTPException(422,detail='Selecione um colecionável para configurar sua chance')
+        if card_id is not None: card_id=integer(card_id)
+        if collectible_id is not None: collectible_id=integer(collectible_id)
+        with writing() as db:
+            if card_id:
+                card=db.get(Card,card_id)
+                if not card or not card.active:raise HTTPException(422,detail='Card específico inválido ou arquivado')
+            if collectible_id:
+                collectible=db.get(Collectible,collectible_id)
+                if not collectible or not collectible.active:
+                    raise HTTPException(422,detail='Colecionável inválido ou arquivado')
+            obj=db.get(ExpeditionConfig,code)
+            if not obj:
+                obj=ExpeditionConfig(code=code);db.add(obj)
+            obj.image_url=image_url
+            obj.card_chance=chance
+            obj.rarity_weights=json.dumps(weights,ensure_ascii=False)
+            obj.featured_card_id=card_id
+            obj.collectible_id=collectible_id
+            obj.collectible_chance=collectible_chance
+        return {'ok':True,'expedition':code}
+
+    @app.get('/api/admin/collectibles')
+    def admin_collectibles(request: Request):
+        only_admin(request)
+        with SessionLocal() as db:
+            items=db.scalars(select(Collectible).order_by(Collectible.id.desc())).all()
+            return {'items':[{**collectible_dict(item),'active':bool(item.active)} for item in items]}
+
+    @app.post('/api/admin/collectibles')
+    async def admin_save_collectible(request: Request):
+        only_admin(request)
+        data=json_body(await request.json(),('name',))
+        name=str(data['name']).strip()
+        if not 2<=len(name)<=100:raise HTTPException(422,detail='Nome entre 2 e 100 caracteres')
+        description=str(data.get('description') or '').strip()
+        if len(description)>300:raise HTTPException(422,detail='Descrição muito longa')
+        emoji=str(data.get('emoji') or '🏆')[:30]
+        picture=safe_artwork(data.get('image_url'))
+        item_id=data.get('id') or None
+        if item_id is not None:item_id=integer(item_id)
+        with writing() as db:
+            if item_id:
+                item=db.get(Collectible,item_id)
+                if not item:raise HTTPException(404,detail='Colecionável não encontrado')
+            else:
+                item=Collectible();db.add(item)
+            item.name=name;item.description=description;item.emoji=emoji;item.image_url=picture
+            if 'active' in data:
+                if type(data['active']) is not bool:raise HTTPException(422,detail='Ativo precisa ser verdadeiro ou falso')
+                item.active=data['active']
+            elif not item_id:item.active=True
+            db.flush()
+            result_id=item.id
+        return {'ok':True,'id':result_id}
+
     @app.get('/api/admin/covers')
     def admin_covers(request: Request):
         only_admin(request)
@@ -1537,7 +1764,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         only_admin(request)
         data = json_body(await request.json(), ('kind','key','image_url'))
         kind, key = str(data['kind']), str(data['key'])
-        valid_shop = {'pack3', 'pack5', 'treat3', 'fruit', 'feast'}
+        valid_shop = {'pack3', 'pack5', 'treat3', 'fruit', 'feast', 'vaccine'}
         valid_missions = {x[0] for x in MISSIONS}
         if (kind == 'shop' and key not in valid_shop) or (kind == 'mission' and key not in valid_missions) or kind not in ('shop','mission'):
             raise HTTPException(422, detail='Produto ou missão desconhecido')
@@ -1682,8 +1909,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             controls = {x.sku:x for x in db.scalars(select(ShopItemControl)).all()}
             covers = {x.sku:x.image_url for x in db.scalars(select(ProductCover)).all()}
             items=[]
-            labels={'pack3':'Pacote com 3 cards','pack5':'Pacote com 5 cards','treat3':'3 Biscoitos','fruit':'Frutinha','feast':'Banquete'}
-            price_keys={'pack3':'pack3_cost','pack5':'pack5_cost','treat3':'treat_bundle_cost','fruit':'treat_fruit_cost','feast':'treat_feast_cost'}
+            labels={'pack3':'Pacote com 3 cards','pack5':'Pacote com 5 cards','treat3':'3 Biscoitos','fruit':'Frutinha','feast':'Banquete','vaccine':'Vacina para Poro'}
+            price_keys={'pack3':'pack3_cost','pack5':'pack5_cost','treat3':'treat_bundle_cost','fruit':'treat_fruit_cost','feast':'treat_feast_cost','vaccine':'vaccine_cost'}
             for sku,name in labels.items():
                 ctrl=controls.get(sku)
                 items.append({'id':sku,'name':ctrl.name if ctrl and ctrl.name else name,
@@ -1725,7 +1952,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             raise HTTPException(422,detail='Ação inválida')
         with writing() as db:
             if group=='items':
-                price_keys={'pack3':'pack3_cost','pack5':'pack5_cost','treat3':'treat_bundle_cost','fruit':'treat_fruit_cost','feast':'treat_feast_cost'}
+                price_keys={'pack3':'pack3_cost','pack5':'pack5_cost','treat3':'treat_bundle_cost','fruit':'treat_fruit_cost','feast':'treat_feast_cost','vaccine':'vaccine_cost'}
                 if ident not in price_keys:raise HTTPException(404,detail='Item inexistente')
                 ctrl=db.get(ShopItemControl,ident)
                 if not ctrl:ctrl=ShopItemControl(sku=ident);db.add(ctrl)
@@ -1919,7 +2146,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         # permissões de administradores e configurações da aplicação.
         with writing() as db:
             for table in (VisitorCare, FavoriteCard, ReservedCard, InventoryPack,
-                          InventoryTreat, CoinOffer, CardCooldown, PetExpedition,
+                          InventoryTreat, InventoryCollectible, CoinOffer, CardCooldown, PetExpedition,
                           FavoriteGame, TradeReward, Trade, MissionProgress, Claim,
                           UserAchievement, AchievementProgress, UserPet, OwnedCard):
                 db.execute(delete(table))
@@ -1992,7 +2219,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if scope not in ('progress','factory') or payload['confirmation'] != 'LIMPAR TUDO':
             raise HTTPException(422, detail='Confirme digitando LIMPAR TUDO')
         with writing() as db:
-            for table in (VisitorCare, FavoriteCard, ReservedCard, InventoryPack, InventoryTreat,
+            for table in (VisitorCare, FavoriteCard, ReservedCard, InventoryPack, InventoryTreat, InventoryCollectible,
                           CoinOffer, CardCooldown, PetExpedition, FavoriteGame, TradeReward, Trade, MissionProgress, Claim, UserAchievement,
                           AchievementProgress, UserPet, OwnedCard):
                 db.execute(delete(table))

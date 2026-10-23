@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=0.1.20">
+  <link rel="stylesheet" href="/styles.css?v=0.1.21">
 </head>
 <body>
 <!-- Recanto 0.1.2 — layout responsivo e gestão com carregamento progressivo. -->
@@ -59,6 +59,11 @@
         <div class="desktop-user"><span class="desktop-user-avatar" id="desktopAvatar"></span><span id="desktopUserName">Meu Recanto</span></div>
       </div>
     </header>
+    <!-- Dica discreta de navegação: desaparece depois do primeiro deslize entre abas. -->
+    <div class="recanto-swipe-guide" id="recantoSwipeGuide" aria-hidden="true" hidden>
+      <span class="recanto-swipe-guide-left" id="recantoSwipeLeft">‹ <small>Feed</small></span>
+      <span class="recanto-swipe-guide-right" id="recantoSwipeRight"><small>Deslize</small> ›</span>
+    </div>
     <div class="pull-refresh-indicator" id="pullRefreshIndicator" role="status" aria-label="Puxe para atualizar" aria-live="off" aria-hidden="true">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
@@ -95,7 +100,7 @@
     </section>
     <section class="content-page" id="inventoryScreen" hidden>
       <header class="content-head"><h1>✦ Inventário</h1><span id="inventorySummary">Meus itens</span></header>
-      <div class="scroll-content"><div class="mini-tabs"><button class="mini-active" data-inventory-tab="packs">🎴 Pacotes</button><button data-inventory-tab="petiscos">🍪 Itens para Poros</button></div><div id="inventoryPane"></div></div>
+      <div class="scroll-content"><div class="mini-tabs"><button class="mini-active" data-inventory-tab="packs">🎴 Pacotes</button><button data-inventory-tab="petiscos">🍪 Itens de Poro</button><button data-inventory-tab="colecionaveis">🏆 Colecionáveis</button></div><div id="inventoryPane"></div></div>
     </section>
     <section class="content-page" id="petScreen" hidden>
       <header class="content-head"><h1>✦ Meus Poros</h1><span id="petStatus">Companheiro</span></header>
@@ -129,9 +134,9 @@
       <p class="notifications-status" id="notificationsStatus" role="status" aria-live="polite" hidden></p>
       <button type="button" class="soft-action settings-admin" id="settingsAdmin" hidden aria-label="Abrir Gestão do Recanto"><svg aria-hidden="true"><use href="#gear"/></svg><span>Gestão do Recanto</span></button>
       <button type="button" class="soft-action settings-update-check" id="checkUpdates">↻ Verificar atualizações</button>
-      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.1.20</p></section></div>
+      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.1.21</p></section></div>
   </main>
 </div>
-<script src="/app.js?v=0.1.20" defer></script>
+<script src="/app.js?v=0.1.21" defer></script>
 </body>
 </html>

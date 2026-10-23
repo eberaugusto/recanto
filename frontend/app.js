@@ -103,16 +103,47 @@
     if(state.tab==='missoes')await loadMissions();
     tabLoadedAt[state.tab]=Date.now();
   }
-  async function chooseTab(tab,focusSku=null){
+  // 0.1.21: animação entre telas ao deslizar no celular.
+  const MOBILE_TAB_ORDER=['feed','perfil','missoes','inventario','cards','pet','loja'];
+  let swipeCleanup=null;
+  function showSwipeGuide(){
+    const guide=$('recantoSwipeGuide');if(!guide)return;
+    const mobile=matchMedia('(max-width:767px)').matches;
+    let used=false;try{used=localStorage.getItem('recanto-swipe-discovered')==='1';}catch(_){}
+    guide.hidden=!mobile||used||!state.account;
+    if(guide.hidden)return;
+    const idx=MOBILE_TAB_ORDER.indexOf(state.tab);
+    const left=$('recantoSwipeLeft'),right=$('recantoSwipeRight');
+    left.hidden=idx<=0;right.hidden=idx>=MOBILE_TAB_ORDER.length-1;
+    if(!left.hidden)left.querySelector('small').textContent=idx===1?'Feed':'Voltar';
+  }
+  function registerSwipeDiscovery(){
+    try{localStorage.setItem('recanto-swipe-discovered','1');}catch(_){}
+    showSwipeGuide();
+  }
+  async function chooseTab(tab,focusSku=null,transitionDirection=0){
     if(!labels[tab]||!state.account)return;
     const pages={feed:$('feedScreen'),perfil:$('profileContent'),cards:$('cardsScreen'),inventario:$('inventoryScreen'),pet:$('petScreen'),loja:$('shopScreen'),missoes:$('missionsScreen')};
-    const nextPage=pages[tab];const changed=state.tab!==tab;
+    const oldTab=state.tab,oldPage=pages[oldTab];const nextPage=pages[tab];const changed=oldTab!==tab;
     const seq=++state.tabTransition;
+    const slide=changed&&transitionDirection!==0&&matchMedia('(max-width:767px)').matches&&
+      !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(swipeCleanup){swipeCleanup();swipeCleanup=null;}
     state.tab=tab;if(tab==='loja'&&focusSku)state.focusShop=focusSku;
     document.querySelectorAll('[data-tab]').forEach(b=>{b.classList.toggle('nav-active',b.dataset.tab===tab);b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false');});
-    // Alternar imediatamente: animações de saída deixavam telas deslocadas no PWA mobile.
-    Object.entries(pages).forEach(([key,node])=>{node.hidden=key!==tab;node.classList.remove('page-enter');});
+    // Duas telas temporariamente visíveis criam a sensação de acompanhar a navegação.
+    // A animação não altera a posição persistente nem a rolagem de nenhuma aba.
+    Object.entries(pages).forEach(([key,node])=>{node.hidden=slide?key!==tab&&key!==oldTab:key!==tab;node.classList.remove('page-enter','recanto-slide-enter','recanto-slide-exit','slide-next','slide-prev');});
+    if(slide&&oldPage&&nextPage){
+      const klass=transitionDirection>0?'slide-next':'slide-prev';
+      oldPage.classList.add('recanto-slide-exit',klass);
+      nextPage.classList.add('recanto-slide-enter',klass);
+      let timeout=setTimeout(()=>finish(),270);
+      function finish(){clearTimeout(timeout);oldPage.hidden=true;oldPage.classList.remove('recanto-slide-exit',klass);nextPage.classList.remove('recanto-slide-enter',klass);if(swipeCleanup===finish)swipeCleanup=null;}
+      swipeCleanup=finish;
+    }
     document.querySelectorAll('.desktop-side-link[data-tab]').forEach(btn=>btn.classList.toggle('selected',btn.dataset.tab===tab));
+    showSwipeGuide();
     // Preservar a rolagem interna de cada aba sem transformar o contêiner da tela.
     if(changed && nextPage && nextPage.dataset.firstVisit!=='yes'){nextPage.dataset.firstVisit='yes';nextPage.scrollTop=0;}
     try{await refreshActive();if(seq===state.tabTransition)applyUiAssets();}catch(err){if(seq===state.tabTransition)toast('⚠ Não foi possível carregar esta aba. Tente novamente.');}
@@ -278,10 +309,9 @@
         return;
       }
       if(Math.abs(dx)>85&&Math.abs(dx)>Math.abs(dy)*1.55){
-        const order=['feed','perfil','missoes','inventario','cards','pet','loja'];
-        const index=order.indexOf(state.tab);
-        const next=order[index+(dx>0?-1:1)];
-        if(next)chooseTab(next);
+        const index=MOBILE_TAB_ORDER.indexOf(state.tab);
+        const next=MOBILE_TAB_ORDER[index+(dx>0?-1:1)];
+        if(next){registerSwipeDiscovery();chooseTab(next,null,dx<0?1:-1);}
       }else if(dy>110&&Math.abs(dy)>Math.abs(dx)*1.5&&atTop){
         // Fallback se touchmove nao foi entregue pelo navegador.
         resetCachedData();
@@ -499,24 +529,32 @@
     async function decideCoinOffer(id,action){await safeRun(()=>API(`/api/coin-offers/${id}/decide`,{action}),'Oferta atualizada!');}
     async function actTrade(id,action){await safeRun(()=>API(`/api/trades/${id}/decide`,{action}),action==='accept'?'Troca concluída!':'Proposta atualizada.');}
   async function loadInventory(){
-    const data=await API('/api/inventory');$('inventorySummary').textContent=`${data.packs.length} pacote(s)`;
+    const data=await API('/api/inventory');$('inventorySummary').textContent=`${data.packs.length} pacote(s) · ${(data.collectibles||[]).length} colecionável(is)`;
     await inventoryPane(state.inventoryTab,data);
   }
   async function inventoryPane(tab,data=null){
     state.inventoryTab=tab;document.querySelectorAll('[data-inventory-tab]').forEach(b=>b.classList.toggle('mini-active',b.dataset.inventoryTab===tab));
     const d=data||await API('/api/inventory');const pane=$('inventoryPane');pane.replaceChildren();
     if(tab==='packs'){
-      if(!d.packs.length)pane.append(block('Nenhum pacote fechado','Os pacotes comprados ficam aqui até você abrir.'));
-      for(const pack of d.packs){const row=h('div','inventory-row');row.append(mediaCover(pack.image_url,pack.amount===5?'🎴':'🃏','Pacote '+pack.amount,'item-cover'));
+      if(!d.packs?.length)pane.append(block('Nenhum pacote fechado','Pacotes comprados ficam aqui até serem abertos.'));
+      for(const pack of d.packs||[]){const row=h('div','inventory-row');row.append(mediaCover(pack.image_url,pack.amount===5?'🎴':'🃏','Pacote '+pack.amount,'item-cover'));
         const info=h('div','inventory-meta');info.append(h('strong','',`Pacote de ${pack.amount} cards`),h('p','','Revelação em tela cheia'));
         row.append(info,button('Abrir',()=>openPack(pack.id)));pane.append(row);}
       pane.append(button('Ver pacotes na Loja →',()=>chooseTab('loja','pack3'),'soft-action'));
-    }else{
-      if(!d.treats.length)pane.append(block('Sem itens para Poros','Compre petiscos exclusivamente na Loja.'));
-      for(const t of d.treats){const row=h('div','inventory-row');row.append(mediaCover(null,t.emoji,t.name,'item-cover'));
-        const info=h('div','inventory-meta');info.append(h('strong','',t.name),h('p','',`${t.quantity} disponível(is) • +${t.food} fome`));row.append(info);
-        row.append(button('Presentear',()=>giftDialog(t),'soft-action'));pane.append(row);}
-      pane.append(button('Comprar petiscos na Loja →',()=>chooseTab('loja','treat3'),'soft-action'));
+    }else if(tab==='petiscos'){
+      if(!d.treats?.length)pane.append(block('Sem itens para Poros','Compre alimentos e vacinas na Loja.'));
+      for(const t of d.treats||[]){const row=h('div','inventory-row');row.append(mediaCover(t.image_url,t.emoji,t.name,'item-cover'));
+        const info=h('div','inventory-meta');info.append(h('strong','',t.name),h('p','',`${t.quantity} disponível(is)${t.food?' • +'+t.food+' fome':''}`));row.append(info);
+        if(t.sku==='vacina')row.append(button('Usar vacina',()=>safeRun(()=>API('/api/pets/vaccinate',{}),'Poro recuperado no veterinário!'),'soft-action'));
+        else row.append(button('Presentear',()=>giftDialog(t),'soft-action'));
+        pane.append(row);}
+      pane.append(button('Ver itens na Loja →',()=>chooseTab('loja','treat3'),'soft-action'));
+    }else if(tab==='colecionaveis'){
+      if(!d.collectibles?.length)pane.append(block('Nenhum colecionável','Itens especiais encontrados nas expedições aparecerão aqui.'));
+      const grid=h('div','collectible-grid');
+      for(const item of d.collectibles||[]){const tile=h('article','collectible-item');tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'),h('strong','',item.name),h('small','',`Quantidade: ${item.quantity}`));
+        if(item.description)tile.append(h('p','',item.description));grid.append(tile);}
+      pane.append(grid);
     }
   }
   async function giftDialog(item){
@@ -591,7 +629,9 @@
         const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
         for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));chip.title=game.name;gameIcons.append(chip);}
         favorites.append(gameIcons);pane.append(favorites);
-        if(d.pet){const pet=block('🐾 Poro: '+poroSpeciesName(d.pet.name),`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);
+        if(d.collectibles?.length){const found=block('🏆 Colecionáveis');found.classList.add('public-section','public-collectibles');const grid=h('div','collectible-grid');
+          for(const item of d.collectibles){const tile=h('article','collectible-item');tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'));tile.append(h('strong','',item.name),h('small','',`×${item.quantity}`));if(item.description)tile.title=item.description;grid.append(tile);}found.append(grid);pane.append(found);}
+        if(d.pet){const pet=block('🐾 Poro: '+(d.pet.nickname||poroSpeciesName(d.pet.name)),`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);
           pet.classList.add('public-section','public-pet');pet.prepend(petVisual(d.pet));pane.append(pet);
           if(d.pet.status==='ativo'){
             const actions=h('div','social-actions');actions.append(button('💗 Acariciar',()=>visitPet(uid,'pet')));
@@ -619,7 +659,9 @@
       const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
       for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));chip.title=game.name;gameIcons.append(chip);}
       favorites.append(gameIcons);main.append(favorites);
-      if(d.pet){const pet=block('🐾 Poro: '+poroSpeciesName(d.pet.name),`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);pet.classList.add('public-section','public-pet');pet.prepend(petVisual(d.pet));aside.append(pet);
+      if(d.collectibles?.length){const found=block('🏆 Colecionáveis');found.classList.add('public-section','public-collectibles');const grid=h('div','collectible-grid');
+        for(const item of d.collectibles){const tile=h('article','collectible-item');tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'));tile.append(h('strong','',item.name),h('small','',`×${item.quantity}`));if(item.description)tile.title=item.description;grid.append(tile);}found.append(grid);main.append(found);}
+      if(d.pet){const pet=block('🐾 Poro: '+(d.pet.nickname||poroSpeciesName(d.pet.name)),`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);pet.classList.add('public-section','public-pet');pet.prepend(petVisual(d.pet));aside.append(pet);
         if(d.pet.status==='ativo'){
           const actions=h('div','social-actions');actions.append(button('💗 Acariciar',()=>visitPet(uid,'pet')));
           const opts=items.treats||[];if(opts.length){const select=h('select','select-input');opts.forEach(t=>{const o=h('option','',t.name+' (+'+t.food+')');o.value=t.sku;select.append(o);});
@@ -817,16 +859,27 @@
       pane.append(block(pet?'Seu Poro faleceu':'Escolha seu Poro',pet?'O prazo de resgate terminou. Você pode adotar outro Poro.':'Você pode adotar apenas um Poro por vez. Cuide dele diariamente.'));
       const grid=h('div','pet-grid');data.species.forEach(s=>{
         const row=block(poroSpeciesName(s.name),'Poro disponível para adoção');row.prepend(petVisual(s,false,true));
-        row.append(button('Adotar',()=>safeRun(()=>API('/api/pets/adopt',{species_id:s.id}),'Poro adotado!')));grid.append(row);
+        const nameRow=h('label','poro-nickname-label','Nome do seu Poro');
+        const nickname=h('input','text-input poro-nickname');nickname.type='text';nickname.maxLength=40;
+        nickname.placeholder='Como seu Poro vai se chamar?';nickname.autocomplete='off';
+        nameRow.append(nickname);
+        row.append(nameRow,button('Adotar',async()=>{
+          const name=nickname.value.trim();
+          if(name.length<2||name.length>40){toast('Escolha um nome de 2 a 40 caracteres para seu Poro.');nickname.focus();return;}
+          await safeRun(()=>API('/api/pets/adopt',{species_id:s.id,nickname:name}),name+' foi adotado!');
+        }));grid.append(row);
       });pane.append(grid);return;
     }
-    const show=block(poroSpeciesName(pet.name),pet.status==='vet'?'Seu Poro precisa de resgate.':'Cuide de seu companheiro todos os dias.');
+    const show=block(pet.nickname||poroSpeciesName(pet.name),pet.status==='vet'?'Seu Poro precisa de resgate.':'Cuide de seu companheiro todos os dias.');
     show.prepend(petVisual(pet,true));pane.append(show);
     if(pet.status==='missao'){
       const expedition=data.expedition;
       pane.append(block('🗺️ Em missão',`Seu Poro está em ${expedition?.name||'uma aventura'} e não pode receber carinho nem comida.`));
       const when=h('p','expedition-time',expedition?.ready?'Seu Poro voltou!':'Volta em: '+countdown(expedition?.ends_at));pane.append(when);
-      if(expedition?.ready)pane.append(button('Receber recompensas',async()=>{const result=await safeRun(()=>API('/api/pets/expedition/collect',{}),r=>`+${r.coins_gained} moedas${r.card?' e um card!':''}`);if(result?.card)showCard(result.card,'Card encontrado pelo Poro!');}));
+      if(expedition?.ready)pane.append(button('Receber recompensas',async()=>{
+        const result=await safeRun(()=>API('/api/pets/expedition/collect',{}),r=>`+${r.coins_gained} moedas${r.converted_coins?' (+'+r.converted_coins+' por card repetido)':''}${r.collectible?' e '+r.collectible.name:''}${r.card?' e um card!':''}`);
+        if(result?.card)showCard(result.card,'Card encontrado pelo Poro!');
+      }));
       return;
     }
     if(pet.status==='vet'){
@@ -841,7 +894,9 @@
     actions.append(button('💗 Acariciar',()=>petCare('pet'),'soft-action'));pane.append(actions);
     const ex=block('🗺️ Expedições dos Poros','Envie seu Poro em uma aventura. Ele não poderá receber cuidados durante a missão e voltará com fome.');
     for(const option of data.expedition_options||[]){
-      const row=h('div','expedition-choice');row.append(h('strong','',option.name),h('small','',`${option.minutes/60}h • -${option.food} fome • ${option.coins[0]}–${option.coins[1]} moedas • ${option.card_chance}% chance de card`));
+      const row=h('div','expedition-choice');
+      if(option.image_url)row.append(mediaCover(option.image_url,'🗺️',option.name,'expedition-cover'));
+      row.append(h('strong','',option.name),h('small','',`${option.minutes/60}h • -${option.food} fome • ${option.coins[0]}–${option.coins[1]} moedas • ${option.card_chance}% chance de card${option.collectible_chance?' • '+option.collectible_chance+'% colecionável':''}`));
       row.append(button('Enviar',()=>safeRun(()=>API('/api/pets/expedition/start',{mission:option.id}),'Seu Poro iniciou a missão!'),'soft-action'));ex.append(row);
     }pane.append(ex);
   }
@@ -896,7 +951,7 @@
     const wrapper=h('div',cls);if(src){const img=h('img');img.src=src;img.alt=title;img.loading='lazy';img.onerror=()=>{img.remove();wrapper.textContent=emoji;};wrapper.append(img);}else wrapper.textContent=emoji;
     return wrapper;
   }
-  async function loadShop(){const [shop,me,daily]=await Promise.all([API('/api/shop'),API('/api/me'),API('/api/daily/status')]);$('shopWallet').textContent=`🪙 ${money(me.coins)}`;state.reset=daily.next_reset;$('dailyCoins').disabled=daily.coins_claimed;$('dailyCoins').textContent=daily.coins_claimed?'✓ Resgatado':`Resgatar ${money(daily.reward)} moedas`;updateCountdowns();const pane=$('shopPane');pane.replaceChildren();for(const s of shop.products){const box=block(s.name,s.kind==='cards'?`${s.amount} cartas aleatórias · guarda no Inventário`:`${s.amount} petisco(s) · +${s.food||15} fome por unidade`);box.id='shop-'+s.sku;box.classList.add('product-card');box.prepend(mediaCover(s.image_url,s.emoji||'🎁',s.name,'product-cover'));if(s.rates)box.append(h('p','rates',Object.entries(s.rates).map(([k,v])=>`${tierLabels[k]} ${v}%`).join(' · ')));box.append(button(`Comprar · 🪙 ${money(s.price)}`,()=>safeRun(()=>API('/api/shop/purchase',{sku:s.sku}),result=>result.pack_id?`Pacote guardado no Inventário!`:`${result.treats_gained} item(ns) adicionado(s) ao Inventário!`)));pane.append(box);}if(state.focusShop){const selected=$('shop-'+state.focusShop);state.focusShop=null;if(selected){selected.classList.add('shop-focus');selected.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});setTimeout(()=>selected.classList.remove('shop-focus'),1800);}}}
+  async function loadShop(){const [shop,me,daily]=await Promise.all([API('/api/shop'),API('/api/me'),API('/api/daily/status')]);$('shopWallet').textContent=`🪙 ${money(me.coins)}`;state.reset=daily.next_reset;$('dailyCoins').disabled=daily.coins_claimed;$('dailyCoins').textContent=daily.coins_claimed?'✓ Resgatado':`Resgatar ${money(daily.reward)} moedas`;updateCountdowns();const pane=$('shopPane');pane.replaceChildren();for(const s of shop.products){const box=block(s.name,s.kind==='cards'?`${s.amount} cartas aleatórias · guarda no Inventário`:s.sku==='vaccine'?'1 vacina para Poros em recuperação':`${s.amount} petisco(s) · +${s.food||15} fome por unidade`);box.id='shop-'+s.sku;box.classList.add('product-card');box.prepend(mediaCover(s.image_url,s.emoji||'🎁',s.name,'product-cover'));if(s.rates)box.append(h('p','rates',Object.entries(s.rates).map(([k,v])=>`${tierLabels[k]} ${v}%`).join(' · ')));box.append(button(`Comprar · 🪙 ${money(s.price)}`,()=>safeRun(()=>API('/api/shop/purchase',{sku:s.sku}),result=>result.pack_id?`Pacote guardado no Inventário!`:`${result.treats_gained} item(ns) adicionado(s) ao Inventário!`)));pane.append(box);}if(state.focusShop){const selected=$('shop-'+state.focusShop);state.focusShop=null;if(selected){selected.classList.add('shop-focus');selected.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});setTimeout(()=>selected.classList.remove('shop-focus'),1800);}}}
   async function loadMissions(){
     const data=await API('/api/missions');state.missionReset=data.next_reset;
     const pane=$('missionPane');pane.replaceChildren();
@@ -1176,10 +1231,66 @@
         const animations=Object.fromEntries(Object.entries(animInputs).map(([key,inp])=>[key,inp.value]));
         return API('/api/admin/pets',{name:pni.value,emoji:pei.value,image_url,model_url,...animations});
       },'Poro cadastrado!')));pane.append(pet);
+    // 0.1.21 — Colecionáveis estáticos e resultados das expedições.
+    const collectibleBlock=block('Gerenciar Colecionáveis','Itens colecionáveis estáticos que podem ser encontrados nas expedições. Arquivar preserva o inventário existente.');
+    const currentCollectibles=(await API('/api/admin/collectibles')).items||[];
+    const collectiblesChoice=h('select','select-input');
+    const refreshCollectibles=()=>{collectiblesChoice.replaceChildren();const empty=h('option','','+ Novo colecionável');empty.value='';collectiblesChoice.append(empty);
+      for(const item of currentCollectibles){const opt=h('option','',`${item.id} · ${item.name}${item.active?'':' (arquivado)'}`);opt.value=String(item.id);collectiblesChoice.append(opt);}};
+    refreshCollectibles();
+    const [collectName,collectNameInput]=adminField('Nome','');
+    const [collectInfo,collectInfoInput]=adminField('Descrição','');
+    const [collectEmoji,collectEmojiInput]=adminField('Emoji caso não tenha imagem','🏆');
+    const [collectCover,collectCoverInput]=adminField('URL HTTPS da imagem (opcional)','');
+    const collectFile=h('input','text-input');collectFile.type='file';collectFile.accept='image/png,image/jpeg,image/webp';
+    const collectEnabled=h('input');collectEnabled.type='checkbox';collectEnabled.checked=true;
+    collectiblesChoice.onchange=()=>{const obj=currentCollectibles.find(x=>String(x.id)===collectiblesChoice.value);
+      collectNameInput.value=obj?.name||'';collectInfoInput.value=obj?.description||'';collectEmojiInput.value=obj?.emoji||'🏆';
+      collectCoverInput.value=obj?.image_url||'';collectEnabled.checked=obj?.active!==false;collectFile.value='';};
+    const saveCollectibles=async()=>{const id=collectiblesChoice.value?Number(collectiblesChoice.value):null;
+      const payload={id,name:collectNameInput.value,description:collectInfoInput.value,emoji:collectEmojiInput.value,
+        image_url:collectFile.files.length?await uploadArtwork(collectFile.files[0]):collectCoverInput.value,active:collectEnabled.checked};
+      return API('/api/admin/collectibles',payload);};
+    collectibleBlock.append(h('label','','Editar existente ou criar novo'),collectiblesChoice,collectName,collectInfo,collectEmoji,collectCover,
+      h('label','','Ou enviar imagem'),collectFile,h('label','admin-check','Ativo'),collectEnabled,
+      button('Salvar colecionável',async()=>{const result=await safeRun(saveCollectibles,'Colecionável salvo!');if(result){state.adminReady=false;state.adminGroup='Poros';await openAdmin(true);}}));
+    pane.append(collectibleBlock);
+
+    const expeditionBlock=block('Configurar Expedições','A chance de card e de colecionável são independentes. Em cada expedição, o resultado é definido no servidor.');
+    const expData=await API('/api/admin/expeditions');
+    const expChoice=h('select','select-input');for(const opt of expData.items||[]){const item=h('option','',opt.name);item.value=opt.id;expChoice.append(item);}
+    const [expCover,expCoverInput]=adminField('Imagem da expedição (HTTPS ou /uploads/...)','');
+    const expFile=h('input','text-input');expFile.type='file';expFile.accept='image/png,image/jpeg,image/webp';
+    const [expChance,expChanceInput]=adminField('Probabilidade de ganhar um card (0–100%)','0','number');expChanceInput.min='0';expChanceInput.max='100';
+    const weights={};const weightFields=[];
+    for(const [id,label] of Object.entries(tierLabels)){const [field,input]=adminField('Peso da raridade '+label,'0','number');input.min='0';input.max='100';input.step='0.1';weights[id]=input;weightFields.push(field);}
+    const cardChoice=h('select','select-input');let op=h('option','','Aleatório, seguindo os pesos das raridades');op.value='';cardChoice.append(op);
+    for(const card of expData.cards||[]){op=h('option','',`${card.name} · ${tierLabels[card.rarity]||card.rarity}`);op.value=String(card.id);cardChoice.append(op);}
+    const collectibleChoice=h('select','select-input');op=h('option','','Nenhum colecionável');op.value='';collectibleChoice.append(op);
+    for(const item of expData.collectibles||[]){op=h('option','',item.name);op.value=String(item.id);collectibleChoice.append(op);}
+    const [collectChance,collectChanceInput]=adminField('Probabilidade de ganhar o colecionável (0–100%)','0','number');collectChanceInput.min='0';collectChanceInput.max='100';
+    const showExpedition=()=>{const item=expData.items.find(x=>x.id===expChoice.value);if(!item)return;
+      expCoverInput.value=item.image_url||'';expFile.value='';expChanceInput.value=item.card_chance;
+      cardChoice.value=item.featured_card_id||'';collectibleChoice.value=item.collectible_id||'';collectChanceInput.value=item.collectible_chance||0;
+      for(const [tier,input] of Object.entries(weights))input.value=item.rarity_weights?.[tier]??0;};
+    expChoice.onchange=showExpedition;showExpedition();
+    expeditionBlock.append(h('label','','Expedição'),expChoice,expCover,h('label','','Ou enviar imagem'),expFile,
+      expChance,h('label','','Peso das raridades (não precisa somar 100)'),...weightFields,
+      h('label','','Card específico opcional (se já possuir, converter em moedas)'),cardChoice,
+      h('label','','Colecionável como recompensa opcional'),collectibleChoice,collectChance,
+      button('Salvar configuração da expedição',async()=>{
+        const payload={image_url:expFile.files.length?await uploadArtwork(expFile.files[0]):expCoverInput.value,
+          card_chance:Number(expChanceInput.value),collectible_chance:Number(collectChanceInput.value),
+          rarity_weights:Object.fromEntries(Object.entries(weights).map(([tier,input])=>[tier,Number(input.value)])),
+          featured_card_id:cardChoice.value?Number(cardChoice.value):null,collectible_id:collectibleChoice.value?Number(collectibleChoice.value):null};
+        const result=await safeRun(()=>API('/api/admin/expeditions/'+encodeURIComponent(expChoice.value),payload),'Expedição atualizada!');
+        if(result){state.adminReady=false;state.adminGroup='Poros';await openAdmin(true);}
+      }));
+    pane.append(expeditionBlock);
     const covers=block('Capas da Loja e Missões','As capas são opcionais. Elas aparecem nos produtos e nas missões, sem alterar as regras.');
     const source=h('select','select-input');[['shop','Produtos da Loja'],['mission','Missões diárias']].forEach(([value,label])=>{const o=h('option','',label);o.value=value;source.append(o);});
     const target=h('select','select-input');const fillTargets=()=>{
-      target.replaceChildren();(source.value==='shop'?[['pack3','Pacote 3 cards'],['pack5','Pacote 5 cards'],['treat3','Biscoitos'],['fruit','Frutinha'],['feast','Banquete']]:[['daily_card','Card diário'],['daily_coins','Moedas diárias'],['trade','Troca'],['pet','Carinho'],['feed','Alimentar'],['adopt','Adoção'],['pack','Pacote']]).forEach(([value,label])=>{const o=h('option','',label);o.value=value;target.append(o);});
+      target.replaceChildren();(source.value==='shop'?[['pack3','Pacote 3 cards'],['pack5','Pacote 5 cards'],['treat3','Biscoitos'],['fruit','Frutinha'],['feast','Banquete'],['vaccine','Vacina']]:[['daily_card','Card diário'],['daily_coins','Moedas diárias'],['trade','Troca'],['pet','Carinho'],['feed','Alimentar'],['adopt','Adoção'],['pack','Pacote']]).forEach(([value,label])=>{const o=h('option','',label);o.value=value;target.append(o);});
     };source.addEventListener('change',fillTargets);fillTargets();
     const [coverRow,coverUrl]=adminField('Capa (HTTPS ou /uploads/...); vazio remove','');const coverFile=h('input','text-input');coverFile.type='file';coverFile.accept='image/png,image/jpeg,image/webp';
     covers.append(source,target,coverRow,h('label','','Ou selecione imagem no PC'),coverFile,button('Salvar capa',()=>safeRun(async()=>{
@@ -1330,7 +1441,7 @@
       if(x.includes('valores configuráveis'))return 'Economia';
       if(x.includes('cadastrar card')||x.includes('gerenciar cards')||x.includes('coleção'))return 'Cards';
       if(x.includes('gerenciar itens')||x.includes('capa'))return 'Loja';
-      if(x.includes('cadastrar poro')||x.includes('gerenciar poros'))return 'Poros';
+      if(x.includes('cadastrar poro')||x.includes('gerenciar poros')||x.includes('colecionáveis')||x.includes('expedições'))return 'Poros';
       if(x.includes('missões do recanto'))return 'Missões';
       if(x.includes('selo'))return 'Selos';
       if(x.includes('assets'))return 'Assets';
