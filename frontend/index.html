@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=0.1.15">
+  <link rel="stylesheet" href="/styles.css?v=0.1.16">
 </head>
 <body>
 <!-- Recanto 0.1.2 — layout responsivo e gestão com carregamento progressivo. -->
@@ -41,6 +41,7 @@
     <aside class="desktop-sidebar" aria-label="Menu do Recanto">
       <div class="desktop-brand"><img src="/recanto-logo.png" alt="Recanto"></div>
       <div class="desktop-side-links">
+        <button type="button" class="desktop-side-link" data-tab="feed"><svg><use href="#heart"/></svg><span>Feed</span></button>
         <button type="button" class="desktop-side-link selected" data-tab="perfil"><svg><use href="#person"/></svg><span>Perfil</span></button>
         <button type="button" class="desktop-side-link" data-tab="missoes"><svg><use href="#missions"/></svg><span>Missões</span></button>
         <button type="button" class="desktop-side-link" data-tab="inventario"><svg><use href="#inventory"/></svg><span>Inventário</span></button>
@@ -76,6 +77,10 @@
         <section class="profile-discord-widget" id="discordWidgetSection"><h2><svg class="discord-mark"><use href="#discord"/></svg> Servidor do Discord</h2><div class="discord-widget-frame"><iframe id="discordServerFrame" title="Widget do servidor Recanto no Discord" loading="lazy" referrerpolicy="no-referrer" src="about:blank"></iframe></div><p class="discord-widget-help">Para ver membros e canais, habilite o Widget nas configurações do servidor Discord.</p><a class="desktop-widget-action" href="https://discord.com/channels/958567158479208458" target="_blank" rel="noopener noreferrer">Abrir servidor no Discord ↗</a></section>
       </aside>
     </div>
+    <section class="content-page feed-screen" id="feedScreen" hidden>
+      <header class="content-head"><h1>✦ Feed</h1><span id="feedCount">Novidades da comunidade</span></header>
+      <div class="scroll-content feed-scroll"><div class="feed-info"><span>Atividades recentes da comunidade</span><span id="feedReward">Likes: até 20 moedas por dia</span></div><div id="feedList" aria-live="polite"></div></div>
+    </section>
     <section class="content-page" id="cardsScreen" hidden>
       <header class="content-head"><h1>✦ Cards</h1><span id="cardsCount">Coleção</span></header>
       <div class="scroll-content">
@@ -121,9 +126,9 @@
       <p class="notifications-status" id="notificationsStatus" role="status" aria-live="polite" hidden></p>
       <button type="button" class="soft-action settings-admin" id="settingsAdmin" hidden aria-label="Abrir Gestão do Recanto"><svg aria-hidden="true"><use href="#gear"/></svg><span>Gestão do Recanto</span></button>
       <button type="button" class="soft-action settings-update-check" id="checkUpdates">↻ Verificar atualizações</button>
-      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.1.15</p></section></div>
+      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.1.16</p></section></div>
   </main>
 </div>
-<script src="/app.js?v=0.1.15" defer></script>
+<script src="/app.js?v=0.1.16" defer></script>
 </body>
 </html>

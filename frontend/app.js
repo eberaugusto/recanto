@@ -48,7 +48,7 @@
 
   const h = (tag, className='', content='') => {const el=document.createElement(tag);if(className)el.className=className;if(content!==undefined&&content!==null)el.textContent=String(content);return el;};
   const money = n=>Number(n||0).toLocaleString('pt-BR');
-  const labels={perfil:'Perfil',cards:'Cards',inventario:'Inventário',pet:'Pet',loja:'Loja',missoes:'Missões'};
+  const labels={feed:'Feed',perfil:'Perfil',cards:'Cards',inventario:'Inventário',pet:'Pet',loja:'Loja',missoes:'Missões'};
   const tierLabels={comum:'Comum',raro:'Raro',lendário:'Lendário',prismático:'Prismático'};
   const state={assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:8,cardPage:1,cardPageSize:12,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:matchMedia('(min-width:768px)').matches?'raridade':'padrao',missing:false,newOnly:false},detailClosing:false};
   const toast=(message)=>{const el=$('toast');el.textContent=message;el.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>{el.hidden=true;},4000);};
@@ -92,6 +92,7 @@
   function showLogin(){resetCachedData();state.adminReady=false;state.petPreviewLoaded=false;$('adminModal').hidden=true;document.body.classList.remove('page-open');$('settingsAdmin').hidden=true;state.account=null;$('loginScreen').hidden=false;$('splashScreen').hidden=true;$('homeScreen').hidden=true;$('modal').hidden=true;}
   async function refreshActive(force=false){if(!state.account)return;
     if(!force && tabLoadedAt[state.tab] && Date.now()-tabLoadedAt[state.tab]<TAB_SOFT_TTL)return;
+    if(state.tab==='feed')await loadFeed();
     if(state.tab==='perfil')await loadProfileExtras();
     if(state.tab==='cards')await loadCards();
     if(state.tab==='inventario')await loadInventory();
@@ -102,7 +103,7 @@
   }
   async function chooseTab(tab,focusSku=null){
     if(!labels[tab]||!state.account)return;
-    const pages={perfil:$('profileContent'),cards:$('cardsScreen'),inventario:$('inventoryScreen'),pet:$('petScreen'),loja:$('shopScreen'),missoes:$('missionsScreen')};
+    const pages={feed:$('feedScreen'),perfil:$('profileContent'),cards:$('cardsScreen'),inventario:$('inventoryScreen'),pet:$('petScreen'),loja:$('shopScreen'),missoes:$('missionsScreen')};
     const nextPage=pages[tab];const changed=state.tab!==tab;
     const seq=++state.tabTransition;
     state.tab=tab;if(tab==='loja'&&focusSku)state.focusShop=focusSku;
@@ -144,6 +145,72 @@
     if(matchMedia('(min-width:768px)').matches && !state.petPreviewLoaded)loadPetPreview().catch(()=>{});
   }
 
+  // Feed compartilhado: apenas eventos confirmados pela API. Nunca inserir HTML de usuários.
+  let feedRefreshTimer=null;
+  let feedLoading=false;
+  function feedImageText(parent, item, kind){
+    if(!item)return;
+    const token=h('span','feed-entity '+(kind==='card'?'feed-rarity-'+String(item.rarity||'comum').normalize('NFD').replace(/[\u0300-\u036f]/g,''):'feed-pet-name'),item.name||'Item');
+    token.tabIndex=0;
+    if(item.image_url){
+      const preview=h('span','feed-preview');const img=h('img');img.src=item.image_url;img.loading='lazy';img.alt=item.name||'Prévia';preview.append(img);token.append(preview);
+    }else if(item.emoji){const preview=h('span','feed-preview feed-emoji',item.emoji);token.append(preview);}
+    parent.append(token);
+  }
+  function feedMessage(row,item){
+    const d=item.data||{};const add=text=>row.append(document.createTextNode(text));
+    const card=c=>feedImageText(row,c,'card');const pet=p=>feedImageText(row,p,'pet');
+    if(item.kind==='expedition_start'){add(' enviou ');pet(d.pet);add(' para uma Expedição.');}
+    else if(item.kind==='daily_card'){add(' conseguiu ');card(d.card);add(' no Resgate Diário.');}
+    else if(item.kind==='pack_card'){add(' conseguiu ');card(d.card);add(' no Pack de '+(Number(d.pack_size)||'?')+' Cards.');}
+    else if(item.kind==='expedition_card'){add(' teve seu pet ');pet(d.pet);add(' retornando da Expedição com ');card(d.card);add('.');}
+    else if(item.kind==='trade_cards'){add(' trocou ');card(d.card_a);add(' por ');card(d.card_b);add(' com '+(d.other||'outro membro')+'.');}
+    else if(item.kind==='trade_coins'){add(' trocou ');card(d.card);add(' por '+(Number(d.coins)||0)+' moedas com '+(d.other||'outro membro')+'.');}
+    else if(item.kind==='badge'){add(' conquistou o selo ');if(d.badge?.icon)add(d.badge.icon+' ');feedImageText(row,{name:d.badge?.name,image_url:d.badge?.image_url},'pet');add('!');}
+  }
+  async function loadFeed(){
+    if(feedLoading)return;feedLoading=true;
+    try{
+      const data=await API('/api/feed');const list=$('feedList');if(!list)return;
+      list.replaceChildren();$('feedCount').textContent=`${data.items.length} publicações recentes`;
+      $('feedReward').textContent=`Moedas com likes hoje: ${data.reward_today}/20`;
+      if(!data.items.length)list.append(h('div','feed-empty','Nenhuma novidade por enquanto.'));
+      for(const item of data.items){
+        const article=h('article','feed-entry');
+        const pic=h('div','feed-avatar');avatar(pic,item.user.name,item.user.avatar_url);
+        const box=h('div','feed-entry-body');const header=h('div','feed-head');
+        header.append(h('strong','',item.user.name));
+        const time=h('time','feed-time',new Date(item.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}));time.dateTime=item.created_at;header.append(time);
+        const msg=h('p','feed-description');feedMessage(msg,item);
+        const actions=h('div','feed-actions');const like=button(`${item.liked?'♥':'♡'} ${item.likes}`,async()=>{
+          like.disabled=true;
+          try{const ans=await API(`/api/feed/${item.id}/like`,{});if(ans.coins_gained)toast('+1 moeda por curtir!');resetCachedData();await loadFeedRefresh();if(ans.coins_gained)refreshProfile().catch(()=>{});}catch(e){toast('⚠ '+e.message);}finally{like.disabled=false;}
+        },'feed-like'+(item.liked?' is-liked':''));like.setAttribute('aria-label','Curtir publicação; '+item.likes+' curtidas');actions.append(like);
+        box.append(header,msg,actions);article.append(pic,box);list.append(article);
+      }
+    }finally{feedLoading=false;}
+  }
+  async function loadFeedRefresh(){feedLoading=false;await loadFeed();}
+  function startFeedPolling(){if(feedRefreshTimer)return;feedRefreshTimer=setInterval(()=>{if(state.tab==='feed'&&!document.hidden&&state.account)loadFeed().catch(()=>{});},12000);}
+  // Gestos só sobre o conteúdo, evitando botões, carrosséis, modais e inputs.
+  function startMobileGestures(){
+    const home=$('homeScreen');let start=null;
+    home.addEventListener('touchstart',e=>{
+      if(e.touches.length!==1 || !state.account || !matchMedia('(max-width:767px)').matches ||
+         !document.querySelector('#modal[hidden]') || !document.querySelector('#adminModal[hidden]') ||
+         !document.querySelector('#publicProfilePage[hidden]') || !document.querySelector('#profilesModal[hidden]') ||
+         e.target.closest('input,textarea,select,button,a,[role="dialog"],.card-grid,.mini-tabs,.badge-strip')){start=null;return;}
+      const t=e.touches[0];const scroll=e.target.closest('.scroll-content,#profileContent,.content-page');
+      start={x:t.clientX,y:t.clientY,scroll,atTop:!scroll||scroll.scrollTop<=2};
+    },{passive:true});
+    home.addEventListener('touchend',e=>{
+      if(!start||!e.changedTouches.length)return;
+      const t=e.changedTouches[0],dx=t.clientX-start.x,dy=t.clientY-start.y,absX=Math.abs(dx),absY=Math.abs(dy),atTop=start.atTop;
+      start=null;
+      if(absX>85&&absX>absY*1.55){const order=['feed','perfil','missoes','inventario','cards','pet','loja'];const i=order.indexOf(state.tab);const next=order[i+(dx>0?-1:1)];if(next)chooseTab(next);}
+      else if(dy>110&&absY>absX*1.5&&atTop){resetCachedData();refreshProfile().then(()=>refreshActive(true)).then(()=>{if(state.tab==='feed')loadFeed();toast('Atualizado!');}).catch(()=>toast('Não foi possível atualizar agora.'));}
+    },{passive:true});
+  }
   function startDiscordWidget(){
     const iframe=$('discordServerFrame');
     if(!iframe || state.discordWidgetStarted)return;
@@ -1281,6 +1348,8 @@
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();state.installEvent=e;updateInstallButton();});
   window.addEventListener('appinstalled',()=>{state.installEvent=null;updateInstallButton();toast('Recanto instalado com sucesso!');});
   window.matchMedia('(display-mode: standalone)').addEventListener?.('change',updateInstallButton);
+  startMobileGestures();
+  startFeedPolling();
   setInterval(updateCountdowns,1000);
   (async()=>{
     // Enquanto a sessão é verificada, não exibir o botão de login para quem já está autenticado.

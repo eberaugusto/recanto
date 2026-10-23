@@ -214,6 +214,26 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         event: Mapped[str] = mapped_column(String(30), primary_key=True)
         counter: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    class FeedEvent(Base):
+        __tablename__ = 'recanto_feed_events'
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        user_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+        kind: Mapped[str] = mapped_column(String(32), nullable=False)
+        payload: Mapped[str] = mapped_column(String(4096), nullable=False)
+        created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    class FeedLike(Base):
+        __tablename__ = 'recanto_feed_likes'
+        event_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+        user_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+        created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    class FeedDailyReward(Base):
+        __tablename__ = 'recanto_feed_daily_likes'
+        user_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+        day: Mapped[str] = mapped_column(String(10), primary_key=True)
+        count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
     class UserAchievement(Base):
         __tablename__ = 'user_achievements'
         user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
@@ -533,6 +553,54 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if mission_tracker:
             mission_tracker(db, uid, mission, amount)
 
+    def publish_feed(db, uid, kind, **payload):
+        # Somente ações confirmadas pelo servidor. Não incluir missões, loja nem cuidados.
+        entry = FeedEvent(user_id=uid, kind=kind, payload=json.dumps(payload, ensure_ascii=False), created_at=utcnow())
+        db.add(entry)
+        db.flush()
+        # Manter apenas as 30 publicações mais recentes e eliminar likes antigos.
+        old_ids = db.scalars(select(FeedEvent.id).order_by(FeedEvent.id.desc()).offset(30)).all()
+        if old_ids:
+            db.execute(delete(FeedLike).where(FeedLike.event_id.in_(old_ids)))
+            db.execute(delete(FeedEvent).where(FeedEvent.id.in_(old_ids)))
+
+    def feed_card(card):
+        return {'name': card['name'], 'rarity': card.get('rarity', 'comum'), 'image_url': card.get('image_url')}
+
+    @app.get('/api/feed')
+    def community_feed(request: Request):
+        uid = me(request)
+        with SessionLocal() as db:
+            entries = db.scalars(select(FeedEvent).order_by(FeedEvent.id.desc()).limit(30)).all()
+            users = {u.id:u for u in db.scalars(select(User).where(User.id.in_([e.user_id for e in entries]))).all()} if entries else {}
+            counts = dict(db.execute(select(FeedLike.event_id,func.count(FeedLike.user_id)).where(FeedLike.event_id.in_([e.id for e in entries])).group_by(FeedLike.event_id)).all()) if entries else {}
+            liked = set(db.scalars(select(FeedLike.event_id).where(FeedLike.user_id==uid,FeedLike.event_id.in_([e.id for e in entries]))).all()) if entries else set()
+            day_state=db.get(FeedDailyReward,(uid,local_day()))
+            return {'items':[{'id':e.id,'kind':e.kind,'created_at':naive_to_utc(e.created_at).isoformat(),
+                'user':{'name':users[e.user_id].username if e.user_id in users else 'Membro',
+                        'avatar_url':users[e.user_id].avatar_url if e.user_id in users else None},
+                'data':json.loads(e.payload),'likes':counts.get(e.id,0),'liked':e.id in liked} for e in entries],
+                'reward_today':day_state.count if day_state else 0,'reward_limit':20}
+
+    @app.post('/api/feed/{event_id}/like')
+    def like_feed(event_id:int,request:Request):
+        uid=me(request)
+        with writing() as db:
+            entry=db.get(FeedEvent,event_id)
+            if entry is None:raise HTTPException(404,detail='Publicação não encontrada')
+            existing=db.get(FeedLike,(event_id,uid))
+            if existing:
+                return {'ok':True,'liked':True,'coins_gained':0}
+            db.add(FeedLike(event_id=event_id,user_id=uid))
+            day=local_day();state=db.get(FeedDailyReward,(uid,day))
+            if state is None:
+                state=FeedDailyReward(user_id=uid,day=day,count=0);db.add(state)
+            gained=int(state.count<20)
+            if gained:
+                wallet(db,uid).coins+=1
+                state.count+=1
+            return {'ok':True,'liked':True,'coins_gained':gained,'reward_today':state.count}
+
     def achievement_event(db, uid, event, amount=1):
         # Nunca aceitar progresso arbitrário enviado pelo navegador.
         if event == 'voice_minutes':
@@ -547,6 +615,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                                                               Achievement.target <= obj.counter)).all():
             if not db.get(UserAchievement, (uid, award.id)):
                 db.add(UserAchievement(user_id=uid, achievement_id=award.id, unlocked_at=utcnow()))
+                publish_feed(db,uid,'badge',badge={'name':award.title,'icon':award.icon,'image_url':award.image_url})
 
     @app.get('/api/achievements')
     def achievements(request: Request):
@@ -708,6 +777,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if cooldown: cooldown.last_claimed=utcnow()
             else: db.add(CardCooldown(user_id=uid,last_claimed=utcnow()))
             progress(db, uid, 'daily_card')
+            publish_feed(db,uid,'daily_card',card=feed_card(result))
             result['bonus_coins'] = reward
         return {'ok': True, 'card': result}
 
@@ -803,6 +873,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     offer.user_id, want.user_id = t.receiver_id, t.sender_id
                     offer.acquired_at = want.acquired_at = utcnow()
                     t.status = 'aceita'
+                    publish_feed(db,t.sender_id,'trade_cards',card_a=feed_card({'name':db.get(Card,offer.card_id).name,'rarity':db.get(Card,offer.card_id).rarity,'image_url':db.get(Card,offer.card_id).image_url}),card_b=feed_card({'name':db.get(Card,want.card_id).name,'rarity':db.get(Card,want.card_id).rarity,'image_url':db.get(Card,want.card_id).image_url}),other=db.get(User,t.receiver_id).username)
                     for user in (t.sender_id, t.receiver_id):
                         day = local_day()
                         reward_state = db.get(TradeReward, (user, day))
@@ -871,6 +942,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 fav=db.get(FavoriteCard,offer.seller_id)
                 if fav and fav.owned_id==owned.id:db.delete(fav)
                 offer.status='aceita'
+                card_row=db.get(Card,owned.card_id)
+                if card_row:publish_feed(db,offer.seller_id,'trade_coins',card=feed_card({'name':card_row.name,'rarity':card_row.rarity,'image_url':card_row.image_url}),coins=offer.amount,other=db.get(User,offer.buyer_id).username)
                 for who in (offer.buyer_id,offer.seller_id):progress(db,who,'trade');achievement_event(db,who,'trade')
             else:
                 wallet(db,offer.buyer_id).coins+=offer.amount
@@ -1078,6 +1151,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 card['bonus_coins']=card_bonus(db,card['rarity'])
             wallet(db,uid).coins+=bonus
             progress(db,uid,'pack')
+            for card in result:publish_feed(db,uid,'pack_card',card=feed_card(card),pack_size=(3 if pack.sku=='pack3' else 5))
         return {'ok':True,'cards':result,'bonus_coins':bonus}
 
     @app.get('/api/cards/favorite')
@@ -1199,6 +1273,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             now=utcnow();obj.status='missao';obj.last_tick_at=now;obj.last_action_at=now
             coins=RANDOM.randint(*info['coins'])
             card_award=RANDOM.randrange(100)<info['card_chance']
+            species=db.get(PetSpecies,obj.species_id)
+            publish_feed(db,uid,'expedition_start',pet={'name':species.name,'image_url':species.image_url,'emoji':species.emoji})
             db.add(PetExpedition(user_id=uid,mission=key,started_at=now,
                        ends_at=now+timedelta(minutes=info['minutes']),coins=coins,card_award=card_award))
         return {'ok':True,'ends_at':(now+timedelta(minutes=info['minutes'])).isoformat()}
@@ -1220,6 +1296,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 if any(c['remaining']>0 for c in pool):
                     chosen=random_card(pool,'expedition');granted=grant_card(db,uid,chosen)
                     wallet(db,uid).coins+=card_bonus(db,granted['rarity'])
+                    species=db.get(PetSpecies,obj.species_id)
+                    publish_feed(db,uid,'expedition_card',pet={'name':species.name,'image_url':species.image_url,'emoji':species.emoji},card=feed_card(granted))
             db.delete(row)
         return {'ok':True,'coins_gained':earned,'card':granted}
 
