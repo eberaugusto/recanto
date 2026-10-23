@@ -1420,7 +1420,7 @@
       const chosen=(state.assets||[]).find(asset=>asset.key==='favicon' && asset.image_url);
       favicon.href=chosen?.image_url||'/icons/icon-192.png';
       const ext=(chosen?.image_url||'').toLowerCase().split('?')[0];
-      favicon.type=ext.endsWith('.svg')?'image/svg+xml':ext.endsWith('.webp')?'image/webp':/\.jpe?g$/.test(ext)?'image/jpeg':'image/png';
+      favicon.type=ext.endsWith('.svg')?'image/svg+xml':ext.endsWith('.webp')?'image/webp':ext.endsWith('.gif')?'image/gif':/\.jpe?g$/.test(ext)?'image/jpeg':'image/png';
     }
     // Limpa personalizacoes antigas para permitir remover/alterar uma imagem.
     for(const host of document.querySelectorAll('.asset-icon-host')){
@@ -1533,7 +1533,7 @@
     return result.model_url;
   }
   const adminField=(label,value,type='text')=>{const row=h('label','admin-field',label);const input=h('input','text-input');input.value=value||'';input.type=type;row.append(input);return [row,input];};
-  // URL .webp recebe o mesmo tratamento de PNG/JPG. O teste permite distinguir
+  // URL .gif recebe o mesmo tratamento de PNG/JPG/WEBP. O teste permite distinguir
   // uma URL válida de bloqueio de hotlink ou arquivo inacessível na origem.
   function attachArtworkPreview(input,container){
     const preview=h('span','admin-artwork-preview');preview.hidden=true;
@@ -1545,10 +1545,10 @@
       if(!url){preview.hidden=true;img.removeAttribute('src');return;}
       preview.hidden=false;status.textContent='Verificando imagem...';img.hidden=true;
       if(!/^https:\/\/|^\/uploads\//i.test(url)){
-        status.textContent='Use uma URL HTTPS direta (.webp, .png ou .jpg) ou envie o arquivo.';return;
+        status.textContent='Use uma URL HTTPS direta (.gif, .webp, .png ou .jpg) ou envie o arquivo.';return;
       }
       img.onload=()=>{if(generation!==ticket)return;img.hidden=false;status.textContent='Imagem carregada ('+img.naturalWidth+' × '+img.naturalHeight+').';};
-      img.onerror=()=>{if(generation!==ticket)return;img.hidden=true;status.textContent='A URL não carregou. O servidor externo pode bloquear imagens incorporadas. Envie o arquivo WEBP pelo campo de upload.';};
+      img.onerror=()=>{if(generation!==ticket)return;img.hidden=true;status.textContent='A URL não carregou. O servidor externo pode bloquear imagens incorporadas. Envie o arquivo GIF/WEBP pelo campo de upload.';};
       img.src=url;
     };
     input.addEventListener('change',render);
@@ -1579,7 +1579,7 @@
     let imageFile=null,modelFile=null,khadaInput=null;
     if(['cards','pets','achievements','items'].includes(group)){
       const label=h('label','admin-field','Substituir imagem (opcional)');
-      imageFile=h('input','text-input');imageFile.type='file';imageFile.accept='image/png,image/jpeg,image/webp,.webp';label.append(imageFile);form.append(label);
+      imageFile=h('input','text-input');imageFile.type='file';imageFile.accept='image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif';label.append(imageFile);form.append(label);
     }
     if(group==='pets'){
       const label=h('label','admin-field','Substituir GLB animado (opcional; em produção requer Cloudinary ou URL pública .glb)');
@@ -1704,7 +1704,7 @@
     adminBox.append(button('Autorizar ID',()=>safeRun(()=>API('/api/admin/authorized-ids',{discord_id:adminInput.value,action:'add'}),'ID autorizado!')),
       button('Revogar ID adicional',()=>safeRun(()=>API('/api/admin/authorized-ids',{discord_id:adminInput.value,action:'remove'}),'Permissão revogada.')));
     pane.append(adminBox);
-    const card=block('Cadastrar card','Nome, raridade e imagem (opcional).');const [n,ni]=adminField('Nome','');const [url,ui]=adminField('URL HTTPS da imagem PNG/JPG/WEBP ou /uploads/...','');const [collectionRow,collectionInput]=adminField('Coleção do card','Recanto Original');card.append(n,collectionRow,url);attachArtworkPreview(ui,url);const cardFile=h('input','text-input');cardFile.type='file';cardFile.accept='image/png,image/jpeg,image/webp,.webp';card.append(h('label','','Ou envie imagem PNG/JPG/WEBP (até 4 MB)'),cardFile);const rarity=h('select','select-input');['comum','raro','lendário','prismático'].forEach(t=>{const o=h('option','',tierLabels[t]);o.value=t;rarity.append(o);});card.append(rarity,button('Cadastrar card',()=>safeRun(async()=>{const image_url=cardFile.files.length?await uploadArtwork(cardFile.files[0]):ui.value;return API('/api/admin/cards',{name:ni.value,rarity:rarity.value,collection:collectionInput.value,image_url});},'Card cadastrado!')));pane.append(card);
+    const card=block('Cadastrar card','Nome, raridade e imagem (opcional).');const [n,ni]=adminField('Nome','');const [url,ui]=adminField('URL HTTPS da imagem PNG/JPG/WEBP/GIF ou /uploads/...','');const [collectionRow,collectionInput]=adminField('Coleção do card','Recanto Original');card.append(n,collectionRow,url);attachArtworkPreview(ui,url);const cardFile=h('input','text-input');cardFile.type='file';cardFile.accept='image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif';card.append(h('label','','Ou envie imagem PNG/JPG/WEBP/GIF (até 4 MB)'),cardFile);const rarity=h('select','select-input');['comum','raro','lendário','prismático'].forEach(t=>{const o=h('option','',tierLabels[t]);o.value=t;rarity.append(o);});card.append(rarity,button('Cadastrar card',()=>safeRun(async()=>{const image_url=cardFile.files.length?await uploadArtwork(cardFile.files[0]):ui.value;return API('/api/admin/cards',{name:ni.value,rarity:rarity.value,collection:collectionInput.value,image_url});},'Card cadastrado!')));pane.append(card);
     const deleteAllCards=block('⚠ Excluir TODOS os Cards','Operação permanente. Apaga o catálogo inteiro, cópias dos membros, Cards favoritos, reservas, trocas e ofertas de moedas relacionadas. Ofertas pendentes são reembolsadas. Pacotes comprados e ainda fechados permanecem no inventário e serão completados com novos Cards quando abertos.');
     deleteAllCards.classList.add('admin-card-bulk-delete');
     deleteAllCards.append(button('Apagar todos os Cards de uma vez',async()=>{
@@ -1763,7 +1763,7 @@
     const featured=block('Coleção em destaque','Banner que aparece no Catálogo. Existem três coleções padrão: Celebridades, Personagens e Memes.');
     const [featuredNameLabel,featuredName]=adminField('Nome da coleção','Celebridades');
     const [featuredUrlLabel,featuredUrl]=adminField('URL da capa (opcional)','');
-    const featuredFile=h('input','text-input');featuredFile.type='file';featuredFile.accept='image/png,image/jpeg,image/webp,.webp';
+    const featuredFile=h('input','text-input');featuredFile.type='file';featuredFile.accept='image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif';
     featured.append(featuredNameLabel,featuredUrlLabel,h('label','','Ou escolha uma capa'),featuredFile,button('Salvar destaque',()=>safeRun(async()=>API('/api/admin/collections/featured',{name:featuredName.value,image_url:featuredFile.files.length?await uploadArtwork(featuredFile.files[0]):featuredUrl.value}),'Coleção em destaque atualizada!')));pane.append(featured);
     // Molduras prontas: a própria arte já contém logo, ornamentos e bordas.
     const frameRarityBox=block('Molduras padrão por raridade','Envie uma moldura PNG/WebP transparente para cada raridade. A moldura é aplicada POR CIMA da foto, incluindo logo e ornamentos; mantenha o centro transparente.');
@@ -1786,7 +1786,7 @@
       const wrap=h('div','admin-rarity-frame-row');
       const label=h('label','','Moldura '+tierLabels[tier]);
       const input=h('input','text-input');input.type='text';input.placeholder='URL HTTPS ou /uploads/...';
-      const file=h('input','text-input');file.type='file';file.accept='image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg';
+      const file=h('input','text-input');file.type='file';file.accept='image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.png,.jpg,.jpeg,.webp,.gif,.svg';
       const saveBtn=button('Salvar '+tierLabels[tier],async()=>{
         const frame_url=file.files[0]?await uploadArtwork(file.files[0]):input.value.trim();
         const result=await safeRun(()=>API('/api/admin/collections/card-styles',{collection:'__rarity__'+tier,frame_url}),'Moldura salva!');
@@ -1807,7 +1807,7 @@
     styleNameRow.append(styleName);
     const styleHelp=h('p','admin-style-help','Informe o nome exato da coleção. Se nada for cadastrado para ela, o Card usa a moldura padrão da raridade.');
     const frameUrlRow=adminField('URL HTTPS da moldura pronta (PNG, WEBP, JPG ou SVG)','');
-    const frameFile=h('input','text-input');frameFile.type='file';frameFile.accept='image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg';
+    const frameFile=h('input','text-input');frameFile.type='file';frameFile.accept='image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.png,.jpg,.jpeg,.webp,.gif,.svg';
     const stylePreview=h('div','admin-frame-preview');
     const previewCard={name:'Prévia do Card',rarity:'raro',collection:'__preview__'};
     const previewArt=frameCardArt(previewCard,'card-art');
@@ -1854,16 +1854,16 @@
       }));
     pane.append(styleBox);
 
-    const pet=block('Cadastrar Poro','Aceita imagem, modelo 3D GLB/GLTF e nomes de animações do arquivo.');
+    const pet=block('Cadastrar Poro','Aceita imagem PNG/JPG/WEBP/GIF, modelo 3D GLB/GLTF e nomes de animações do arquivo.');
     const [pn,pni]=adminField('Nome do Poro','');const [pe,pei]=adminField('Emoji para fallback','🐾');const [pu,pui]=adminField('Imagem de capa (HTTPS ou /uploads/...)','');
-    const petFile=h('input','text-input');petFile.type='file';petFile.accept='image/png,image/jpeg,image/webp,.webp';
+    const petFile=h('input','text-input');petFile.type='file';petFile.accept='image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif';
     const [modelurl,mui]=adminField('URL do modelo .glb ou embed Khada (opcional)','');
     const [khadaRow,khadaId]=adminField('ID de modelo Khada TFT (opcional)','');khadaId.inputMode='numeric';khadaId.placeholder='ID do modelo encontrado em Khada → Tacticians';
     const modelFile=h('input','text-input');modelFile.type='file';modelFile.multiple=true;modelFile.accept='.glb,.gltf,.bin,.png,.jpg,.jpeg,.webp';
     const animKeys=[['idle_animation','Parado / idle'],['pet_animation','Carinho'],['feed_animation','Alimentação'],['vet_animation','Veterinário']];
     const animInputs={};const fields=[];
     for(const [key,label] of animKeys){const [container,inp]=adminField('Nome exato da animação: '+label,'');fields.push(container);animInputs[key]=inp;}
-    pet.append(pn,pe,pu,h('label','','Ou envie uma capa PNG/JPG/WEBP (até 4 MB)'),petFile,modelurl,
+    pet.append(pn,pe,pu,h('label','','Ou envie uma capa PNG/JPG/WEBP/GIF (até 4 MB)'),petFile,modelurl,
       khadaRow,h('small','','Para modelos TFT do Khada: encontre o ID em modelviewer.lol e cole acima. O embed gratuito conserva marca e barra do Khada.'),
       h('label','','Ou selecione .glb; para .gltf, selecione também .bin e texturas (até 40 MB no total)'),modelFile,...fields,
       button('Cadastrar Poro',()=>safeRun(async()=>{
@@ -1886,7 +1886,7 @@
     const [collectInfo,collectInfoInput]=adminField('Descrição','');
     const [collectEmoji,collectEmojiInput]=adminField('Emoji caso não tenha imagem','🏆');
     const [collectCover,collectCoverInput]=adminField('URL HTTPS da imagem (opcional)','');
-    const collectFile=h('input','text-input');collectFile.type='file';collectFile.accept='image/png,image/jpeg,image/webp,.webp';
+    const collectFile=h('input','text-input');collectFile.type='file';collectFile.accept='image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif';
     const collectEnabled=h('input');collectEnabled.type='checkbox';collectEnabled.checked=true;
     collectiblesChoice.onchange=()=>{const obj=currentCollectibles.find(x=>String(x.id)===collectiblesChoice.value);
       collectNameInput.value=obj?.name||'';collectInfoInput.value=obj?.description||'';collectEmojiInput.value=obj?.emoji||'🏆';
@@ -1904,7 +1904,7 @@
     const expData=await API('/api/admin/expeditions');
     const expChoice=h('select','select-input');for(const opt of expData.items||[]){const item=h('option','',opt.name);item.value=opt.id;expChoice.append(item);}
     const [expCover,expCoverInput]=adminField('Imagem da expedição (HTTPS ou /uploads/...)','');
-    const expFile=h('input','text-input');expFile.type='file';expFile.accept='image/png,image/jpeg,image/webp,.webp';
+    const expFile=h('input','text-input');expFile.type='file';expFile.accept='image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif';
     const [expChance,expChanceInput]=adminField('Probabilidade de ganhar um card (0–100%)','0','number');expChanceInput.min='0';expChanceInput.max='100';
     const weights={};const weightFields=[];
     for(const [id,label] of Object.entries(tierLabels)){const [field,input]=adminField('Peso da raridade '+label,'0','number');input.min='0';input.max='100';input.step='0.1';weights[id]=input;weightFields.push(field);}
@@ -1936,7 +1936,7 @@
     const target=h('select','select-input');const fillTargets=()=>{
       target.replaceChildren();(source.value==='shop'?[['pack3','Pacote 3 cards'],['pack5','Pacote 5 cards'],['treat3','Biscoitos'],['fruit','Frutinha'],['feast','Banquete'],['vaccine','Vacina']]:[['daily_card','Card diário'],['daily_coins','Moedas diárias'],['trade','Troca'],['pet','Carinho'],['feed','Alimentar'],['adopt','Adoção'],['pack','Pacote']]).forEach(([value,label])=>{const o=h('option','',label);o.value=value;target.append(o);});
     };source.addEventListener('change',fillTargets);fillTargets();
-    const [coverRow,coverUrl]=adminField('Capa (HTTPS ou /uploads/...); vazio remove','');const coverFile=h('input','text-input');coverFile.type='file';coverFile.accept='image/png,image/jpeg,image/webp,.webp';
+    const [coverRow,coverUrl]=adminField('Capa (HTTPS ou /uploads/...); vazio remove','');const coverFile=h('input','text-input');coverFile.type='file';coverFile.accept='image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif';
     covers.append(source,target,coverRow,h('label','','Ou selecione imagem no PC'),coverFile,button('Salvar capa',()=>safeRun(async()=>{
       const image_url=coverFile.files.length?await uploadArtwork(coverFile.files[0]):coverUrl.value;
       return API('/api/admin/covers',{kind:source.value,key:target.value,image_url});
@@ -1976,7 +1976,7 @@
     const [customSelectorRow,customSelector]=adminField('Seletor CSS do elemento personalizado (opcional)','');
     const modeSelect=h('select','select-input');for(const [key,label] of [['background','Imagem de fundo'],['icon','Icone sobre o elemento'],['image','Imagem (tag img)']]){const op=h('option','',label);op.value=key;modeSelect.append(op);}
     const [assetUrlRow,assetUrl]=adminField('URL HTTPS da imagem ou /uploads/...','');
-    const assetFile=h('input','text-input');assetFile.type='file';assetFile.accept='.svg,image/svg+xml,image/png,image/jpeg,image/webp';
+    const assetFile=h('input','text-input');assetFile.type='file';assetFile.accept='.svg,image/svg+xml,image/png,image/jpeg,image/webp,image/gif,.gif';
     const assetPreview=h('div','admin-asset-preview');
     const preview=()=>{const entry=existingAssets.find(a=>a.key===chooseSlot.value);assetPreview.replaceChildren();if(entry?.image_url){const pic=h('img');pic.src=entry.image_url;pic.alt='Arte atual';assetPreview.append(pic,h('span','',entry.image_url));}else assetPreview.append(h('span','', 'Nenhuma imagem configurada para este elemento.'));};
     chooseSlot.onchange=()=>{const sel=allSlots.find(row=>row[0]===chooseSlot.value);modeSelect.value=sel?.[2]||'background';assetUrl.value=existingAssets.find(row=>row.key===chooseSlot.value)?.image_url||'';assetFile.value='';preview();};chooseSlot.onchange();
@@ -2015,7 +2015,7 @@
       for(const key of Object.keys(mFields))mFields[key].value=row[key]??'';
       missionType.value=row.kind;missionEvent.value=row.event;enabled.checked=row.enabled;};
     missionBlock.prepend(h('label','','Editar missão cadastrada ou criar nova'),existing);
-    const imageUpload=h('input','text-input');imageUpload.type='file';imageUpload.accept='image/png,image/jpeg,image/webp,.webp';
+    const imageUpload=h('input','text-input');imageUpload.type='file';imageUpload.accept='image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif';
     missionBlock.append(h('label','','Tipo de missão'),missionType,h('label','','Ação que conta progresso'),missionEvent,h('label','','Ou envie a imagem da missão'),imageUpload,h('label','','Missão ativa'),enabled,
       button('Salvar missão',async()=>{const payload=Object.fromEntries(Object.entries(mFields).map(([k,v])=>[k,v.value]));
         payload.goal=Number(payload.goal);payload.reward=Number(payload.reward);payload.kind=missionType.value;payload.event=missionEvent.value;payload.enabled=enabled.checked;

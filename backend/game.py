@@ -2387,8 +2387,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         # Alguns navegadores classificam WEBP como application/octet-stream.
         # O conteúdo real é sempre verificado com Pillow antes do armazenamento.
         file_name = (image.filename or '').lower()
-        if image.content_type not in ('image/png', 'image/jpeg', 'image/webp', 'application/octet-stream') and not file_name.endswith(('.png','.jpg','.jpeg','.webp')):
-            raise HTTPException(422, detail='Use PNG, JPG ou WEBP')
+        if image.content_type not in ('image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/octet-stream') and not file_name.endswith(('.png','.jpg','.jpeg','.webp','.gif')):
+            raise HTTPException(422, detail='Use PNG, JPG, WEBP ou GIF')
         data = await image.read(4 * 1024 * 1024 + 1)
         if len(data) > 4 * 1024 * 1024:
             raise HTTPException(413, detail='Imagem acima de 4 MB')
@@ -2402,9 +2402,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 fmt = im.format
         except (ValueError, OSError, Image.DecompressionBombError):
             raise HTTPException(422, detail='Arquivo de imagem inválido')
-        if fmt not in ('PNG', 'JPEG', 'WEBP'):
+        if fmt not in ('PNG', 'JPEG', 'WEBP', 'GIF'):
             raise HTTPException(422, detail='Formato de imagem não permitido')
-        ext = {'PNG': 'png', 'JPEG': 'jpg', 'WEBP': 'webp'}[fmt]
+        ext = {'PNG': 'png', 'JPEG': 'jpg', 'WEBP': 'webp', 'GIF': 'gif'}[fmt]
         if os.getenv('APP_ENV', 'development').strip().lower() == 'production':
             # Upload assinado no servidor; o segredo Cloudinary NUNCA vai ao navegador.
             cloud = os.getenv('CLOUDINARY_CLOUD_NAME', '').strip()
@@ -2420,7 +2420,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     response = await client.post(
                         f'https://api.cloudinary.com/v1_1/{cloud}/image/upload',
                         data={'api_key': api_key, 'timestamp': timestamp, 'folder':'recanto', 'signature':signature},
-                        files={'file': (f'arte.{ext}', data, {'png':'image/png','jpg':'image/jpeg','webp':'image/webp'}[ext])},
+                        files={'file': (f'arte.{ext}', data, {'png':'image/png','jpg':'image/jpeg','webp':'image/webp','gif':'image/gif'}[ext])},
                     )
                     response.raise_for_status()
                     image_url = response.json().get('secure_url', '')
