@@ -1178,6 +1178,28 @@
     return result.model_url;
   }
   const adminField=(label,value,type='text')=>{const row=h('label','admin-field',label);const input=h('input','text-input');input.value=value||'';input.type=type;row.append(input);return [row,input];};
+  // URL .webp recebe o mesmo tratamento de PNG/JPG. O teste permite distinguir
+  // uma URL válida de bloqueio de hotlink ou arquivo inacessível na origem.
+  function attachArtworkPreview(input,container){
+    const preview=h('span','admin-artwork-preview');preview.hidden=true;
+    const img=h('img');img.alt='Prévia da arte';img.loading='lazy';
+    const status=h('small','','');preview.append(img,status);container.append(preview);
+    let ticket=0;
+    const render=()=>{
+      const url=input.value.trim();const generation=++ticket;
+      if(!url){preview.hidden=true;img.removeAttribute('src');return;}
+      preview.hidden=false;status.textContent='Verificando imagem...';img.hidden=true;
+      if(!/^https:\/\/|^\/uploads\//i.test(url)){
+        status.textContent='Use uma URL HTTPS direta (.webp, .png ou .jpg) ou envie o arquivo.';return;
+      }
+      img.onload=()=>{if(generation!==ticket)return;img.hidden=false;status.textContent='Imagem carregada ('+img.naturalWidth+' × '+img.naturalHeight+').';};
+      img.onerror=()=>{if(generation!==ticket)return;img.hidden=true;status.textContent='A URL não carregou. O servidor externo pode bloquear imagens incorporadas. Envie o arquivo WEBP pelo campo de upload.';};
+      img.src=url;
+    };
+    input.addEventListener('change',render);
+    input.addEventListener('blur',render);
+    return render;
+  }
   // Editor de registros existentes: todas as operacoes conferem permissoes novamente no servidor.
   function adminCatalogEditor(group,title,spec,collectionPromise){
     const box=block(title,group==='cards'?'Edite, arquive ou exclua permanentemente um card. Excluir apaga também cópias, reservas, favoritos, trocas e ofertas relacionadas.':'Editar ou remover do catálogo sem apagar dados já obtidos pelos usuários. Remover significa arquivar; é possível restaurar.');
@@ -1197,11 +1219,12 @@
         if(kind==='number')input.min='0';
       }
       field.append(input);inputs[key]=input;form.append(field);
+      if(key==='image_url' && kind==='text')attachArtworkPreview(input,field);
     }
     let imageFile=null,modelFile=null,khadaInput=null;
     if(['cards','pets','achievements','items'].includes(group)){
       const label=h('label','admin-field','Substituir imagem (opcional)');
-      imageFile=h('input','text-input');imageFile.type='file';imageFile.accept='image/png,image/jpeg,image/webp';label.append(imageFile);form.append(label);
+      imageFile=h('input','text-input');imageFile.type='file';imageFile.accept='image/png,image/jpeg,image/webp,.webp';label.append(imageFile);form.append(label);
     }
     if(group==='pets'){
       const label=h('label','admin-field','Substituir GLB animado (opcional; em produção requer Cloudinary ou URL pública .glb)');
@@ -1253,8 +1276,9 @@
           `Reservas em pacotes: ${impact.reservations}\n`+
           `Favoritos: ${impact.favorites}\n`+
           `Trocas: ${impact.trades}\n`+
-          `Ofertas em moedas: ${impact.coin_offers}\n\n`+
-          'Esses registros serão APAGADOS do banco de dados. A operação não pode ser desfeita. Faça backup antes de prosseguir.\n\n'+
+          `Ofertas em moedas: ${impact.coin_offers}\n`+
+          `Moedas a devolver aos compradores: ${impact.escrow_coins}\n\n`+
+          'Esses registros serão APAGADOS do banco de dados, com reembolso das ofertas pendentes. A operação não pode ser desfeita. Faça backup antes de prosseguir.\n\n'+
           `Digite EXCLUIR ${current.id} para confirmar:`;
         const confirmation=window.prompt(summary);
         if(confirmation!==`EXCLUIR ${current.id}`)return;
@@ -1276,6 +1300,7 @@
       for(const [key,,kind] of spec){
         inputs[key].value=current[key]??(kind==='number'?0:'');
       }
+      if(inputs.image_url)inputs.image_url.dispatchEvent(new Event('change'));
       status.textContent=current.active?'● Ativo':'● Arquivado (não aparece em novos catálogos)';
       status.classList.toggle('off',!current.active);
       archive.hidden=!current.active;restore.hidden=!!current.active;
@@ -1324,7 +1349,31 @@
     adminBox.append(button('Autorizar ID',()=>safeRun(()=>API('/api/admin/authorized-ids',{discord_id:adminInput.value,action:'add'}),'ID autorizado!')),
       button('Revogar ID adicional',()=>safeRun(()=>API('/api/admin/authorized-ids',{discord_id:adminInput.value,action:'remove'}),'Permissão revogada.')));
     pane.append(adminBox);
-    const card=block('Cadastrar card','Nome, raridade e imagem (opcional).');const [n,ni]=adminField('Nome','');const [url,ui]=adminField('URL HTTPS da imagem ou /uploads/...','');const [collectionRow,collectionInput]=adminField('Coleção do card','Recanto Original');card.append(n,collectionRow,url);const cardFile=h('input','text-input');cardFile.type='file';cardFile.accept='image/png,image/jpeg,image/webp';card.append(h('label','','Ou envie imagem PNG/JPG/WEBP (até 4 MB)'),cardFile);const rarity=h('select','select-input');['comum','raro','lendário','prismático'].forEach(t=>{const o=h('option','',tierLabels[t]);o.value=t;rarity.append(o);});card.append(rarity,button('Cadastrar card',()=>safeRun(async()=>{const image_url=cardFile.files.length?await uploadArtwork(cardFile.files[0]):ui.value;return API('/api/admin/cards',{name:ni.value,rarity:rarity.value,collection:collectionInput.value,image_url});},'Card cadastrado!')));pane.append(card);
+    const card=block('Cadastrar card','Nome, raridade e imagem (opcional).');const [n,ni]=adminField('Nome','');const [url,ui]=adminField('URL HTTPS da imagem PNG/JPG/WEBP ou /uploads/...','');const [collectionRow,collectionInput]=adminField('Coleção do card','Recanto Original');card.append(n,collectionRow,url);attachArtworkPreview(ui,url);const cardFile=h('input','text-input');cardFile.type='file';cardFile.accept='image/png,image/jpeg,image/webp,.webp';card.append(h('label','','Ou envie imagem PNG/JPG/WEBP (até 4 MB)'),cardFile);const rarity=h('select','select-input');['comum','raro','lendário','prismático'].forEach(t=>{const o=h('option','',tierLabels[t]);o.value=t;rarity.append(o);});card.append(rarity,button('Cadastrar card',()=>safeRun(async()=>{const image_url=cardFile.files.length?await uploadArtwork(cardFile.files[0]):ui.value;return API('/api/admin/cards',{name:ni.value,rarity:rarity.value,collection:collectionInput.value,image_url});},'Card cadastrado!')));pane.append(card);
+    const deleteAllCards=block('⚠ Excluir TODOS os Cards','Operação permanente. Apaga o catálogo inteiro, cópias dos membros, Cards favoritos, reservas, trocas e ofertas de moedas relacionadas. Ofertas pendentes são reembolsadas. Pacotes comprados e ainda fechados permanecem no inventário e serão completados com novos Cards quando abertos.');
+    deleteAllCards.classList.add('admin-card-bulk-delete');
+    deleteAllCards.append(button('Apagar todos os Cards de uma vez',async()=>{
+      let impact;
+      try{impact=await API('/api/admin/cards/delete-all-preview');}
+      catch(err){toast('⚠ '+err.message);return;}
+      if(!impact.cards){toast('O catálogo já está vazio.');return;}
+      const summary=`EXCLUSÃO TOTAL — ${impact.cards} CARDS\n\n`+
+        `Cópias de usuários: ${impact.owned}\n`+
+        `Reservas em pacotes: ${impact.reservations}\n`+
+        `Favoritos: ${impact.favorites}\n`+
+        `Trocas: ${impact.trades}\n`+
+        `Ofertas de moedas: ${impact.coin_offers}\n`+
+        `Moedas de ofertas pendentes que serão devolvidas: ${impact.escrow_coins}\n\n`+
+        'ATENÇÃO: a operação é irreversível. Faça um backup do banco antes de prosseguir.\n\n'+
+        'Digite EXCLUIR TODOS OS CARDS para confirmar:';
+      const confirmation=window.prompt(summary);
+      if(confirmation!=='EXCLUIR TODOS OS CARDS')return;
+      if(!window.confirm('CONFIRMAÇÃO FINAL: apagar permanentemente TODOS os '+impact.cards+' Cards e todas as cópias?'))return;
+      const result=await safeRun(()=>API('/api/admin/cards/delete-all',{confirmation}),res=>
+        `${res.cards_deleted} Cards apagados. ${res.refunded_coins} moedas devolvidas nas ofertas pendentes.`);
+      if(result){resetCachedData();state.adminReady=false;await openAdmin(true);}
+    },'danger-action'));
+    pane.append(deleteAllCards);
     const moveCard=block('Alterar coleção de card existente','Informe o ID do card (visível no catálogo administrativo) e o nome da coleção.');
     const [cardIdLabel,cardIdInput]=adminField('ID do card','', 'number');
     const [newCollectionLabel,newCollectionInput]=adminField('Nova coleção','Recanto Original');
@@ -1359,11 +1408,11 @@
     const featured=block('Coleção em destaque','Banner que aparece no Catálogo. Existem três coleções padrão: Celebridades, Personagens e Memes.');
     const [featuredNameLabel,featuredName]=adminField('Nome da coleção','Celebridades');
     const [featuredUrlLabel,featuredUrl]=adminField('URL da capa (opcional)','');
-    const featuredFile=h('input','text-input');featuredFile.type='file';featuredFile.accept='image/png,image/jpeg,image/webp';
+    const featuredFile=h('input','text-input');featuredFile.type='file';featuredFile.accept='image/png,image/jpeg,image/webp,.webp';
     featured.append(featuredNameLabel,featuredUrlLabel,h('label','','Ou escolha uma capa'),featuredFile,button('Salvar destaque',()=>safeRun(async()=>API('/api/admin/collections/featured',{name:featuredName.value,image_url:featuredFile.files.length?await uploadArtwork(featuredFile.files[0]):featuredUrl.value}),'Coleção em destaque atualizada!')));pane.append(featured);
     const pet=block('Cadastrar Poro','Aceita imagem, modelo 3D GLB/GLTF e nomes de animações do arquivo.');
     const [pn,pni]=adminField('Nome do Poro','');const [pe,pei]=adminField('Emoji para fallback','🐾');const [pu,pui]=adminField('Imagem de capa (HTTPS ou /uploads/...)','');
-    const petFile=h('input','text-input');petFile.type='file';petFile.accept='image/png,image/jpeg,image/webp';
+    const petFile=h('input','text-input');petFile.type='file';petFile.accept='image/png,image/jpeg,image/webp,.webp';
     const [modelurl,mui]=adminField('URL do modelo .glb ou embed Khada (opcional)','');
     const [khadaRow,khadaId]=adminField('ID de modelo Khada TFT (opcional)','');khadaId.inputMode='numeric';khadaId.placeholder='ID do modelo encontrado em Khada → Tacticians';
     const modelFile=h('input','text-input');modelFile.type='file';modelFile.multiple=true;modelFile.accept='.glb,.gltf,.bin,.png,.jpg,.jpeg,.webp';
@@ -1393,7 +1442,7 @@
     const [collectInfo,collectInfoInput]=adminField('Descrição','');
     const [collectEmoji,collectEmojiInput]=adminField('Emoji caso não tenha imagem','🏆');
     const [collectCover,collectCoverInput]=adminField('URL HTTPS da imagem (opcional)','');
-    const collectFile=h('input','text-input');collectFile.type='file';collectFile.accept='image/png,image/jpeg,image/webp';
+    const collectFile=h('input','text-input');collectFile.type='file';collectFile.accept='image/png,image/jpeg,image/webp,.webp';
     const collectEnabled=h('input');collectEnabled.type='checkbox';collectEnabled.checked=true;
     collectiblesChoice.onchange=()=>{const obj=currentCollectibles.find(x=>String(x.id)===collectiblesChoice.value);
       collectNameInput.value=obj?.name||'';collectInfoInput.value=obj?.description||'';collectEmojiInput.value=obj?.emoji||'🏆';
@@ -1411,7 +1460,7 @@
     const expData=await API('/api/admin/expeditions');
     const expChoice=h('select','select-input');for(const opt of expData.items||[]){const item=h('option','',opt.name);item.value=opt.id;expChoice.append(item);}
     const [expCover,expCoverInput]=adminField('Imagem da expedição (HTTPS ou /uploads/...)','');
-    const expFile=h('input','text-input');expFile.type='file';expFile.accept='image/png,image/jpeg,image/webp';
+    const expFile=h('input','text-input');expFile.type='file';expFile.accept='image/png,image/jpeg,image/webp,.webp';
     const [expChance,expChanceInput]=adminField('Probabilidade de ganhar um card (0–100%)','0','number');expChanceInput.min='0';expChanceInput.max='100';
     const weights={};const weightFields=[];
     for(const [id,label] of Object.entries(tierLabels)){const [field,input]=adminField('Peso da raridade '+label,'0','number');input.min='0';input.max='100';input.step='0.1';weights[id]=input;weightFields.push(field);}
@@ -1443,7 +1492,7 @@
     const target=h('select','select-input');const fillTargets=()=>{
       target.replaceChildren();(source.value==='shop'?[['pack3','Pacote 3 cards'],['pack5','Pacote 5 cards'],['treat3','Biscoitos'],['fruit','Frutinha'],['feast','Banquete'],['vaccine','Vacina']]:[['daily_card','Card diário'],['daily_coins','Moedas diárias'],['trade','Troca'],['pet','Carinho'],['feed','Alimentar'],['adopt','Adoção'],['pack','Pacote']]).forEach(([value,label])=>{const o=h('option','',label);o.value=value;target.append(o);});
     };source.addEventListener('change',fillTargets);fillTargets();
-    const [coverRow,coverUrl]=adminField('Capa (HTTPS ou /uploads/...); vazio remove','');const coverFile=h('input','text-input');coverFile.type='file';coverFile.accept='image/png,image/jpeg,image/webp';
+    const [coverRow,coverUrl]=adminField('Capa (HTTPS ou /uploads/...); vazio remove','');const coverFile=h('input','text-input');coverFile.type='file';coverFile.accept='image/png,image/jpeg,image/webp,.webp';
     covers.append(source,target,coverRow,h('label','','Ou selecione imagem no PC'),coverFile,button('Salvar capa',()=>safeRun(async()=>{
       const image_url=coverFile.files.length?await uploadArtwork(coverFile.files[0]):coverUrl.value;
       return API('/api/admin/covers',{kind:source.value,key:target.value,image_url});
@@ -1522,7 +1571,7 @@
       for(const key of Object.keys(mFields))mFields[key].value=row[key]??'';
       missionType.value=row.kind;missionEvent.value=row.event;enabled.checked=row.enabled;};
     missionBlock.prepend(h('label','','Editar missão cadastrada ou criar nova'),existing);
-    const imageUpload=h('input','text-input');imageUpload.type='file';imageUpload.accept='image/png,image/jpeg,image/webp';
+    const imageUpload=h('input','text-input');imageUpload.type='file';imageUpload.accept='image/png,image/jpeg,image/webp,.webp';
     missionBlock.append(h('label','','Tipo de missão'),missionType,h('label','','Ação que conta progresso'),missionEvent,h('label','','Ou envie a imagem da missão'),imageUpload,h('label','','Missão ativa'),enabled,
       button('Salvar missão',async()=>{const payload=Object.fromEntries(Object.entries(mFields).map(([k,v])=>[k,v.value]));
         payload.goal=Number(payload.goal);payload.reward=Number(payload.reward);payload.kind=missionType.value;payload.event=missionEvent.value;payload.enabled=enabled.checked;

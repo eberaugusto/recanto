@@ -2318,3 +2318,14 @@ body.dark-mode #profileContent .header-actions .settings-button.search-icon-butt
   outline: 3px solid #f4cb54;
   outline-offset: 3px;
 }
+
+/* RECANTO 0.2.1 — exclusão total segura e prévia de PNG/JPG/WEBP. */
+.admin-card-bulk-delete{border:1px solid rgba(202,65,86,.45)!important;}
+.admin-card-bulk-delete .danger-action{margin-top:12px;max-width:100%;}
+.admin-artwork-preview{display:flex;align-items:center;gap:12px;padding:9px 11px;margin-top:5px;
+  border-radius:12px;background:rgba(95,112,202,.09);font-size:12px;line-height:1.45;min-width:0;}
+.admin-artwork-preview[hidden]{display:none!important;}
+.admin-artwork-preview img{display:block;width:62px;height:62px;object-fit:contain;border-radius:8px;flex:none;}
+.admin-artwork-preview img[hidden]{display:none!important;}
+.admin-artwork-preview small{overflow-wrap:anywhere;}
+body.dark-mode .admin-artwork-preview{background:rgba(8,15,40,.25);color:#f5f6ff;}

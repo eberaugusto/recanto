@@ -22,7 +22,7 @@ import uuid
 
 from fastapi import HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, and_, func, select, text, inspect, delete
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, and_, func, select, text, inspect, delete, update
 from sqlalchemy.orm import Mapped, mapped_column
 from PIL import Image
 
@@ -412,10 +412,14 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         # O antigo bonus fixo de 5 moedas nao e mais utilizado nem exibido na Gestao.
         legacy_bonus=db.get(GameSetting,'card_bonus')
         if legacy_bonus: db.delete(legacy_bonus)
-        if not (db.scalar(select(func.count(Card.id))) or 0):
-            for tier, names in SEED_CARDS.items():
-                for name in names:
-                    db.add(Card(name=name, rarity=tier, image_url=None))
+        # 0.2.1: o catálogo vazio após uma limpeza administrativa deve continuar vazio
+        # no próximo reinício, sem recriar os Cards de demonstração.
+        if not db.get(GameSetting, 'cards_initialized'):
+            if not (db.scalar(select(func.count(Card.id))) or 0):
+                for tier, names in SEED_CARDS.items():
+                    for name in names:
+                        db.add(Card(name=name, rarity=tier, image_url=None))
+            db.add(GameSetting(key='cards_initialized', value=1))
         if not (db.scalar(select(func.count(PetSpecies.id))) or 0):
             for name, emoji in SEED_PETS:
                 db.add(PetSpecies(name=name, emoji=emoji))
@@ -1258,7 +1262,21 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if not pack or pack.user_id!=uid: raise HTTPException(404, detail='Pacote não encontrado')
             if pack.opened_at is not None: raise HTTPException(409,detail='Pacote já aberto')
             reserved=db.scalars(select(ReservedCard).where(ReservedCard.pack_id==pack_id).order_by(ReservedCard.position)).all()
-            if len(reserved)!=(3 if pack.sku=='pack3' else 5): raise HTTPException(409, detail='Pacote incompleto')
+            quantity = 3 if pack.sku=='pack3' else 5
+            positions = {r.position:r for r in reserved}
+            missing = [position for position in range(quantity) if position not in positions]
+            if missing:
+                # A remoção administrativa de Cards pode invalidar reservas de
+                # pacotes já comprados. Sorteamos substituições na abertura.
+                pool = stock(db)
+                if sum(card['remaining'] for card in pool) < len(missing):
+                    raise HTTPException(409,detail='Catálogo sem estoque para completar seu pacote. O pacote foi preservado; tente após o administrador cadastrar novos Cards.')
+                for position in missing:
+                    chosen = random_card(pool, pack.sku)
+                    db.add(ReservedCard(pack_id=pack.id, card_id=chosen['id'], position=position))
+                db.flush()
+                reserved=db.scalars(select(ReservedCard).where(ReservedCard.pack_id==pack_id).order_by(ReservedCard.position)).all()
+            if len(reserved)!=quantity: raise HTTPException(409, detail='Pacote incompleto; contacte o administrador')
             result=[]
             for r in reserved:
                 card=db.get(Card,r.card_id)
@@ -1686,7 +1704,15 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if picture and not (picture.startswith('/uploads/') or picture.startswith('https://')):
             raise HTTPException(422, detail='Imagem deve usar HTTPS ou arquivo enviado')
         with writing() as db:
-            card = Card(name=name, rarity=rarity, image_url=picture, collection_name=collection)
+            # Menor ID positivo ainda disponível, inclusive lacunas deixadas por
+            # exclusões anteriores. A transação escrita serializa dois admins.
+            candidate = 1
+            for existing_id in db.scalars(select(Card.id).where(Card.id > 0).order_by(Card.id)).all():
+                if existing_id > candidate:
+                    break
+                candidate = existing_id + 1
+            card = Card(id=candidate, name=name, rarity=rarity,
+                        image_url=safe_artwork(picture), collection_name=collection)
             db.add(card)
             db.flush()
             cid = card.id
@@ -1999,6 +2025,111 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 'items':items,
             }
 
+    def card_deletion_summary(db, card_id=None):
+        """Preview consistente para 1 Card ou para todo o catálogo."""
+        if card_id is None:
+            # Limpeza geral: inclui quaisquer referências órfãs de versões antigas.
+            tables = ((Card,'cards'), (OwnedCard,'owned'), (ReservedCard,'reservations'),
+                      (FavoriteCard,'favorites'), (Trade,'trades'), (CoinOffer,'coin_offers'))
+            summary = {key: db.scalar(select(func.count()).select_from(model)) or 0
+                       for model,key in tables}
+            summary['escrow_coins'] = db.scalar(select(func.coalesce(func.sum(CoinOffer.amount),0)).where(
+                CoinOffer.status == 'pendente')) or 0
+            return summary
+        selected_owned = select(OwnedCard.id)
+        selected_reserved = select(ReservedCard.id)
+        selected_cards = select(Card.id)
+        if card_id is not None:
+            selected_owned = selected_owned.where(OwnedCard.card_id == card_id)
+            selected_reserved = selected_reserved.where(ReservedCard.card_id == card_id)
+            selected_cards = selected_cards.where(Card.id == card_id)
+        offer_filter = CoinOffer.owned_id.in_(selected_owned)
+        trade_filter = ((Trade.offered_id.in_(selected_owned)) | (Trade.wanted_id.in_(selected_owned)))
+        return {
+            'cards': db.scalar(select(func.count()).select_from(Card).where(Card.id.in_(selected_cards))) or 0,
+            'owned': db.scalar(select(func.count()).select_from(OwnedCard).where(OwnedCard.id.in_(selected_owned))) or 0,
+            'reservations': db.scalar(select(func.count()).select_from(ReservedCard).where(ReservedCard.id.in_(selected_reserved))) or 0,
+            'favorites': db.scalar(select(func.count()).select_from(FavoriteCard).where(FavoriteCard.owned_id.in_(selected_owned))) or 0,
+            'trades': db.scalar(select(func.count()).select_from(Trade).where(trade_filter)) or 0,
+            'coin_offers': db.scalar(select(func.count()).select_from(CoinOffer).where(offer_filter)) or 0,
+            'escrow_coins': db.scalar(select(func.coalesce(func.sum(CoinOffer.amount), 0)).where(
+                offer_filter, CoinOffer.status == 'pendente')) or 0,
+        }
+
+    def delete_cards_with_references(db, card_id=None):
+        """Exclui Cards sem deixar referências órfãs ou moedas em escrow presas."""
+        if card_id is None:
+            refundable = db.execute(select(CoinOffer.buyer_id, func.sum(CoinOffer.amount)).where(
+                CoinOffer.status == 'pendente').group_by(CoinOffer.buyer_id)).all()
+            refunded = 0
+            for buyer_id, total in refundable:
+                amount = int(total or 0)
+                if amount:
+                    wallet(db, buyer_id).coins += amount
+                    refunded += amount
+            for model in (Trade, CoinOffer, FavoriteCard, ReservedCard, OwnedCard):
+                db.execute(delete(model))
+            db.execute(update(PetExpedition).where(PetExpedition.reward_card_id.is_not(None))
+                       .values(reward_card_id=None))
+            db.execute(update(ExpeditionConfig).where(ExpeditionConfig.featured_card_id.is_not(None))
+                       .values(featured_card_id=None))
+            removed = db.execute(delete(Card)).rowcount or 0
+            return {'cards_deleted': removed, 'refunded_coins': refunded}
+        selected_owned = select(OwnedCard.id)
+        selected_cards = select(Card.id)
+        if card_id is not None:
+            selected_owned = selected_owned.where(OwnedCard.card_id == card_id)
+            selected_cards = selected_cards.where(Card.id == card_id)
+        trade_filter = (Trade.offered_id.in_(selected_owned) | Trade.wanted_id.in_(selected_owned))
+        offers_filter = CoinOffer.owned_id.in_(selected_owned)
+        # Devolve todas as moedas reservadas em negociações ainda pendentes.
+        refundable = db.execute(select(CoinOffer.buyer_id, func.sum(CoinOffer.amount)).where(
+            offers_filter, CoinOffer.status == 'pendente').group_by(CoinOffer.buyer_id)).all()
+        refunded = 0
+        for buyer_id, total in refundable:
+            amount = int(total or 0)
+            if amount:
+                wallet(db, buyer_id).coins += amount
+                refunded += amount
+        db.execute(delete(Trade).where(trade_filter))
+        db.execute(delete(CoinOffer).where(offers_filter))
+        db.execute(delete(FavoriteCard).where(FavoriteCard.owned_id.in_(selected_owned)))
+        db.execute(delete(ReservedCard).where(ReservedCard.card_id.in_(selected_cards)))
+        db.execute(delete(OwnedCard).where(OwnedCard.id.in_(selected_owned)))
+        # IDs podem ser reutilizados: nunca os mantenha como recompensa específica
+        # em expedições ou configurações antigas.
+        db.execute(update(PetExpedition).where(PetExpedition.reward_card_id.in_(selected_cards))
+                   .values(reward_card_id=None))
+        db.execute(update(ExpeditionConfig).where(ExpeditionConfig.featured_card_id.in_(selected_cards))
+                   .values(featured_card_id=None))
+        removed = db.execute(delete(Card).where(Card.id.in_(selected_cards))).rowcount or 0
+        return {'cards_deleted': removed, 'refunded_coins': refunded}
+
+    @app.get('/api/admin/cards/delete-all-preview')
+    def admin_cards_delete_all_preview(request: Request):
+        only_admin(request)
+        with SessionLocal() as db:
+            return card_deletion_summary(db)
+
+    @app.post('/api/admin/cards/delete-all')
+    async def admin_cards_delete_all(request: Request):
+        admin_id = only_admin(request)
+        data = json_body(await request.json(), ('confirmation',))
+        if data['confirmation'] != 'EXCLUIR TODOS OS CARDS':
+            raise HTTPException(422, detail='Digite EXCLUIR TODOS OS CARDS para confirmar')
+        with writing() as db:
+            summary = card_deletion_summary(db)
+            result = delete_cards_with_references(db)
+            # A marca impede que os cards de demonstração reapareçam ao reiniciar.
+            marker = db.get(GameSetting, 'cards_initialized')
+            if marker: marker.value = 1
+            else: db.add(GameSetting(key='cards_initialized', value=1))
+        logging.getLogger('recanto.admin').warning(
+            'Exclusão TOTAL de Cards: admin=%s quantidade=%s reembolsos=%s',
+            admin_id, result['cards_deleted'], result['refunded_coins'])
+        return {'ok': True, **summary, **result,
+                'note': 'Pacotes não abertos são mantidos e recebem novas reservas na abertura após o catálogo ser reposto.'}
+
     @app.get('/api/admin/cards/{card_id}/delete-preview')
     def admin_card_delete_preview(card_id: int, request: Request):
         only_admin(request)
@@ -2006,15 +2137,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             card = db.get(Card, card_id)
             if not card:
                 raise HTTPException(404, detail='Card não encontrado')
-            owned_ids = select(OwnedCard.id).where(OwnedCard.card_id == card_id)
-            return {
-                'id': card.id, 'name': card.name,
-                'owned': db.scalar(select(func.count()).select_from(OwnedCard).where(OwnedCard.card_id == card_id)) or 0,
-                'reservations': db.scalar(select(func.count()).select_from(ReservedCard).where(ReservedCard.card_id == card_id)) or 0,
-                'favorites': db.scalar(select(func.count()).select_from(FavoriteCard).where(FavoriteCard.owned_id.in_(owned_ids))) or 0,
-                'trades': db.scalar(select(func.count()).select_from(Trade).where((Trade.offered_id.in_(owned_ids)) | (Trade.wanted_id.in_(owned_ids)))) or 0,
-                'coin_offers': db.scalar(select(func.count()).select_from(CoinOffer).where(CoinOffer.owned_id.in_(owned_ids))) or 0,
-            }
+            return {'id': card.id, 'name': card.name, **card_deletion_summary(db, card_id)}
 
     @app.post('/api/admin/catalog-management/{group}/{ident}')
     async def admin_manage_catalog(group: str, ident: str, request: Request):
@@ -2058,14 +2181,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                         raise HTTPException(422, detail='Exclusão permanente disponível somente para cards')
                     if payload.get('confirmation') != f'EXCLUIR {item_id}' or payload.get('card_name') != obj.name:
                         raise HTTPException(422, detail='Confirmação de exclusão inválida')
-                    owned_ids = select(OwnedCard.id).where(OwnedCard.card_id == item_id)
-                    # Cancelar/remover dependências antes das cópias e do catálogo.
-                    db.execute(delete(Trade).where((Trade.offered_id.in_(owned_ids)) | (Trade.wanted_id.in_(owned_ids))))
-                    db.execute(delete(CoinOffer).where(CoinOffer.owned_id.in_(owned_ids)))
-                    db.execute(delete(FavoriteCard).where(FavoriteCard.owned_id.in_(owned_ids)))
-                    db.execute(delete(ReservedCard).where(ReservedCard.card_id == item_id))
-                    db.execute(delete(OwnedCard).where(OwnedCard.card_id == item_id))
-                    db.delete(obj)
+                    delete_cards_with_references(db, card_id=item_id)
                 elif action=='archive':obj.active=False
                 elif action=='restore':obj.active=True
                 elif group=='cards':
@@ -2112,7 +2228,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
     @app.post('/api/admin/upload')
     async def upload_card_art(request: Request, image: UploadFile = File(...)):
         only_admin(request)
-        if image.content_type not in ('image/png', 'image/jpeg', 'image/webp'):
+        # Alguns navegadores classificam WEBP como application/octet-stream.
+        # O conteúdo real é sempre verificado com Pillow antes do armazenamento.
+        file_name = (image.filename or '').lower()
+        if image.content_type not in ('image/png', 'image/jpeg', 'image/webp', 'application/octet-stream') and not file_name.endswith(('.png','.jpg','.jpeg','.webp')):
             raise HTTPException(422, detail='Use PNG, JPG ou WEBP')
         data = await image.read(4 * 1024 * 1024 + 1)
         if len(data) > 4 * 1024 * 1024:
@@ -2145,7 +2264,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     response = await client.post(
                         f'https://api.cloudinary.com/v1_1/{cloud}/image/upload',
                         data={'api_key': api_key, 'timestamp': timestamp, 'folder':'recanto', 'signature':signature},
-                        files={'file': (f'arte.{ext}', data, image.content_type)},
+                        files={'file': (f'arte.{ext}', data, {'png':'image/png','jpg':'image/jpeg','webp':'image/webp'}[ext])},
                     )
                     response.raise_for_status()
                     image_url = response.json().get('secure_url', '')
