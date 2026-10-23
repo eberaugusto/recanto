@@ -1501,3 +1501,34 @@ body.dark-mode .discord-widget-help{color:#bac6f2;}
   #profileContent .desktop-identity{left:clamp(170px,19vw,244px)!important;right:135px!important;top:106px!important;}
   #profileContent .desktop-identity h2{font-size:clamp(20px,2.4vw,27px)!important;}
 }
+
+/* Recanto 0.1.13 — visualização em tela cheia do Card Favorito (PC e mobile). */
+#latestCard { cursor: zoom-in; touch-action: manipulation; }
+#cardModal.favorite-fullscreen:not([hidden]) {
+  position:fixed!important; inset:0!important; z-index:100000!important;
+  display:flex!important; align-items:center; justify-content:center;
+  overflow-y:auto; padding:clamp(12px,3vh,28px) 14px;
+  background:rgba(12,17,48,.94);
+}
+#cardModal.favorite-fullscreen .card-detail-dialog {
+  width:min(100%,800px); max-width:800px; max-height:calc(100dvh - 24px);
+  overflow:auto; background:transparent; box-shadow:none; color:white;
+  padding:12px 20px 24px; border-radius:16px;
+}
+#cardModal.favorite-fullscreen .detail-art {
+  width:auto; height:auto; max-width:min(75vw,520px); max-height:75dvh;
+  aspect-ratio:2/3; margin:0 auto; border:0; border-radius:12px;
+  background:transparent; display:flex; align-items:center; justify-content:center;
+}
+#cardModal.favorite-fullscreen .detail-art img {
+  width:100%; height:100%; object-fit:contain; max-height:75dvh; display:block;
+}
+#cardModal.favorite-fullscreen .card-detail-dialog h2 {color:white;font-size:clamp(18px,3vw,25px);margin:12px 0 6px;}
+#cardModal.favorite-fullscreen .card-detail-dialog p {color:#eef0ff;margin:6px 0;}
+#cardModal.favorite-fullscreen .detail-x {position:sticky;top:0;float:right;background:#fff;color:#29336d;padding:11px 14px;font-size:19px;z-index:5;}
+#cardModal.favorite-fullscreen .detail-actions {justify-content:center;}
+@media(max-width:767px){
+  #cardModal.favorite-fullscreen .card-detail-dialog{padding:12px 4px 24px;}
+  #cardModal.favorite-fullscreen .detail-art{max-width:88vw;max-height:72dvh;}
+  #cardModal.favorite-fullscreen .detail-art img{max-height:72dvh;}
+}
