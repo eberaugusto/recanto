@@ -1766,7 +1766,7 @@
     const featuredFile=h('input','text-input');featuredFile.type='file';featuredFile.accept='image/png,image/jpeg,image/webp,.webp';
     featured.append(featuredNameLabel,featuredUrlLabel,h('label','','Ou escolha uma capa'),featuredFile,button('Salvar destaque',()=>safeRun(async()=>API('/api/admin/collections/featured',{name:featuredName.value,image_url:featuredFile.files.length?await uploadArtwork(featuredFile.files[0]):featuredUrl.value}),'Coleção em destaque atualizada!')));pane.append(featured);
     // Molduras prontas: a própria arte já contém logo, ornamentos e bordas.
-    const frameRarityBox=block('Molduras padrão por raridade','Envie um PNG/WebP/SVG pronto para cada raridade. A própria moldura deve conter a logo do servidor e os detalhes visuais.');
+    const frameRarityBox=block('Molduras padrão por raridade','Envie uma moldura PNG/WebP transparente para cada raridade. A moldura é aplicada POR CIMA da foto, incluindo logo e ornamentos; mantenha o centro transparente.');
     frameRarityBox.classList.add('admin-collection-frame-editor');
     const rarityPreview=h('div','admin-frame-preview');
     const rarityPreviewCard=frameCardArt({name:'Prévia do Card',rarity:'raro',collection:'Recanto Original'},'card-art');
@@ -1798,7 +1798,7 @@
     pane.append(frameRarityBox);
     fillRarityRows().catch(()=>{});
 
-    const styleBox=block('Molduras exclusivas por coleção','Quando uma coleção tiver moldura própria, ela substitui a moldura padrão da raridade. A moldura já deve incluir o R/logo no próprio arquivo.');
+    const styleBox=block('Molduras exclusivas por coleção','A moldura exclusiva da coleção fica POR CIMA da foto e substitui a de raridade. Inclua o R/logo na arte e deixe o centro transparente (PNG/WebP recomendado).');
     styleBox.classList.add('admin-collection-frame-editor');
     const styleNames=h('datalist');styleNames.id='cardCollectionStyleOptions';
     const styleNameRow=h('label','admin-field','Coleção');

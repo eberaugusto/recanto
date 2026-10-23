@@ -2519,10 +2519,6 @@ body.dark-mode .poro-stat-header{color:#eaf0ff;}
   #cardModal.favorite-fullscreen .detail-art.recanto-framed-art{width:min(82vw,380px)!important;max-width:min(82vw,380px)!important;}
 }
 
-  .detail-art.recanto-framed-art{--recanto-frame-thickness:9px;}
-  #cardModal.favorite-fullscreen .detail-art.recanto-framed-art{width:min(82vw,380px)!important;max-width:min(82vw,380px)!important;}
-}
-
 /* RECANTO v0.2.6 — editor compacto de moedas por raridade. */
 .admin-rarity-reward-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:10px;}
 .admin-rarity-reward-item{display:flex;flex-direction:column;gap:9px;min-width:0;padding:14px;border:1px solid rgba(92,109,175,.2);border-radius:14px;}
@@ -2531,3 +2527,37 @@ body.dark-mode .poro-stat-header{color:#eaf0ff;}
 .admin-rarity-reward-item button{align-self:stretch;}
 .admin-rarity-reward-item .admin-reward-status{min-height:1em;font-size:12px;}
 @media(max-width:640px){.admin-rarity-reward-grid{grid-template-columns:1fr;}}
+
+
+/* RECANTO 0.2.7 — A FOTO FICA ATRÁS DA MOLDURA TRANSPARENTE.
+   Ordem visual: fotografia (1) -> moldura enviada (3).
+   A moldura da coleção prevalece sobre a moldura da raridade via app.js.
+   A imagem PNG/WebP/SVG deve possuir transparência na janela central. */
+.recanto-framed-art.custom-collection-frame {
+  background-image:var(--recanto-frame-base)!important;
+  padding:0!important;
+}
+.recanto-framed-art.custom-collection-frame>.recanto-card-photo {
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  border-radius:0!important;
+  z-index:1!important;
+}
+.recanto-framed-art.custom-collection-frame::after {
+  content:"";
+  display:block;
+  position:absolute;
+  inset:0;
+  z-index:3;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+  background-image:var(--recanto-custom-frame,none);
+  background-position:center;
+  background-repeat:no-repeat;
+  background-size:100% 100%;
+}
+/* Sem moldura enviada, permanece o contorno colorido padrão da raridade. */
+.recanto-framed-art:not(.custom-collection-frame)::after { content:none; }
