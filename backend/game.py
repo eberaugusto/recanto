@@ -309,6 +309,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         status: Mapped[str] = mapped_column(String(15), default='ativo')
         food: Mapped[int] = mapped_column(Integer, default=85)
         happiness: Mapped[int] = mapped_column(Integer, default=85)
+        health: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
+        luck: Mapped[int | None] = mapped_column(Integer, nullable=True)  # Sorte fixa nesta adocao (1 a 10)
         adopted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
         last_action_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
         last_tick_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -383,7 +385,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
     # 0.1.21: migracoes aditivas, sem perder Poros, expedicoes ou colecoes antigas.
     for table, fields in {
         'user_pets': {'nickname': 'VARCHAR(40)', 'equipped_collectible_id': 'INTEGER',
-                      'death_at': 'TIMESTAMP', 'death_penalty_applied': 'BOOLEAN NOT NULL DEFAULT FALSE'},
+                      'death_at': 'TIMESTAMP', 'death_penalty_applied': 'BOOLEAN NOT NULL DEFAULT FALSE',
+                      'health': 'INTEGER NOT NULL DEFAULT 100', 'luck': 'INTEGER'},
         'pet_expeditions': {
             'reward_card_id': 'INTEGER',
             'reward_collectible_id': 'INTEGER',
@@ -400,6 +403,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 if table == 'user_pets' and 'death_penalty_applied' not in existing:
                     connection.execute(text("UPDATE user_pets SET death_penalty_applied = TRUE WHERE status = 'morto'"))
     Base.metadata.create_all(engine)
+    # Atualizacao unica dos Poros ja adotados. Nenhuma visita pode rerrolar a Sorte.
+    with SessionLocal.begin() as migration_db:
+        old_pets=migration_db.scalars(select(UserPet).where(UserPet.luck.is_(None))).all()
+        for old_pet in old_pets:
+            old_pet.luck=RANDOM.randint(1,10)
     with SessionLocal.begin() as db:
         if not db.get(FeaturedCollection,1):
             db.add(FeaturedCollection(id=1, name='Celebridades'))
@@ -757,18 +765,24 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if hours:
                 obj.food = max(0, obj.food - hours * 4)
                 obj.happiness = max(0, obj.happiness - hours * 3)
+                # Saude piora se o Poro passa horas em fome extrema ou tristeza severa.
+                if obj.food == 0 or obj.happiness == 0:
+                    obj.health = max(0, (obj.health if obj.health is not None else 100) - hours * 2)
                 obj.last_tick_at = then + timedelta(hours=hours)
             threshold = timedelta(hours=setting(db, 'neglect_hours'))
             last = naive_to_utc(obj.last_action_at)
             if now - last >= threshold:
                 obj.status = 'vet'
                 obj.vet_since = last + threshold
+                obj.health = min(obj.health if obj.health is not None else 100, 35)
         if obj.status == 'vet':
             deadline = naive_to_utc(obj.vet_since) + timedelta(days=setting(db, 'vet_dead_days'))
             if now >= deadline:
                 obj.status = 'morto'
                 obj.death_at = deadline  # A espera começa na morte, não na próxima visita.
+                obj.health = 0
         if obj.status == 'morto':
+            obj.health = 0
             if obj.death_at is None:
                 # Dados antigos sem data exata: usar o prazo do veterinário quando houver.
                 obj.death_at = (naive_to_utc(obj.vet_since) + timedelta(days=setting(db, 'vet_dead_days'))) if obj.vet_since else now
@@ -792,8 +806,14 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if item:
                 equipped = collectible_dict(item, owned.quantity, owned.acquired_at)
         allowed=(naive_to_utc(obj.death_at)+timedelta(hours=24)).isoformat() if obj.status=='morto' and obj.death_at else None
+        swap_available=(naive_to_utc(obj.adopted_at)+timedelta(hours=48)).isoformat() if obj.status=='ativo' else None
         return {'species_id': sp.id, 'name': sp.name, 'emoji': sp.emoji, 'image_url': sp.image_url, **model_fields(sp),
                 'nickname': obj.nickname or sp.name, 'equipped_collectible': equipped, 'status': obj.status, 'food': obj.food, 'happiness': obj.happiness,
+                'health': max(0,min(100,int(obj.health if obj.health is not None else 100))),
+                'luck': max(1,min(10,int(obj.luck if obj.luck is not None else 1))),
+                'luck_bonus_pct': round(max(1,min(10,int(obj.luck if obj.luck is not None else 1)))*0.5,1),
+                'change_available_at': swap_available,
+
                 'rescue_cost': setting(db, 'vet_cost'), 'vet_deadline': deadline,
                 'death_at': naive_to_utc(obj.death_at).isoformat() if obj.death_at else None,
                 'adoption_available_at': allowed, 'death_penalty': setting(db,'pet_death_penalty'),
@@ -859,6 +879,24 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             'featured_card_id':obj.featured_card_id if obj else None,
             'collectible_id':obj.collectible_id if obj else None,
             'collectible_chance':obj.collectible_chance if obj else 0}
+
+    def lucky_expedition_weights(weights, luck):
+        """Aumenta a chance de raridade acima de Comum em 0,5 pp por Sorte.
+
+        Conserva a proporcao entre Raro, Lendario e Prismatico. Nao altera
+        a chance de encontrar um Card nem cria cartas fora do estoque.
+        """
+        result={tier:max(0.0,float(weights.get(tier,0) or 0)) for tier in TIERS}
+        total=sum(result.values())
+        if total<=0:return result
+        common=result['comum']
+        rare_total=total-common
+        if common<=0 or rare_total<=0:return result
+        bonus=min(common, total*(max(1,min(10,int(luck)))*0.005))
+        result['comum']-=bonus
+        for tier in TIERS:
+            if tier!='comum':result[tier]+=bonus*(result[tier]/rare_total)
+        return result
 
     def weighted_expedition_card(pool, weights):
         eligible=[x for x in pool if x['remaining']>0]
@@ -1392,8 +1430,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if action=='feed':
                 consume_treat(db,visitor,sku)
                 obj.food=min(100,obj.food+TREAT_TYPES[sku]['food'])
+                obj.health=min(100,(obj.health if obj.health is not None else 100)+3)
             else:
                 obj.happiness=min(100,obj.happiness+15)
+                obj.health=min(100,(obj.health if obj.health is not None else 100)+1)
             obj.last_action_at=utcnow()
             db.add(VisitorCare(visitor_id=visitor,owner_id=owner_id,day=local_day(),action=action))
             gain=setting(db,'visit_pet_reward' if action=='pet' else 'visit_feed_reward')
@@ -1460,7 +1500,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             db.add(PetExpedition(user_id=uid,mission=key,started_at=now,
                 ends_at=now+timedelta(minutes=base['minutes']),coins=coins,
                 card_award=card_award,reward_card_id=info['featured_card_id'] if card_award else None,
-                reward_collectible_id=collect_id,reward_rarities=json.dumps(info['rarity_weights'])))
+                reward_collectible_id=collect_id,reward_rarities=json.dumps(lucky_expedition_weights(info['rarity_weights'],obj.luck or 1))))
         return {'ok':True,'ends_at':(now+timedelta(minutes=base['minutes'])).isoformat()}
 
     @app.post('/api/pets/expedition/collect')
@@ -1532,7 +1572,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 db.delete(pet)
                 db.flush()
             db.add(UserPet(user_id=uid, species_id=sid, nickname=nickname, status='ativo',
-                           food=85, happiness=85, adopted_at=utcnow(),
+                           food=85, happiness=85, health=100, luck=RANDOM.randint(1,10), adopted_at=utcnow(),
                            last_action_at=utcnow(), last_tick_at=utcnow()))
             progress(db, uid, 'adopt')
             achievement_event(db, uid, 'adopt')
@@ -1557,8 +1597,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             specie=db.get(PetSpecies,sid)
             if not specie or not specie.active:raise HTTPException(404,detail='Poro indisponível para adoção')
             now=utcnow()
+            ready_at=naive_to_utc(obj.adopted_at)+timedelta(hours=48)
+            if now<ready_at:
+                raise HTTPException(409,detail='A troca de Poro fica disponível 48 horas após a última adoção ou troca. Disponível em: '+ready_at.isoformat())
             obj.species_id=sid;obj.nickname=nickname;obj.status='ativo'
-            obj.food=85;obj.happiness=85;obj.adopted_at=now
+            obj.food=85;obj.happiness=85;obj.health=100;obj.luck=RANDOM.randint(1,10);obj.adopted_at=now
             obj.last_tick_at=now;obj.last_action_at=now
             obj.last_pet_at=None;obj.last_feed_at=None;obj.vet_since=None
             obj.death_at=None;obj.death_penalty_applied=False
@@ -1624,11 +1667,13 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     raise HTTPException(422, detail='Vacinas só podem ser usadas no veterinário')
                 consume_treat(db, uid, sku)
                 obj.food = min(100, obj.food + TREAT_TYPES[sku]['food'])
+                obj.health = min(100,(obj.health if obj.health is not None else 100)+3)
                 obj.last_feed_at = now
             else:
                 if obj.last_pet_at and now < naive_to_utc(obj.last_pet_at) + timedelta(minutes=5):
                     raise HTTPException(409, detail='Aguarde 5 minutos antes de acariciar novamente')
                 obj.happiness = min(100, obj.happiness + 25)
+                obj.health = min(100,(obj.health if obj.health is not None else 100)+1)
                 obj.last_pet_at = now
             obj.last_action_at = now
             progress(db, uid, action)
@@ -1648,7 +1693,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if obj.status!='vet':raise HTTPException(409,detail='Vacina disponível quando o Poro está no veterinário')
             consume_treat(db,uid,'vacina')
             obj.status='ativo';obj.vet_since=None
-            obj.food=max(obj.food,75);obj.happiness=max(obj.happiness,75)
+            obj.food=max(obj.food,75);obj.happiness=max(obj.happiness,75);obj.health=max(obj.health or 0,70)
             obj.last_action_at=obj.last_tick_at=utcnow()
         return {'ok':True}
 
@@ -1668,6 +1713,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             obj.vet_since = None
             obj.food = 70
             obj.happiness = 65
+            obj.health = max(obj.health or 0,70)
             obj.last_action_at = obj.last_tick_at = utcnow()
         return {'ok': True, 'spent': price}
 

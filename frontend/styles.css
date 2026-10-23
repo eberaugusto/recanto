@@ -2371,3 +2371,90 @@ body.dark-mode #petPane .poro-home-badge{background:#30466c;color:#fff;}
 .public-pet .public-pet-actions .select-input{flex:1 1 165px;min-width:0;}
 .public-pet .public-pet-actions button{flex:1 1 120px;min-width:0;}
 .public-pet .public-pet-closed{font-size:13px;line-height:1.5;opacity:.8;}
+
+/* RECANTO 0.2.3 — Poro maior, atributos em duas colunas, prévia 3D mobile. */
+.poro-preview-heading{
+  display:flex;align-items:center;justify-content:center;flex-wrap:wrap;
+  gap:8px 13px;min-width:0;margin:12px 0 14px;text-align:center;
+}
+.poro-preview-name{
+  font-size:clamp(20px,2vw,26px);font-weight:900;line-height:1.2;
+  overflow-wrap:anywhere;color:#2d408e;
+}
+.poro-preview-status{
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:6px 10px;border-radius:999px;background:#e5eaff;color:#4257a6;
+  font-size:13px;font-weight:700;line-height:1.1;white-space:nowrap;
+}
+.poro-stats-grid{
+  width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px 16px;text-align:left;margin:12px 0 8px;
+}
+.poro-stat{min-width:0;display:flex;flex-direction:column;gap:7px;}
+.poro-stat-header{display:flex;gap:5px;align-items:baseline;justify-content:space-between;min-width:0;font-size:12px;line-height:1.25;}
+.poro-stat-header span{min-width:0;font-weight:650;}
+.poro-stat-value{flex-shrink:0;font-variant-numeric:tabular-nums;font-size:12px;}
+.poro-stat-track{height:8px;width:100%;overflow:hidden;border-radius:99px;background:#dce3ff;}
+.poro-stat-fill{display:block;height:100%;border-radius:inherit;background:#5969ee;transition:width .3s ease;}
+.poro-stat[data-stat="health"] .poro-stat-fill{background:#34a573;}
+.poro-stat[data-stat="luck"] .poro-stat-fill{background:#e3b245;}
+.poro-luck-hint{grid-column:1/-1;margin:0!important;font-size:11px!important;line-height:1.45!important;opacity:.8;}
+#profileContent .desktop-pet-content .pet-visual{
+  width:100%!important;max-width:none!important;min-width:0;
+  height:clamp(290px,30vw,420px)!important;aspect-ratio:auto!important;
+  margin:0!important;border-radius:18px;
+}
+#profileContent .desktop-pet-content .pet-visual .pet-fallback img,
+#profileContent .mobile-pet-content .pet-visual .pet-fallback img{
+  height:100%;width:100%;object-fit:contain!important;object-position:center!important;
+}
+#profileContent .desktop-pet-content model-viewer,
+#profileContent .mobile-pet-content model-viewer{width:100%;height:100%;}
+#profileContent .desktop-pet-content .poro-equipped-chip{top:12px;right:12px;}
+#petPane .poro-status-card .poro-stats-grid{margin-top:16px;}
+#petPane .poro-status-note{margin:12px 0 0!important;}
+#petPane .poro-change-wait{margin:8px 0!important;font-size:13px;}
+.public-pet>.pet-visual{width:100%!important;height:clamp(250px,28vw,390px)!important;min-width:0;max-width:none;border-radius:16px;}
+.public-pet>.pet-visual .pet-fallback img{object-fit:contain!important;}
+.public-pet .poro-preview-name{font-size:20px;}
+.public-pet .poro-stats-grid{margin:10px 0 16px;}
+body.dark-mode .poro-preview-name{color:#fff;}
+body.dark-mode .poro-preview-status{color:#f2f5ff;background:#344773;}
+body.dark-mode .poro-stat-track{background:#37486e;}
+body.dark-mode .poro-stat-header{color:#eaf0ff;}
+@media(max-width:767px){
+  #profileContent .mobile-pet-widget:not([hidden]){
+    gap:12px!important;padding:18px!important;border-radius:22px;
+  }
+  #profileContent .mobile-pet-content{
+    display:flex!important;flex-direction:column!important;align-items:stretch!important;
+    gap:0!important;min-width:0;width:100%;
+  }
+  #profileContent .mobile-pet-content .pet-visual{
+    width:100%!important;height:clamp(270px,78vw,420px)!important;
+    min-height:0;max-height:none;aspect-ratio:auto!important;
+    margin:0 auto!important;border-radius:17px;
+  }
+  #profileContent .mobile-pet-content .poro-equipped-chip{
+    width:46px;height:46px;top:12px;right:12px;
+  }
+  #profileContent .mobile-pet-content .poro-preview-heading{
+    margin:12px 0!important;gap:8px 12px!important;
+  }
+  #profileContent .mobile-pet-content .poro-preview-name{
+    align-self:auto!important;font-size:clamp(19px,5.5vw,25px)!important;
+    font-weight:900;line-height:1.2;
+  }
+  #profileContent .mobile-pet-content .poro-preview-status{
+    align-self:auto!important;font-size:13px!important;
+  }
+  #profileContent .mobile-pet-content .poro-stats-grid{margin:6px 0 12px;}
+  #profileContent .mobile-pet-widget .desktop-widget-action{
+    width:100%;min-height:45px;display:flex;align-items:center;justify-content:center;
+  }
+  .poro-stat-header{font-size:11px;}
+  #petPane .poro-main-card .pet-visual-large{
+    height:clamp(330px,95vw,500px)!important;min-height:0!important;
+  }
+  .public-pet>.pet-visual{height:clamp(275px,76vw,410px)!important;}
+}

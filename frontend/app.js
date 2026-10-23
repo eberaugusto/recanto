@@ -487,6 +487,39 @@
     }
     return view;
   }
+  const poroStatusLabel=pet=>({ativo:'Em casa',missao:'Em expedição',vet:'No veterinário',morto:'Falecido'})[pet?.status]||'Indisponível';
+  function poroNameAndStatus(pet){
+    const line=h('div','poro-preview-heading');
+    line.append(h('strong','poro-preview-name',pet.nickname||poroSpeciesName(pet.name)),
+                h('span','poro-preview-status',poroStatusLabel(pet)));
+    return line;
+  }
+  function poroStats(pet){
+    const grid=h('div','poro-stats-grid');
+    const values=[['health','Saúde',100,'🩺'],['food','Fome',100,'🍎'],
+                  ['happiness','Felicidade',100,'💗'],['luck','Sorte',10,'🍀']];
+    for(const [key,label,max,emoji] of values){
+      const value=Math.max(0,Math.min(max,Number(pet?.[key]??(key==='luck'?1:100))));
+      const box=h('div','poro-stat');box.dataset.stat=key;
+      const header=h('div','poro-stat-header');header.append(h('span','',emoji+' '+label),h('strong','poro-stat-value',value+'/'+max));
+      const meter=h('div','poro-stat-track');const fill=h('span','poro-stat-fill');fill.style.width=String(100*value/max)+'%';meter.append(fill);
+      box.append(header,meter);grid.append(box);
+    }
+    const tip=h('p','poro-luck-hint',`🍀 Sorte: +${(Number(pet?.luck||1)*0.5).toLocaleString('pt-BR')} p.p. para raridades acima de Comum nas expedições.`);
+    grid.append(tip);
+    return grid;
+  }
+  function updatePoroStats(container,pet){
+    if(!container||!pet)return;
+    for(const [key,max] of [['health',100],['food',100],['happiness',100],['luck',10]]){
+      const box=container.querySelector('.poro-stat[data-stat="'+key+'"]');if(!box)continue;
+      const value=Math.max(0,Math.min(max,Number(pet[key]??(key==='luck'?1:100))));
+      const number=box.querySelector('.poro-stat-value');if(number)number.textContent=value+'/'+max;
+      const meter=box.querySelector('.poro-stat-fill');if(meter)meter.style.width=(100*value/max)+'%';
+    }
+    const tip=container.querySelector('.poro-luck-hint');
+    if(tip)tip.textContent=`🍀 Sorte: +${(Number(pet.luck||1)*0.5).toLocaleString('pt-BR')} p.p. para raridades acima de Comum nas expedições.`;
+  }
   async function loadPetPreview(){
     // Opcional e paralelo: a página inicial não fica bloqueada aguardando o pet.
     if(state.petPreviewLoading)return;
@@ -497,15 +530,11 @@
       const pet=data.pet;content.replaceChildren();
       const mobile=$('mobilePetPreview');if(mobile)mobile.replaceChildren();
       if(!pet){content.append(h('p','', 'Você ainda não adotou um Poro.'));if(mobile)mobile.closest('.mobile-pet-widget').hidden=true;state.petPreviewLoaded=true;return;}
-      content.append(petPortrait(pet,false));
-      content.append(h('p','desktop-pet-name',pet.nickname||poroSpeciesName(pet.name)));
-      if(mobile){mobile.closest('.mobile-pet-widget').hidden=false;mobile.append(petPortrait(pet,false,true),h('strong','',pet.nickname||poroSpeciesName(pet.name)),h('span','',pet.status==='missao'?'Em expedição':pet.status==='ativo'?'Em casa':pet.status==='vet'?'No veterinário':'Falecido'));}
-      content.append(h('p','',pet.status==='ativo'?'Em casa':pet.status==='vet'?'No veterinário':pet.status==='missao'?'Em missão':'Falecido'));
-      for(const [label,val] of [['Bem-estar',pet.happiness],['Fome',pet.food]]){
-        if(val==null)continue;
-        const row=h('div','desktop-pet-metric');row.append(h('span','',label),h('span','',`${val}/100`));
-        const meter=h('div','desktop-pet-meter');const fill=h('span');fill.style.width=`${Math.max(0,Math.min(100,Number(val)||0))}%`;meter.append(fill);
-        content.append(row,meter);
+      // Uma prévia 3D para cada layout; o observador só inicia a que está visível.
+      content.append(petPortrait(pet,true),poroNameAndStatus(pet),poroStats(pet));
+      if(mobile){
+        mobile.closest('.mobile-pet-widget').hidden=false;
+        mobile.append(petPortrait(pet,true),poroNameAndStatus(pet),poroStats(pet));
       }
       state.petPreviewLoaded=true;
     }catch(_){content.replaceChildren(h('p','', 'Poro temporariamente indisponível. Abra a aba Poros para tentar novamente.'));}
@@ -849,10 +878,9 @@
     if(!profile.pet){const empty=block('Sem Poro','Este membro ainda não adotou um Poro.');empty.classList.add('public-section','public-pet');return empty;}
     const pet=profile.pet;
     const label=pet.nickname||poroSpeciesName(pet.name);
-    const status={ativo:'Em casa',missao:'Em expedição',vet:'No veterinário',morto:'Falecido'}[pet.status]||'Indisponível';
-    const panel=block('🐾 Poro: '+label,`Fome ${pet.food}/100 · Felicidade ${pet.happiness}/100 · ${status}`);
+    const panel=block('🐾 Poro: '+label);
     panel.classList.add('public-section','public-pet');panel.dataset.ownerId=profile.key;
-    panel.prepend(petPortrait(pet));
+    panel.append(petPortrait(pet,true),poroNameAndStatus(pet),poroStats(pet));
     if(pet.status==='ativo'){
       const actions=h('div','social-actions public-pet-actions');
       const caress=button('💗 Acariciar',()=>visitPet(profile.key,'pet',null,panel),'main-action public-pet-pat');
@@ -887,8 +915,7 @@
       const response=await API('/api/pets/visit/'+encodeURIComponent(owner),{action,treat_sku:sku||'biscoito'});
       resetCachedData();
       if(response.pet){
-        const status=card.querySelector(':scope > p');
-        if(status)status.textContent=`Fome ${response.pet.food}/100 · Felicidade ${response.pet.happiness}/100 · Em casa`;
+        updatePoroStats(card,response.pet);
       }
       applyConfirmedCoins({coins_balance:response.visitor_balance,coins_gained:response.visitor_coins});
       if(action==='feed' && response.visitor_treats!==undefined){
@@ -1067,8 +1094,9 @@
       view.setAttribute('loading','eager');view.setAttribute('reveal','auto');
       if(large){
         // Aproxima o Poro dentro do seu painel sem alterar escala do card.
-        view.setAttribute('camera-orbit','0deg 75deg 82%');
-        view.setAttribute('min-camera-orbit','auto auto 65%');
+        // Enquadramento mais próximo: ocupa o quadro com o Poro, sem distorcer a malha.
+        view.setAttribute('camera-orbit','0deg 75deg 65%');
+        view.setAttribute('min-camera-orbit','auto auto 48%');
       }
       view.setAttribute('animation-crossfade-duration','300');
       // Nao ativar autoplay antes de descobrir a animacao correta: isso disparava Walk/Dance.
@@ -1141,8 +1169,7 @@
       if(result?.pet){
         state.activePet=result.pet;
         if(Number.isFinite(Number(result.treats)))state.activePetTreats=Number(result.treats);
-        const p=$('petPane').querySelector('.poro-status-card p');
-        if(p)p.textContent=`🍎 Fome: ${result.pet.food}/100 • 💕 Felicidade: ${result.pet.happiness}/100 • 🍪 Petiscos: ${state.activePetTreats??0}`;
+        updatePoroStats($('petPane').querySelector('.poro-status-card'),result.pet);
       }
       if(action==='feed'){
         const remaining=Number(result?.treats);
@@ -1219,13 +1246,10 @@
     show.append(nameBar,petPortrait(pet,true));
     care.append(show);
 
-    const statusCard=block('Status do Poro',pet.status==='missao'
-      ?`🍎 Fome: ${pet.food}/100 • 💕 Felicidade: ${pet.happiness}/100 • 🍪 Petiscos: ${data.treats}`
-      :pet.status==='vet'
-        ?`🏥 Resgate por ${money(pet.rescue_cost)} moedas. Prazo: ${pet.vet_deadline?new Date(pet.vet_deadline).toLocaleString('pt-BR'):'—'}`
-        :`🍎 Fome: ${pet.food}/100 • 💕 Felicidade: ${pet.happiness}/100 • 🍪 Petiscos: ${data.treats}`
-    );
+    const statusCard=block('Status do Poro');
     statusCard.classList.add('poro-status-card');
+    statusCard.append(poroStats(pet));
+    if(pet.status==='vet')statusCard.append(h('p','poro-status-note',`🏥 Resgate: ${money(pet.rescue_cost)} moedas • Prazo: ${pet.vet_deadline?new Date(pet.vet_deadline).toLocaleString('pt-BR'):'—'}`));
     care.append(statusCard);
 
     const rename=block('Nome do Poro');rename.classList.add('poro-config-card');
@@ -1255,10 +1279,19 @@
     adventures.append(equip);
 
     if(pet.status==='ativo'){
-      const change=block('Trocar de Poro','Escolha outro Poro. A troca substitui o atual, mas seus colecionáveis continuam no inventário.');
+      const changeReady=pet.change_available_at ? new Date(pet.change_available_at).getTime() : 0;
+      const canChange=!changeReady || Date.now()>=changeReady;
+      const change=block('Trocar de Poro',canChange
+        ?'Escolha outro Poro. A troca substitui o atual e conserva seus colecionáveis no Inventário.'
+        :'Para preservar seu companheiro, a troca só é permitida a cada 48 horas.');
       change.classList.add('poro-change-card');
       const toggle=button('Escolher outro Poro',()=>{choices.hidden=!choices.hidden;toggle.setAttribute('aria-expanded',String(!choices.hidden));},'soft-action');
       toggle.setAttribute('aria-expanded','false');
+      if(!canChange){
+        toggle.disabled=true;
+        const notice=h('p','poro-change-wait','Troca disponível em: '+new Date(pet.change_available_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}));
+        change.append(notice);
+      }
       const choices=h('div','poro-change-options');choices.hidden=true;
       const speciesSelect=h('select','select-input');speciesSelect.setAttribute('aria-label','Escolha a espécie do novo Poro');
       for(const specie of data.species||[]){
