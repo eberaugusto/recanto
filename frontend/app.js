@@ -185,7 +185,7 @@
         const actions=h('div','feed-actions');const like=button(`${item.liked?'♥':'♡'} ${item.likes}`,async()=>{
           like.disabled=true;
           try{const ans=await API(`/api/feed/${item.id}/like`,{});if(ans.coins_gained)toast('+1 moeda por curtir!');resetCachedData();await loadFeedRefresh();if(ans.coins_gained)refreshProfile().catch(()=>{});}catch(e){toast('⚠ '+e.message);}finally{like.disabled=false;}
-        },'feed-like'+(item.liked?' is-liked':''));like.setAttribute('aria-label','Curtir publicação; '+item.likes+' curtidas');actions.append(like);
+        },'feed-like'+(item.liked?' is-liked':''));like.setAttribute('aria-label',item.mine?'Não é possível curtir publicação própria':'Curtir publicação; '+item.likes+' curtidas');if(item.mine){like.disabled=true;like.title='Você não pode curtir sua própria publicação';like.classList.add('feed-like-own');}actions.append(like);
         box.append(header,msg,actions);article.append(pic,box);list.append(article);
       }
     }finally{feedLoading=false;}

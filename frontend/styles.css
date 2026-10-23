@@ -1586,3 +1586,69 @@ body.dark-mode .discord-widget-help{color:#bac6f2;}
 .feed-like.is-liked{color:#c83d72;background:#fff1f5;border-color:#ffd2df;}
 .feed-empty{background:#fff;color:#4a5988;border-radius:18px;padding:30px;text-align:center;}
 @media(min-width:768px){.feed-screen .scroll-content{max-width:920px;margin:0 auto;width:100%;}.feed-entry{padding:21px;gap:18px;}.feed-avatar{width:68px;height:68px;}.feed-head{font-size:19px;}.feed-description{font-size:18px;}.feed-time{font-size:14px;}.feed-info{color:#354e9a;font-size:15px;}}
+
+/* RECANTO 0.1.17 — tema escuro consistente e Feed */
+body.dark-mode .full-page, body.dark-mode .admin-page, body.dark-mode .public-profile-page,
+body.dark-mode .admin-dialog, body.dark-mode .admin-scroll { background:#111a33 !important; color:#edf2ff !important; }
+body.dark-mode .desktop-main, body.dark-mode .desktop-content,
+body.dark-mode .content-page, body.dark-mode .scroll-content { color:#edf2ff; }
+body.dark-mode .feed-entry,body.dark-mode .feed-empty,
+body.dark-mode .admin-page .game-box,body.dark-mode .admin-page .modal-panel,
+body.dark-mode .admin-page .admin-dialog>.admin-tabs,
+body.dark-mode .card-filters,body.dark-mode .catalog-summary,
+body.dark-mode .shop-daily-coins,body.dark-mode .daily-card-box,
+body.dark-mode .mission-card,body.dark-mode .inventory-row,
+body.dark-mode .public-profile-hero,body.dark-mode .public-profile-layout .game-box,
+body.dark-mode .desktop-pet-widget,body.dark-mode .profile-discord-widget,
+body.dark-mode .card-tile,body.dark-mode .product-card {
+  background:#1b2949 !important;color:#f3f6ff !important;border-color:#364a70 !important;
+}
+body.dark-mode .feed-head,body.dark-mode .feed-head strong,body.dark-mode .feed-description,
+body.dark-mode .feed-info,body.dark-mode .feed-empty,body.dark-mode .feed-time,
+body.dark-mode .admin-page h2,body.dark-mode .admin-page h3,body.dark-mode .admin-page p,
+body.dark-mode .admin-page label,body.dark-mode .admin-page strong,
+body.dark-mode .admin-page .admin-field,body.dark-mode .admin-page .admin-field label,
+body.dark-mode .admin-page .admin-scroll>p,body.dark-mode .admin-page .game-box p,
+body.dark-mode .card-filters label,body.dark-mode .inventory-meta p,
+body.dark-mode .mission-card h3,body.dark-mode .mission-card p,
+body.dark-mode .catalog-summary h3,body.dark-mode .catalog-summary p,
+body.dark-mode .product-card h3,body.dark-mode .product-card p,
+body.dark-mode .profile-discord-widget h2,body.dark-mode .desktop-pet-widget h2 {
+  color:#eaf0ff !important;
+}
+body.dark-mode .feed-time,body.dark-mode .admin-page .game-box small,
+body.dark-mode .admin-page .admin-field small,body.dark-mode .discord-widget-help{
+  color:#bdcbed !important;
+}
+body.dark-mode .admin-page input,body.dark-mode .admin-page select,
+body.dark-mode .admin-page textarea,body.dark-mode .card-filters input,
+body.dark-mode .card-filters select,body.dark-mode .select-input,
+body.dark-mode .text-input,body.dark-mode .profiles-search {
+  background:#263859 !important;color:#f8faff !important;border-color:#53658b !important;
+}
+body.dark-mode input::placeholder,body.dark-mode textarea::placeholder {color:#b5c2df !important;opacity:1;}
+body.dark-mode .admin-tab,body.dark-mode .soft-action,body.dark-mode .tab-button,
+body.dark-mode .card-tab,body.dark-mode .feed-like {
+  background:#304267 !important;color:#f0f4ff !important;border-color:#4b6090 !important;
+}
+body.dark-mode .admin-tab.selected,body.dark-mode .card-tab.active,
+body.dark-mode .tab-button.active {background:#5865f2 !important;color:#fff !important;}
+body.dark-mode .feed-like.is-liked {background:#522d4a !important;color:#ffbed7 !important;border-color:#8f5277 !important;}
+.feed-like.feed-like-own:disabled {opacity:.6;cursor:not-allowed;}
+body.dark-mode .feed-preview{background:#243552;border-color:#7185b0;}
+/* imagens inteiras nas prévias, sem corte das extremidades do pet */
+.feed-preview img {object-fit:contain !important;object-position:center !important;}
+@media (min-width:768px){.feed-entity .feed-preview{width:160px;height:160px;}}
+/* Evita que a prévia do pet da primeira publicação seja cortada no topo do Feed. */
+.feed-entry:first-child .feed-preview {top:calc(100% + 8px);bottom:auto;}
+body.dark-mode .mission-category-title,body.dark-mode .mission-placeholder,
+body.dark-mode .section-heading,body.dark-mode .reset-note,
+body.dark-mode .content-head,body.dark-mode .content-head h1,
+body.dark-mode .content-head small,body.dark-mode .badge-title small,
+body.dark-mode .public-profile-hero .public-identity-info h3,
+body.dark-mode .public-profile-layout .game-box h3 {color:#edf2ff !important;}
+body.dark-mode .mission-category-title,body.dark-mode .mission-category h3 {background:#253758 !important;border-color:#4a5f87 !important;}
+body.dark-mode .profile-games .game-icon,body.dark-mode .badge-chip,
+body.dark-mode .item-cover,body.dark-mode .mission-cover,
+body.dark-mode .pet-visual {background:#2b3b60;color:#eff3ff;border-color:#4c608d;}
+body.dark-mode .profile-games .game-icon img {object-fit:contain;}

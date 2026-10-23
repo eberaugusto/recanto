@@ -579,6 +579,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             return {'items':[{'id':e.id,'kind':e.kind,'created_at':naive_to_utc(e.created_at).isoformat(),
                 'user':{'name':users[e.user_id].username if e.user_id in users else 'Membro',
                         'avatar_url':users[e.user_id].avatar_url if e.user_id in users else None},
+                'mine':e.user_id==uid,
                 'data':json.loads(e.payload),'likes':counts.get(e.id,0),'liked':e.id in liked} for e in entries],
                 'reward_today':day_state.count if day_state else 0,'reward_limit':20}
 
@@ -588,6 +589,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         with writing() as db:
             entry=db.get(FeedEvent,event_id)
             if entry is None:raise HTTPException(404,detail='Publicação não encontrada')
+            if entry.user_id == uid:raise HTTPException(403,detail='Você não pode curtir sua própria publicação')
             existing=db.get(FeedLike,(event_id,uid))
             if existing:
                 return {'ok':True,'liked':True,'coins_gained':0}
