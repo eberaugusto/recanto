@@ -1616,6 +1616,23 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 'items':items,
             }
 
+    @app.get('/api/admin/cards/{card_id}/delete-preview')
+    def admin_card_delete_preview(card_id: int, request: Request):
+        only_admin(request)
+        with SessionLocal() as db:
+            card = db.get(Card, card_id)
+            if not card:
+                raise HTTPException(404, detail='Card não encontrado')
+            owned_ids = select(OwnedCard.id).where(OwnedCard.card_id == card_id)
+            return {
+                'id': card.id, 'name': card.name,
+                'owned': db.scalar(select(func.count()).select_from(OwnedCard).where(OwnedCard.card_id == card_id)) or 0,
+                'reservations': db.scalar(select(func.count()).select_from(ReservedCard).where(ReservedCard.card_id == card_id)) or 0,
+                'favorites': db.scalar(select(func.count()).select_from(FavoriteCard).where(FavoriteCard.owned_id.in_(owned_ids))) or 0,
+                'trades': db.scalar(select(func.count()).select_from(Trade).where((Trade.offered_id.in_(owned_ids)) | (Trade.wanted_id.in_(owned_ids)))) or 0,
+                'coin_offers': db.scalar(select(func.count()).select_from(CoinOffer).where(CoinOffer.owned_id.in_(owned_ids))) or 0,
+            }
+
     @app.post('/api/admin/catalog-management/{group}/{ident}')
     async def admin_manage_catalog(group: str, ident: str, request: Request):
         only_admin(request)
@@ -1624,7 +1641,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         payload=await request.json()
         if not isinstance(payload,dict):raise HTTPException(422,detail='Dados inválidos')
         action=str(payload.get('action','save'))
-        if action not in ('save','archive','restore'):
+        if action not in ('save','archive','restore','delete'):
             raise HTTPException(422,detail='Ação inválida')
         with writing() as db:
             if group=='items':
@@ -1653,7 +1670,20 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 kind={'cards':Card,'pets':PetSpecies,'achievements':Achievement}[group]
                 obj=db.get(kind,item_id)
                 if not obj:raise HTTPException(404,detail='Registro não encontrado')
-                if action=='archive':obj.active=False
+                if action == 'delete':
+                    if group != 'cards':
+                        raise HTTPException(422, detail='Exclusão permanente disponível somente para cards')
+                    if payload.get('confirmation') != f'EXCLUIR {item_id}' or payload.get('card_name') != obj.name:
+                        raise HTTPException(422, detail='Confirmação de exclusão inválida')
+                    owned_ids = select(OwnedCard.id).where(OwnedCard.card_id == item_id)
+                    # Cancelar/remover dependências antes das cópias e do catálogo.
+                    db.execute(delete(Trade).where((Trade.offered_id.in_(owned_ids)) | (Trade.wanted_id.in_(owned_ids))))
+                    db.execute(delete(CoinOffer).where(CoinOffer.owned_id.in_(owned_ids)))
+                    db.execute(delete(FavoriteCard).where(FavoriteCard.owned_id.in_(owned_ids)))
+                    db.execute(delete(ReservedCard).where(ReservedCard.card_id == item_id))
+                    db.execute(delete(OwnedCard).where(OwnedCard.card_id == item_id))
+                    db.delete(obj)
+                elif action=='archive':obj.active=False
                 elif action=='restore':obj.active=True
                 elif group=='cards':
                     name=str(payload.get('name','')).strip()
@@ -1692,6 +1722,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     obj.title=title;obj.description=description;obj.event=event;obj.target=target
                     obj.icon=str(payload.get('icon') or '🏅')[:30]
                     obj.image_url=safe_artwork(payload.get('image_url'))
+        if action == 'delete':
+            logging.getLogger('recanto.admin').warning('Card permanentemente excluído: admin=%s id=%s nome=%s', me(request), ident, payload.get('card_name'))
         return {'ok':True,'group':group,'id':ident,'action':action}
 
     @app.post('/api/admin/upload')

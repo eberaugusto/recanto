@@ -820,7 +820,7 @@
   const adminField=(label,value,type='text')=>{const row=h('label','admin-field',label);const input=h('input','text-input');input.value=value||'';input.type=type;row.append(input);return [row,input];};
   // Editor de registros existentes: todas as operacoes conferem permissoes novamente no servidor.
   function adminCatalogEditor(group,title,spec,collectionPromise){
-    const box=block(title,'Editar ou remover do catálogo sem apagar dados já obtidos pelos usuários. Remover significa arquivar; é possível restaurar.');
+    const box=block(title,group==='cards'?'Edite, arquive ou exclua permanentemente um card. Excluir apaga também cópias, reservas, favoritos, trocas e ofertas relacionadas.':'Editar ou remover do catálogo sem apagar dados já obtidos pelos usuários. Remover significa arquivar; é possível restaurar.');
     const wrap=h('div','admin-catalog-tools');
     const chooser=h('select','select-input');chooser.append(h('option','','Carregando registros...'));
     const form=h('div','admin-editor-form');form.hidden=true;
@@ -880,7 +880,34 @@
       const result=await safeRun(()=>API('/api/admin/catalog-management/'+group+'/'+encodeURIComponent(current.id),{action:'restore'}),'Registro restaurado.');
       if(result)await refresh(current.id);
     },'soft-action');
-    actions.append(save,archive,restore);form.append(actions);wrap.append(chooser,status,form);box.append(wrap);
+    actions.append(save,archive,restore);
+    if(group==='cards'){
+      const destroy=button('Excluir definitivamente do banco',async()=>{
+        const current=rows.find(row=>String(row.id)===chooser.value);
+        if(!current)return;
+        let impact;
+        try{impact=await API('/api/admin/cards/'+encodeURIComponent(current.id)+'/delete-preview');}
+        catch(error){report(error.message||'Não foi possível verificar o card.');return;}
+        const summary=`EXCLUSÃO PERMANENTE — ${current.name} (ID ${current.id})\n\n`+
+          `Cópias de usuários: ${impact.owned}\n`+
+          `Reservas em pacotes: ${impact.reservations}\n`+
+          `Favoritos: ${impact.favorites}\n`+
+          `Trocas: ${impact.trades}\n`+
+          `Ofertas em moedas: ${impact.coin_offers}\n\n`+
+          'Esses registros serão APAGADOS do banco de dados. A operação não pode ser desfeita. Faça backup antes de prosseguir.\n\n'+
+          `Digite EXCLUIR ${current.id} para confirmar:`;
+        const confirmation=window.prompt(summary);
+        if(confirmation!==`EXCLUIR ${current.id}`)return;
+        if(!window.confirm('Última confirmação: excluir PERMANENTEMENTE o card '+current.name+' e todas as referências listadas?'))return;
+        const result=await safeRun(()=>API('/api/admin/catalog-management/cards/'+encodeURIComponent(current.id),{
+          action:'delete',confirmation,card_name:current.name
+        }),'Card excluído definitivamente.');
+        if(result){resetCachedData();await refresh();}
+      },'danger-action');
+      destroy.classList.add('admin-permanent-delete');
+      actions.append(destroy);
+    }
+    form.append(actions);wrap.append(chooser,status,form);box.append(wrap);
     let rows=[];
     const updateForm=()=>{
       const current=rows.find(row=>String(row.id)===chooser.value);
