@@ -192,24 +192,101 @@
   }
   async function loadFeedRefresh(){feedLoading=false;await loadFeed();}
   function startFeedPolling(){if(feedRefreshTimer)return;feedRefreshTimer=setInterval(()=>{if(state.tab==='feed'&&!document.hidden&&state.account)loadFeed().catch(()=>{});},12000);}
-  // Gestos só sobre o conteúdo, evitando botões, carrosséis, modais e inputs.
+  // Recanto 0.1.18: gesto pull-to-refresh com deslocamento visual e indicador.
+  // Só intercepta arrasto vertical para baixo iniciado no topo; o swipe entre abas permanece.
   function startMobileGestures(){
-    const home=$('homeScreen');let start=null;
+    const home=$('homeScreen');
+    const indicator=$('pullRefreshIndicator');
+    let start=null;
+    let refreshing=false;
+    let activeTarget=null;
+    const isMobile=()=>matchMedia('(max-width:767px)').matches;
+    const currentPage=()=>state.tab==='perfil' ? $('profileContent') : ({
+      feed:$('feedScreen'),missoes:$('missionsScreen'),inventario:$('inventoryScreen'),
+      cards:$('cardsScreen'),pet:$('petScreen'),loja:$('shopScreen')
+    })[state.tab];
+    const paintPull=(distance,status='pulling')=>{
+      if(!activeTarget)return;
+      activeTarget.classList.add('recanto-pull-target');
+      activeTarget.style.transform=`translate3d(0,${Math.round(distance)}px,0)`;
+      indicator.classList.add('pull-visible');
+      indicator.classList.toggle('pull-refreshing',status==='refreshing');
+      indicator.classList.toggle('pull-ready',status==='ready');
+      indicator.style.setProperty('--pull-motion',`${Math.round(Math.min(distance*.6,48))}px`);
+      indicator.setAttribute('aria-label',status==='refreshing'?'Atualizando':'Puxe para atualizar');
+    };
+    const resetPull=()=>{
+      if(activeTarget){
+        const target=activeTarget;
+        target.classList.add('recanto-pull-return');
+        target.style.transform='translate3d(0,0,0)';
+        setTimeout(()=>{target.classList.remove('recanto-pull-return','recanto-pull-target');target.style.transform='';},280);
+      }
+      indicator.classList.remove('pull-visible','pull-ready','pull-refreshing');
+      indicator.style.removeProperty('--pull-motion');
+      activeTarget=null;
+    };
     home.addEventListener('touchstart',e=>{
-      if(e.touches.length!==1 || !state.account || !matchMedia('(max-width:767px)').matches ||
-         !document.querySelector('#modal[hidden]') || !document.querySelector('#adminModal[hidden]') ||
-         !document.querySelector('#publicProfilePage[hidden]') || !document.querySelector('#profilesModal[hidden]') ||
-         e.target.closest('input,textarea,select,button,a,[role="dialog"],.card-grid,.mini-tabs,.badge-strip')){start=null;return;}
-      const t=e.touches[0];const scroll=e.target.closest('.scroll-content,#profileContent,.content-page');
-      start={x:t.clientX,y:t.clientY,scroll,atTop:!scroll||scroll.scrollTop<=2};
+      if(refreshing||e.touches.length!==1||!state.account||!isMobile()||
+         !$('modal').hidden||!$('adminModal').hidden||!$('publicProfilePage').hidden||!$('profilesModal').hidden||
+         e.target.closest('input,textarea,select,button,a,[role="dialog"],.card-grid,.mini-tabs,.badge-strip')){
+        start=null;return;
+      }
+      const t=e.touches[0];
+      const scroll=e.target.closest('.scroll-content,#profileContent,.content-page');
+      start={x:t.clientX,y:t.clientY,atTop:(!scroll||scroll.scrollTop<=2),scroll,pulling:false,distance:0};
     },{passive:true});
+    home.addEventListener('touchmove',e=>{
+      if(!start||e.touches.length!==1||!isMobile())return;
+      const t=e.touches[0];
+      const dx=t.clientX-start.x,dy=t.clientY-start.y;
+      if(!start.pulling){
+        if(!start.atTop||dy<8||Math.abs(dy)<Math.abs(dx)*1.2)return;
+        if(start.scroll&&start.scroll.scrollTop>2)return;
+        activeTarget=currentPage();
+        if(!activeTarget)return;
+        activeTarget.classList.remove('recanto-pull-return');
+        start.pulling=true;
+      }
+      if(e.cancelable)e.preventDefault();
+      // Atrito progressivo, distancia maxima de 100px para nao encobrir outros controles.
+      start.distance=Math.min(100,Math.max(0,dy)*.54);
+      paintPull(start.distance,start.distance>=65?'ready':'pulling');
+    },{passive:false});
     home.addEventListener('touchend',e=>{
       if(!start||!e.changedTouches.length)return;
-      const t=e.changedTouches[0],dx=t.clientX-start.x,dy=t.clientY-start.y,absX=Math.abs(dx),absY=Math.abs(dy),atTop=start.atTop;
+      const touch=e.changedTouches[0];
+      const dx=touch.clientX-start.x,dy=touch.clientY-start.y;
+      const pulled=start.pulling,amount=start.distance,atTop=start.atTop;
       start=null;
-      if(absX>85&&absX>absY*1.55){const order=['feed','perfil','missoes','inventario','cards','pet','loja'];const i=order.indexOf(state.tab);const next=order[i+(dx>0?-1:1)];if(next)chooseTab(next);}
-      else if(dy>110&&absY>absX*1.5&&atTop){resetCachedData();refreshProfile().then(()=>refreshActive(true)).then(()=>{if(state.tab==='feed')loadFeed();toast('Atualizado!');}).catch(()=>toast('Não foi possível atualizar agora.'));}
+      if(pulled){
+        if(amount<65){resetPull();return;}
+        refreshing=true;
+        paintPull(56,'refreshing');
+        const startedTab=state.tab;
+        (async()=>{
+          try{
+            resetCachedData();
+            await refreshProfile();
+            if(state.account&&state.tab===startedTab)await refreshActive(true);
+            toast('Atualizado!');
+          }catch(_){toast('Não foi possível atualizar agora.');}
+          finally{refreshing=false;resetPull();}
+        })();
+        return;
+      }
+      if(Math.abs(dx)>85&&Math.abs(dx)>Math.abs(dy)*1.55){
+        const order=['feed','perfil','missoes','inventario','cards','pet','loja'];
+        const index=order.indexOf(state.tab);
+        const next=order[index+(dx>0?-1:1)];
+        if(next)chooseTab(next);
+      }else if(dy>110&&Math.abs(dy)>Math.abs(dx)*1.5&&atTop){
+        // Fallback se touchmove nao foi entregue pelo navegador.
+        resetCachedData();
+        refreshProfile().then(()=>refreshActive(true)).catch(()=>toast('Não foi possível atualizar agora.'));
+      }
     },{passive:true});
+    home.addEventListener('touchcancel',()=>{start=null;if(!refreshing)resetPull();},{passive:true});
   }
   function startDiscordWidget(){
     const iframe=$('discordServerFrame');

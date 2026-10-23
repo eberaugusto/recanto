@@ -1652,3 +1652,129 @@ body.dark-mode .profile-games .game-icon,body.dark-mode .badge-chip,
 body.dark-mode .item-cover,body.dark-mode .mission-cover,
 body.dark-mode .pet-visual {background:#2b3b60;color:#eff3ff;border-color:#4c608d;}
 body.dark-mode .profile-games .game-icon img {object-fit:contain;}
+
+
+/* ========================================================================
+   RECANTO 0.1.18 — gestos de atualização, contraste e menus transparentes
+   ======================================================================== */
+
+/* Os títulos das três colunas de missões ficam sem faixa de fundo, em TODOS
+   os formatos e nos dois temas. Mantem alinhamento central e legibilidade. */
+#missionPane .mission-category-title,
+body.dark-mode #missionPane .mission-category-title,
+body.dark-mode #missionPane .mission-category h3 {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 5px 8px 10px !important;
+  min-height: 0 !important;
+  text-align: center !important;
+}
+
+/* Remove a faixa de fundo do menu da Gestão, inclusive no modo escuro.
+   Os botões individuais e o selecionado permanecem visíveis. */
+.admin-page .admin-dialog > .admin-tabs,
+body.dark-mode .admin-page .admin-dialog > .admin-tabs,
+body.dark-mode .admin-page .admin-dialog > .admin-tabs.admin-tabs {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+/* Tema escuro: superfícies sempre escuras. Nenhum painel com letra branca
+   pode ficar apoiado sobre um fundo branco. Abrange abas, formulários e modais. */
+body.dark-mode :is(#homeScreen,.full-page,#modal) :is(
+  .game-box,.profile-panel,.profile-badges,.profile-games,.daily-card-box,
+  .shop-daily-coins,.inventory-row,.inventory-item,.mission-card,
+  .product-card,.card-tile,.card-filters,.catalog-summary,.catalog-highlights,
+  .public-section,.public-profile-hero,.feed-entry,.feed-empty,
+  .desktop-pet-widget,.profile-discord-widget,.modal-panel,.admin-loading,
+  .trade-section,.trade-row,.pet-card,.pet-panel,.pet-visual,.card-detail-dialog,
+  .game-choice,.game-choice-actions,.badge-chip,.game-icon,.card-pagination,
+  .admin-dialog .game-box,.admin-dialog .admin-scroll,.admin-scroll .game-box
+) {
+  background-color: #1b2949 !important;
+  color: #fff !important;
+  border-color: #405376 !important;
+}
+body.dark-mode :is(#homeScreen,.full-page,#modal) :is(
+  input,textarea,select,option,.select-input,.text-input,.profiles-search
+) {
+  background-color: #263959 !important;
+  color: #fff !important;
+  border-color: #60739b !important;
+}
+body.dark-mode :is(#homeScreen,.full-page,#modal) :is(
+  h1,h2,h3,h4,h5,h6,p,span,small,strong,b,label,li,dt,dd,
+  time,legend,summary,figcaption,em,a,.mission-category-title,
+  .mission-placeholder,.section-heading,.reset-note,.feed-description,
+  .feed-head,.feed-time,.feed-info,.stat-value,.stat-name,.rates,
+  .badge-title,.catalog-summary,.admin-tab,.feed-entity,.notifications-status
+) {
+  color: #fff !important;
+}
+body.dark-mode :is(#homeScreen,.full-page,#modal) :is(button,select,input,textarea,option) {
+  color: #fff !important;
+}
+body.dark-mode :is(#homeScreen,.full-page,#modal) :is(input,textarea)::placeholder {
+  color: #fff !important;
+  opacity: 1 !important;
+}
+body.dark-mode :is(#homeScreen,.full-page,#modal) :is(
+  .mini-tabs button,.tab-button,.admin-tab,.card-tab,.soft-action,
+  .game-edit,.badge-more,.card-pagination button,.feed-like,.modal-close,
+  .white-action,.logout-button,.settings-admin,.settings-update-check
+) {
+  background-color: #2a3c63 !important;
+  color: #fff !important;
+  border-color: #60739b !important;
+}
+body.dark-mode :is(#homeScreen,.full-page,#modal) :is(
+  .mini-tabs .mini-active,.tab-button.active,.admin-tab.selected,
+  .card-tab.active,.main-action,.settings-admin.selected
+) {
+  background-color: #5865f2 !important;
+  color: #fff !important;
+}
+body.dark-mode .feed-like.is-liked {background:#473049 !important;color:#fff !important;}
+body.dark-mode .feed-rarity-comum,body.dark-mode .feed-rarity-raro,
+body.dark-mode .feed-rarity-lendario,body.dark-mode .feed-rarity-prismatico,
+body.dark-mode .feed-pet-name {color:#fff !important;}
+
+/* Pull-to-refresh do celular: a página acompanha o dedo, com spinner visível.
+   A navegação inferior e os modais NÃO se movem. */
+.pull-refresh-indicator {display:none;}
+@media(max-width:767px) {
+  .pull-refresh-indicator {
+    position:absolute;top:calc(15px + env(safe-area-inset-top,0px));left:50%;
+    z-index:15;display:grid;place-items:center;
+    width:42px;height:42px;border-radius:50%;
+    color:#5865f2;background:#fff;
+    box-shadow:0 6px 22px rgba(12,25,105,.25);
+    opacity:0;pointer-events:none;
+    transform:translate3d(-50%,var(--pull-motion,0px),0) scale(.7);
+    transition:opacity .15s ease,transform .12s ease;
+  }
+  .pull-refresh-indicator svg {width:25px;height:25px;transform:rotate(0);transition:transform .12s linear;}
+  .pull-refresh-indicator.pull-visible {
+    opacity:1;transform:translate3d(-50%,var(--pull-motion,0px),0) scale(1);
+  }
+  .pull-refresh-indicator.pull-ready svg {transform:rotate(135deg);}
+  .pull-refresh-indicator.pull-refreshing svg {animation:recanto-refresh-spin .7s linear infinite;}
+  .recanto-pull-target {will-change:transform;}
+  .recanto-pull-target.recanto-pull-return {transition:transform .27s cubic-bezier(.2,.85,.2,1) !important;}
+  body.dark-mode .pull-refresh-indicator {background:#213250;color:#fff;}
+}
+@keyframes recanto-refresh-spin {to{transform:rotate(360deg);}}
+
+/* Contraste final: usa background (shorthand) para vencer regras legadas. */
+body.dark-mode :is(#homeScreen,.full-page,#modal) :is(
+  .mini-tabs button,.tab-button,.admin-tab,.card-tab,.soft-action,
+  .game-edit,.badge-more,.card-pagination button,.feed-like,.modal-close,
+  .white-action,.logout-button,.settings-admin,.settings-update-check
+) {background:#2a3c63 !important;color:#fff !important;}
+body.dark-mode :is(#homeScreen,.full-page,#modal) :is(
+  .mini-tabs .mini-active,.tab-button.active,.admin-tab.selected,.card-tab.active,.main-action
+) {background:#5865f2 !important;color:#fff !important;}
