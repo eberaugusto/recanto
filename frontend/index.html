@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=0.1.23">
+  <link rel="stylesheet" href="/styles.css?v=0.1.25">
 </head>
 <body>
 <!-- Recanto 0.1.2 — layout responsivo e gestão com carregamento progressivo. -->
@@ -52,7 +52,7 @@
       </div>
     </aside>
     <header class="desktop-topbar" aria-label="Barra superior">
-      <button type="button" class="desktop-search" id="desktopSearch"><svg><use href="#person-search"/></svg><span>Buscar membros da comunidade...</span></button>
+      <button type="button" class="desktop-search" id="desktopSearch" aria-label="Buscar membros da comunidade"><svg aria-hidden="true"><use href="#person"/></svg><span>Buscar membros da comunidade...</span></button>
       <div class="desktop-topbar-actions">
         <div class="desktop-wallet-summary" aria-label="Saldos do perfil"><div class="desktop-coins"><svg><use href="#coin"/></svg><span><b id="desktopWallet">—</b><small>Moedas</small></span></div><div class="desktop-resource"><svg><use href="#cards"/></svg><span><b id="desktopCards">—</b><small>Cards</small></span></div><div class="desktop-resource"><svg><use href="#heart"/></svg><span><b id="desktopTreats">—</b><small>Petiscos</small></span></div></div>
         <button type="button" class="desktop-settings" id="desktopSettingsTop" aria-label="Configurações"><svg><use href="#gear"/></svg></button>
@@ -135,9 +135,9 @@
       <p class="notifications-status" id="notificationsStatus" role="status" aria-live="polite" hidden></p>
       <button type="button" class="soft-action settings-admin" id="settingsAdmin" hidden aria-label="Abrir Gestão do Recanto"><svg aria-hidden="true"><use href="#gear"/></svg><span>Gestão do Recanto</span></button>
       <button type="button" class="soft-action settings-update-check" id="checkUpdates">↻ Verificar atualizações</button>
-      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.1.23</p></section></div>
+      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.1.25</p></section></div>
   </main>
 </div>
-<script src="/app.js?v=0.1.23" defer></script>
+<script src="/app.js?v=0.1.25" defer></script>
 </body>
 </html>

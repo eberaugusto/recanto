@@ -1122,6 +1122,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if key.startswith('game:'):
             selector=''
             mode='icon'
+        elif key=='favicon':
+            selector='link[rel="icon"]'
+            mode='image'
         elif not selector:
             raise HTTPException(422,detail='Informe um seletor de elemento')
         url=safe_artwork(data['image_url'])
@@ -1292,8 +1295,21 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             obj=db.get(UserPet,member_id)
             pet_tick(db,obj)
             badges=db.execute(select(Achievement.title,Achievement.icon,Achievement.image_url).join(UserAchievement,UserAchievement.achievement_id==Achievement.id).where(UserAchievement.user_id==member_id)).all()
-            count=db.scalar(select(func.count(OwnedCard.id)).where(OwnedCard.user_id==member_id)) or 0
-            return {'key':user.id,'name':user.username,'avatar_url':user.avatar_url,'cards':count,
+            # Coleção do membro visível somente após autenticação; cada exemplar
+            # aparece uma vez, inclusive cópias repetidas. Não expomos owned_id
+            # para impedir ações de favoritar/vender no visualizador público.
+            holdings=db.execute(
+                select(Card.id,Card.name,Card.rarity,Card.image_url,Card.collection_name)
+                .select_from(OwnedCard)
+                .join(Card,Card.id==OwnedCard.card_id)
+                .where(OwnedCard.user_id==member_id)
+                .order_by(OwnedCard.acquired_at.desc(),OwnedCard.id.desc())
+            ).all()
+            public_cards=[{'card_id':row[0], 'name':row[1], 'rarity':row[2],
+                           'image_url':row[3], 'collection':row[4] or 'Recanto Original'}
+                          for row in holdings]
+            return {'key':user.id,'name':user.username,'avatar_url':user.avatar_url,
+                    'cards':len(public_cards),'collection_cards':public_cards,
                     'badges':[{'title':x[0],'icon':x[1],'image_url':x[2]} for x in badges],
                     'favorite':favorite_info(db,member_id),
                     'pet':pet_dict(db,obj), 'favorite_games':user_games(db,member_id),
@@ -2127,6 +2143,77 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         (folder / filename).write_bytes(data)
         return {'ok': True, 'image_url': '/uploads/' + filename}
 
+    @app.post('/api/admin/upload-svg')
+    async def upload_safe_svg(request: Request, image: UploadFile = File(...)):
+        """SVG de ícones e favicon, validado antes de armazenar ou distribuir."""
+        only_admin(request)
+        if not image.filename or not image.filename.lower().endswith('.svg'):
+            raise HTTPException(422, detail='Envie um arquivo SVG')
+        data = await image.read(1024 * 1024 + 1)
+        if not data or len(data) > 1024 * 1024:
+            raise HTTPException(413, detail='SVG vazio ou acima de 1 MB')
+        import xml.etree.ElementTree as ET
+        import re as _re
+        # SVG pode conter HTML/JS mesmo sem um <script> visível.
+        # Declaracao XML padrao do Corel/Illustrator é permitida; outras instruções não.
+        check_data = _re.sub(rb'^\s*<\?xml\s+[^>]*\?>', b'', data, flags=_re.I)
+        if _re.search(rb'<!DOCTYPE|<!ENTITY|<\?|javascript\s*:|@import|expression\s*\(|-moz-binding', check_data, _re.I):
+            raise HTTPException(422, detail='SVG contém conteúdo não permitido')
+        try:
+            root = ET.fromstring(data)
+        except (ET.ParseError, ValueError):
+            raise HTTPException(422, detail='XML SVG inválido')
+        svg_ns = 'http://www.w3.org/2000/svg'
+        if root.tag != '{%s}svg' % svg_ns:
+            raise HTTPException(422, detail='Arquivo não é SVG')
+        safe_tags = {'svg','g','defs','symbol','use','path','rect','circle','ellipse',
+                     'line','polyline','polygon','linearGradient','radialGradient',
+                     'stop','clipPath','mask','pattern','title','desc','style','text',
+                     'tspan','filter','feGaussianBlur','feOffset','feBlend',
+                     'feColorMatrix','feComposite','feMerge','feMergeNode',
+                     'feFlood','feDropShadow'}
+        for el in root.iter():
+            if el.tag.rsplit('}',1)[-1] not in safe_tags:
+                raise HTTPException(422, detail='SVG possui elemento não permitido')
+            if el.tag.rsplit('}',1)[-1]=='style' and el.text and _re.search(r'url\s*\(\s*[^\s#\"\']|@|javascript|expression', el.text, _re.I):
+                raise HTTPException(422, detail='Estilo SVG não permitido')
+            for attr, val in el.attrib.items():
+                key = attr.rsplit('}',1)[-1].lower()
+                if key.startswith('on') or key in ('formaction','src','target'):
+                    raise HTTPException(422, detail='Evento ou atributo SVG não permitido')
+                if key=='href' and not val.strip().startswith('#'):
+                    raise HTTPException(422, detail='SVG com referência externa não permitida')
+                if _re.search(r'javascript\s*:|data\s*:|https?\s*:|@import|expression\s*\(|url\s*\(\s*(?![\"\']?#)', val, _re.I):
+                    raise HTTPException(422, detail='SVG com recurso externo não permitido')
+        if os.getenv('APP_ENV', 'development').strip().lower() == 'production':
+            cloud = os.getenv('CLOUDINARY_CLOUD_NAME','').strip()
+            api_key = os.getenv('CLOUDINARY_API_KEY','').strip()
+            api_secret = os.getenv('CLOUDINARY_API_SECRET','').strip()
+            if not all((cloud,api_key,api_secret)):
+                raise HTTPException(503, detail='Configure Cloudinary para salvar SVG permanentemente')
+            timestamp = str(int(time.time()))
+            signed = f'folder=recanto&timestamp={timestamp}'
+            signature = hashlib.sha1((signed + api_secret).encode('utf-8')).hexdigest()
+            try:
+                async with httpx.AsyncClient(timeout=35) as client:
+                    response = await client.post(
+                        f'https://api.cloudinary.com/v1_1/{cloud}/image/upload',
+                        data={'api_key':api_key,'timestamp':timestamp,'folder':'recanto','signature':signature},
+                        files={'file':('icone.svg',data,'image/svg+xml')},
+                    )
+                    response.raise_for_status()
+                    url = response.json().get('secure_url','')
+                    if not url.startswith('https://'):
+                        raise ValueError('URL segura ausente')
+            except (httpx.HTTPError, ValueError, KeyError) as exc:
+                raise HTTPException(502, detail='Falha no envio do SVG ao Cloudinary. Confira se a conta permite SVGs.') from exc
+            return {'ok':True, 'image_url':url}
+        filename = secrets.token_hex(15) + '.svg'
+        folder = frontend / 'uploads'
+        folder.mkdir(exist_ok=True)
+        (folder / filename).write_bytes(data)
+        return {'ok':True, 'image_url':'/uploads/'+filename}
+
     @app.get('/uploads/{filename}')
     def view_art(filename: str):
         if not filename or '/' in filename or '\\' in filename or len(filename) > 90:
@@ -2134,7 +2221,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         path = frontend / 'uploads' / filename
         if not path.is_file():
             raise HTTPException(404, detail='Imagem não encontrada')
-        return FileResponse(path, headers={'Cache-Control': 'public, max-age=3600'})
+        extra={'Cache-Control': 'public, max-age=3600', 'X-Content-Type-Options':'nosniff'}
+        if filename.lower().endswith('.svg'):
+            extra['Content-Security-Policy']="default-src 'none'; style-src 'unsafe-inline'"
+        return FileResponse(path, headers=extra)
 
     # 0.1.2: operações administrativas de manutenção, inclusive no PWA mobile.
     # Não expor simulações de desenvolvimento nem restauração de catálogos em produção.
