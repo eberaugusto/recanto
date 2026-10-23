@@ -19,7 +19,7 @@
     return fetchJson(url,data);
   };
   const fetchJson=async (url, data) => {
-    const options = { credentials: 'same-origin', headers: {Accept:'application/json'} };
+    const options = { credentials: 'same-origin', cache:'no-store', headers: {Accept:'application/json'} };
     if (data !== undefined) {options.method='POST';options.headers['Content-Type']='application/json';options.body=JSON.stringify(data);}
     const controller=new AbortController();
     const timeout=setTimeout(()=>controller.abort(),18000);
@@ -52,14 +52,65 @@
   const poroSpeciesName = value => /^Pequena Lenda — exemplo (\d+)$/i.test(String(value || '')) ? String(value).replace(/Pequena Lenda/i,'Poro') : value;
   const labels={feed:'Feed',perfil:'Perfil',cards:'Cards',inventario:'Inventário',pet:'Poros',loja:'Loja',missoes:'Missões'};
   const tierLabels={comum:'Comum',raro:'Raro',lendário:'Lendário',prismático:'Prismático'};
-  const state={assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:8,cardPage:1,cardPageSize:12,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:matchMedia('(min-width:768px)').matches?'raridade':'padrao',missing:false,newOnly:false},detailClosing:false};
+  const state={dailyReward:0,dailyClaimInFlight:false,assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:8,cardPage:1,cardPageSize:12,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:matchMedia('(min-width:768px)').matches?'raridade':'padrao',missing:false,newOnly:false},detailClosing:false};
   const toast=(message)=>{const el=$('toast');el.textContent=message;el.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>{el.hidden=true;},4000);};
   $('toast').addEventListener('click',()=>{$('toast').hidden=true;clearTimeout(toast.timer);});
   $('toast').title='Clique para dispensar';
   const report=msg=>{$('message').textContent=msg||'';};
-  const button=(text,handler,style='main-action')=>{const b=h('button',style,text);b.type='button';b.addEventListener('click',handler);return b;};
+  // O botão responde ao clique no mesmo frame; uma requisição demorada nunca aceita clique duplo.
+  const button=(text,handler,style='main-action')=>{
+    const b=h('button',style,text);b.type='button';
+    b.addEventListener('click',event=>{
+      if(b.dataset.pending==='1')return;
+      let promise;
+      try{promise=handler(event);}catch(err){toast('⚠ '+(err?.message||'Falha na operação.'));return;}
+      if(promise && typeof promise.then==='function'){
+        b.dataset.pending='1';b.classList.add('action-pending');b.setAttribute('aria-busy','true');
+        Promise.resolve(promise).catch(err=>toast('⚠ '+(err?.message||'Falha na operação.'))).finally(()=>{
+          delete b.dataset.pending;b.classList.remove('action-pending');b.removeAttribute('aria-busy');
+          // Não sobrescrever disabled definido pela lógica da ação (ex.: missão já resgatada).
+        });
+      }
+    });return b;
+  };
   const block=(title,body)=>{const div=h('div','game-box');if(title)div.append(h('h3','',title));if(body)div.append(h('p','',body));return div;};
-  const safeRun=async(action,success)=>{try {const result=await action();resetCachedData();if(success)toast(typeof success==='function'?success(result):success);await refreshProfile();if($('adminModal').hidden)await refreshActive(true);return result;}catch(err){toast('⚠ '+err.message);return null;}};
+  // A resposta do POST encerra a espera. GETs de reconciliação não bloqueiam a interface.
+  let reconcileTimer=null;
+  let profileRefreshGeneration=0;
+  const pendingFeedLikes=new Set();
+  let pendingCoinsPreview=0;
+  function paintCoins(){
+    if(!state.account)return;
+    const total=Number(state.account.coins||0)+pendingCoinsPreview;
+    for(const id of ['valMoedas','desktopWallet']){const el=$(id);if(el){el.textContent=money(total);el.classList.toggle('coins-awaiting-confirmation',pendingCoinsPreview>0);}}
+    const shop=$('shopWallet');if(shop)shop.textContent='🪙 '+money(total);
+  }
+  function applyConfirmedCoins(response, fallback=0){
+    if(!state.account)return;
+    // Uma resposta com saldo final é autoritativa; os clientes antigos ainda aceitam deltas.
+    const value=Number(response?.coins_balance);
+    if(response?.coins_balance!==undefined && Number.isFinite(value))state.account.coins=value;
+    else state.account.coins=Math.max(0,Number(state.account.coins||0)+Number(response?.coins_gained??fallback));
+    profileRefreshGeneration++; // Desconsiderar GET de /me iniciado antes da confirmação.
+    paintCoins();
+  }
+  function reconcileAfterAction(){
+    if(reconcileTimer)clearTimeout(reconcileTimer);
+    reconcileTimer=setTimeout(()=>{
+      reconcileTimer=null;
+      // Atualização na retaguarda: não fazer o usuário esperar /me e outra aba.
+      refreshProfile().catch(()=>{});
+      if($('adminModal').hidden && !pendingFeedLikes.size)refreshActive(true).catch(()=>{});
+    },180);
+  }
+  const safeRun=async(action,success,onConfirmed=null)=>{
+    try{
+      const result=await action();resetCachedData();
+      if(onConfirmed)onConfirmed(result);
+      if(success)toast(typeof success==='function'?success(result):success);
+      reconcileAfterAction();return result;
+    }catch(err){toast('⚠ '+(err?.message||'Não foi possível concluir.'));return null;}
+  };
   function countdown(iso){if(!iso)return '—';const delta=new Date(iso).getTime()-Date.now();if(delta<=0)return 'Disponível agora';let s=Math.ceil(delta/1000);const d=Math.floor(s/86400);s%=86400;const hour=Math.floor(s/3600);s%=3600;const minute=Math.floor(s/60);const sec=s%60;return (d?`${d}d `:'')+`${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;}
   function updateCountdowns(){if(state.reset){const t=countdown(state.reset);$('cardCountdown').textContent=$('dailyCard').disabled?'Novo card em '+countdown(state.cardReset):'Disponível agora (a cada 5h)!';$('coinCountdown').textContent=$('dailyCoins').disabled?'Próximo resgate: '+t:'Resgate disponível!';}if(state.missionReset)$('missionTimer').textContent='Resetam em: '+countdown(state.missionReset);}
   function avatar(el,name,url){el.replaceChildren();if(url){const img=h('img');img.src=url;img.alt='Foto de '+name;img.onerror=()=>{img.remove();el.textContent='◉';};el.append(img);}else el.textContent='◉';}
@@ -88,9 +139,25 @@
     btn.disabled=installed;
     btn.querySelector('span').textContent='Instalar';
   }
-  function renderProfile(me){state.account=me;$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);$('desktopWallet').textContent=money(me.coins);$('desktopCards').textContent=money(me.cards);$('desktopTreats').textContent=money(me.treats);$('desktopUserName').textContent=me.name;$('desktopProfileName').textContent=me.name;avatar($('userAvatar'),me.name,me.avatar_url);avatar($('desktopAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.toggle('has-card',false);recent.setAttribute('aria-label','Nenhum card favorito selecionado');recent.onclick=()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};recent.textContent='?';const profileId=me.name;API('/api/cards/favorite').then(({card})=>{if(state.account?.name!==profileId)return;recent.replaceChildren();recent.classList.toggle('has-card',!!card);recent.setAttribute('aria-label',card?'Ampliar card favorito: '+card.name:'Nenhum card favorito selecionado');recent.onclick=card?()=>showCard(card,'Card favorito',true):()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};if(card?.image_url){const img=h('img');img.src=card.image_url;img.alt=card.name;recent.append(img);}else recent.textContent=card?.name||'?';}).catch(()=>{});}
+  function renderProfile(me){state.account=me;$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);$('desktopWallet').textContent=money(me.coins);$('desktopCards').textContent=money(me.cards);$('desktopTreats').textContent=money(me.treats);$('desktopUserName').textContent=me.name;$('desktopProfileName').textContent=me.name;avatar($('userAvatar'),me.name,me.avatar_url);avatar($('desktopAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.toggle('has-card',false);recent.setAttribute('aria-label','Nenhum card favorito selecionado');recent.onclick=()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};recent.textContent='?';paintCoins();const profileId=me.name;API('/api/cards/favorite').then(({card})=>{if(state.account?.name!==profileId)return;recent.replaceChildren();recent.classList.toggle('has-card',!!card);recent.setAttribute('aria-label',card?'Ampliar card favorito: '+card.name:'Nenhum card favorito selecionado');recent.onclick=card?()=>showCard(card,'Card favorito',true):()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};if(card?.image_url){const img=h('img');img.src=card.image_url;img.alt=card.name;recent.append(img);}else recent.textContent=card?.name||'?';}).catch(()=>{});}
 
-  async function refreshProfile(){if(!state.account)return;const me=await API('/api/me');if(me.authenticated)renderProfile(me);else showLogin();}
+  async function refreshProfile(){
+    if(!state.account)return;
+    const generation=++profileRefreshGeneration;
+    const me=await API('/api/me');
+    if(generation!==profileRefreshGeneration)return;
+    if(me.authenticated){
+      const previous=state.account;
+      if(!previous||previous.name!==me.name||previous.avatar_url!==me.avatar_url){renderProfile(me);}
+      else{
+        // Atualização de contadores sem reconstruir avatar, favorito e toda a página.
+        state.account=me;
+        $('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);
+        $('desktopCards').textContent=money(me.cards);$('desktopTreats').textContent=money(me.treats);
+      }
+      paintCoins();
+    }else showLogin();
+  }
   function showLogin(){resetCachedData();state.adminReady=false;state.petPreviewLoaded=false;$('adminModal').hidden=true;document.body.classList.remove('page-open');$('settingsAdmin').hidden=true;state.account=null;$('loginScreen').hidden=false;$('splashScreen').hidden=true;$('homeScreen').hidden=true;$('modal').hidden=true;}
   async function refreshActive(force=false){if(!state.account)return;
     if(!force && tabLoadedAt[state.tab] && Date.now()-tabLoadedAt[state.tab]<TAB_SOFT_TTL)return;
@@ -249,7 +316,7 @@
     else if(item.kind==='badge'){add(' conquistou o selo ');if(d.badge?.icon)add(d.badge.icon+' ');feedImageText(row,{name:d.badge?.name,image_url:d.badge?.image_url},'pet');add('!');}
   }
   async function loadFeed(){
-    if(feedLoading)return;feedLoading=true;
+    if(feedLoading||pendingFeedLikes.size)return;feedLoading=true;
     try{
       const data=await API('/api/feed');const list=$('feedList');if(!list)return;
       list.replaceChildren();$('feedCount').textContent=`${data.items.length} publicações recentes`;
@@ -265,9 +332,36 @@
         const time=h('time','feed-time',feedClock);time.dateTime=item.created_at;time.title='Horário de Brasília';header.append(time);
         const msg=h('p','feed-description');feedMessage(msg,item);
         const actions=h('div','feed-actions');const like=button(`${item.liked?'♥':'♡'} ${item.likes}`,async()=>{
-          like.disabled=true;
-          try{const ans=await API(`/api/feed/${item.id}/like`,{});if(ans.coins_gained)toast('+1 moeda por curtir!');resetCachedData();await loadFeedRefresh();if(ans.coins_gained)refreshProfile().catch(()=>{});}catch(e){toast('⚠ '+e.message);}finally{like.disabled=false;}
-        },'feed-like'+(item.liked?' is-liked':''));like.setAttribute('aria-label',item.mine?'Não é possível curtir publicação própria':'Curtir publicação; '+item.likes+' curtidas');if(item.mine){like.disabled=true;like.title='Você não pode curtir sua própria publicação';like.classList.add('feed-like-own');}actions.append(like);
+          if(pendingFeedLikes.has(item.id)||item.liked)return;
+          pendingFeedLikes.add(item.id);
+          // Curtida visual otimista, revertida se o servidor recusar a operação.
+          const before=like.textContent;
+          like.textContent=`♥ ${Number(item.likes||0)+1}`;
+          like.classList.add('is-liked','like-awaiting-confirmation');
+          try{
+            const ans=await API(`/api/feed/${item.id}/like`,{});
+            item.liked=!!ans.liked;item.likes=Number(item.likes||0)+(ans.liked?1:0);
+            like.textContent=`${item.liked?'♥':'♡'} ${item.likes}`;
+            like.classList.toggle('is-liked',item.liked);
+            if(Number.isFinite(Number(ans.reward_today))){
+              $('feedReward').textContent=`Moedas com likes hoje: ${ans.reward_today}/20`;
+            }
+            if(ans.coins_gained){applyConfirmedCoins(ans);toast('+1 moeda por curtir!');}
+            resetCachedData();
+          }catch(err){
+            like.textContent=before;like.classList.remove('is-liked');
+            toast('⚠ '+(err?.message||'Não foi possível curtir.'));
+            resetCachedData();reconcileAfterAction();
+          }finally{
+            pendingFeedLikes.delete(item.id);
+            like.classList.remove('like-awaiting-confirmation');
+            like.dataset.keepDisabled=item.liked?'1':'';
+            if(item.liked){like.disabled=true;like.title='Você já curtiu esta publicação';}
+          }
+        },'feed-like'+(item.liked?' is-liked':''));
+        like.setAttribute('aria-label',item.mine?'Não é possível curtir publicação própria':'Curtir publicação; '+item.likes+' curtidas');
+        if(item.mine||item.liked){like.disabled=true;like.dataset.keepDisabled='1';like.title=item.mine?'Você não pode curtir sua própria publicação':'Você já curtiu esta publicação';if(item.mine)like.classList.add('feed-like-own');}
+        actions.append(like);
         box.append(header,msg,actions);article.append(pic,box);list.append(article);
       }
     }finally{feedLoading=false;}
@@ -443,7 +537,7 @@
     if(item.collection)p.append(h('p','detail-meta',`Coleção: ${item.collection}`));
     if(extra)p.append(h('p','detail-meta',extra));
     const actions=h('div','detail-actions');
-    if(item.owned_id)actions.append(button(item.is_favorite?'★ Remover favorito':'☆ Favoritar card',async()=>{const result=await safeRun(()=>API('/api/cards/favorite',{owned_id:item.is_favorite?null:item.owned_id}),'Favorito atualizado!');if(result)closeCardDetail();}));
+    if(item.owned_id)actions.append(button(item.is_favorite?'★ Remover favorito':'☆ Favoritar card',async()=>{const result=await safeRun(()=>API('/api/cards/favorite',{owned_id:item.is_favorite?null:item.owned_id}),'Favorito atualizado!');if(result){closeCardDetail();renderProfile(state.account);}}));
     if(item.owned_id && (item.duplicate_count||0)>1){
       actions.append(button('Vender cópia extra',async()=>{
         const economy=await API('/api/card-economy');const price=economy.duplicate_sale[item.rarity];
@@ -724,16 +818,7 @@
         favorites.append(gameIcons);pane.append(favorites);
         if(d.collectibles?.length){const found=block('🏆 Colecionáveis');found.classList.add('public-section','public-collectibles');const grid=h('div','collectible-grid');
           for(const item of d.collectibles){const tile=h('article','collectible-item');tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'));tile.append(h('strong','',item.name),h('small','',`×${item.quantity}`));if(item.description)tile.title=item.description;grid.append(tile);}found.append(grid);pane.append(found);}
-        if(d.pet){const pet=block('🐾 Poro: '+(d.pet.nickname||poroSpeciesName(d.pet.name)),`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);
-          pet.classList.add('public-section','public-pet');pet.prepend(petPortrait(d.pet));pane.append(pet);
-          if(d.pet.status==='ativo'){
-            const actions=h('div','social-actions');actions.append(button('💗 Acariciar',()=>visitPet(uid,'pet')));
-            const opts=items.treats||[];if(opts.length){const select=h('select','select-input');opts.forEach(t=>{const o=h('option','',t.name+' (+'+t.food+')');o.value=t.sku;select.append(o);});
-              actions.append(select,button('🍪 Alimentar',()=>visitPet(uid,'feed',select.value),'soft-action'));}
-            else actions.append(button('Comprar petiscos →',()=>{$('publicProfilePage').hidden=true;chooseTab('loja','treat3');},'soft-action'));
-            pane.append(actions);
-          }
-        }else{const noPet=block('Sem Poro','Este membro ainda não adotou um Poro.');noPet.classList.add('public-section','public-pet');pane.append(noPet);}
+        pane.append(publicPoroCard(d,items));
         pane.append(publicMemberCardsSection(d));
         return;
       }
@@ -755,25 +840,82 @@
       favorites.append(gameIcons);main.append(favorites);
       if(d.collectibles?.length){const found=block('🏆 Colecionáveis');found.classList.add('public-section','public-collectibles');const grid=h('div','collectible-grid');
         for(const item of d.collectibles){const tile=h('article','collectible-item');tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'));tile.append(h('strong','',item.name),h('small','',`×${item.quantity}`));if(item.description)tile.title=item.description;grid.append(tile);}found.append(grid);main.append(found);}
-      if(d.pet){const pet=block('🐾 Poro: '+(d.pet.nickname||poroSpeciesName(d.pet.name)),`Fome ${d.pet.food}/100 · Felicidade ${d.pet.happiness}/100 · ${d.pet.status}`);pet.classList.add('public-section','public-pet');pet.prepend(petPortrait(d.pet));aside.append(pet);
-        if(d.pet.status==='ativo'){
-          const actions=h('div','social-actions');actions.append(button('💗 Acariciar',()=>visitPet(uid,'pet')));
-          const opts=items.treats||[];if(opts.length){const select=h('select','select-input');opts.forEach(t=>{const o=h('option','',t.name+' (+'+t.food+')');o.value=t.sku;select.append(o);});
-            actions.append(select,button('🍪 Alimentar',()=>visitPet(uid,'feed',select.value),'soft-action'));}
-          else actions.append(button('Comprar petiscos →',()=>{$('publicProfilePage').hidden=true;chooseTab('loja','treat3');},'soft-action'));
-          aside.append(actions);
-        }
-      }else{const noPet=block('Sem Poro','Este membro ainda não adotou um Poro.');noPet.classList.add('public-section','public-pet');aside.append(noPet);}
+      aside.append(publicPoroCard(d,items));
       aside.append(publicMemberCardsSection(d));
       layout.append(main,aside);pane.append(layout);
     }catch(err){toast(err.message);}
   }
-  async function visitPet(owner,action,sku='biscoito'){
-    const result=await safeRun(()=>API('/api/pets/visit/'+encodeURIComponent(owner),{action,treat_sku:sku}),d=>`+${d.visitor_coins} moedas para você e +${d.owner_coins} para o dono!`);
-    if(result)await openPublicProfile(owner);
+  function publicPoroCard(profile,inventory){
+    if(!profile.pet){const empty=block('Sem Poro','Este membro ainda não adotou um Poro.');empty.classList.add('public-section','public-pet');return empty;}
+    const pet=profile.pet;
+    const label=pet.nickname||poroSpeciesName(pet.name);
+    const status={ativo:'Em casa',missao:'Em expedição',vet:'No veterinário',morto:'Falecido'}[pet.status]||'Indisponível';
+    const panel=block('🐾 Poro: '+label,`Fome ${pet.food}/100 · Felicidade ${pet.happiness}/100 · ${status}`);
+    panel.classList.add('public-section','public-pet');panel.dataset.ownerId=profile.key;
+    panel.prepend(petPortrait(pet));
+    if(pet.status==='ativo'){
+      const actions=h('div','social-actions public-pet-actions');
+      const caress=button('💗 Acariciar',()=>visitPet(profile.key,'pet',null,panel),'main-action public-pet-pat');
+      actions.append(caress);
+      const available=(inventory.treats||[]).filter(t=>t.sku!=='vacina' && Number(t.quantity||0)>0);
+      const select=h('select','select-input');select.setAttribute('aria-label','Petisco para alimentar este Poro');
+      for(const item of available){const option=h('option','',`${item.name} (×${item.quantity})`);option.value=item.sku;select.append(option);}
+      if(available.length)actions.append(select);
+      const feed=button('🍪 Alimentar',()=>visitPet(profile.key,'feed',select.value,panel),'soft-action public-pet-feed');
+      if(!available.length){feed.disabled=true;feed.title='Você precisa de um petisco no Inventário';}
+      actions.append(feed);
+      if(!available.length)actions.append(button('Comprar petiscos →',()=>{$('publicProfilePage').hidden=true;chooseTab('loja','treat3');},'soft-action public-pet-buy'));
+      panel.append(actions);
+    }else{
+      panel.append(h('p','public-pet-closed','Os cuidados de visitantes ficam indisponíveis enquanto este Poro estiver no veterinário, em expedição ou ausente.'));
+    }
+    return panel;
   }
-  // 0.1.4 — Cena do pet: apenas a animacao de repouso (Idle), sem emotes especiais.
-  // Khada usa seu embed oficial. Para GLB, model-viewer carrega somente quando visivel.
+  async function visitPet(owner,action,sku,card){
+    if(!card || card.dataset.carePending==='1' || card.dataset.ownerId!==owner)return;
+    card.dataset.carePending='1';
+    const controls=card.querySelectorAll('.public-pet-actions button');
+    controls.forEach(b=>b.disabled=true);
+    // Reação local instantânea; o perfil público e o GLB permanecem montados.
+    const visual=card.querySelector('.pet-visual');
+    if(visual){
+      const effect=h('span','pet-spark',action==='feed'?'🍪':'💖');visual.append(effect);
+      setTimeout(()=>effect.remove(),850);
+      visual.playCareAnimation?.(action);
+    }
+    try{
+      const response=await API('/api/pets/visit/'+encodeURIComponent(owner),{action,treat_sku:sku||'biscoito'});
+      resetCachedData();
+      if(response.pet){
+        const status=card.querySelector(':scope > p');
+        if(status)status.textContent=`Fome ${response.pet.food}/100 · Felicidade ${response.pet.happiness}/100 · Em casa`;
+      }
+      applyConfirmedCoins({coins_balance:response.visitor_balance,coins_gained:response.visitor_coins});
+      if(action==='feed' && response.visitor_treats!==undefined){
+        if(state.account)state.account.treats=response.visitor_treats;
+        for(const id of ['valPetiscos','desktopTreats']){const el=$(id);if(el)el.textContent=money(response.visitor_treats);}
+        const selected=card.querySelector('.public-pet-actions .select-input');
+        if(selected){const option=Array.from(selected.options).find(o=>o.value===sku);
+          if(option){const remaining=Number(response.treat_quantity);
+            if(Number.isFinite(remaining)&&remaining<=0)option.remove();
+            else if(Number.isFinite(remaining))option.textContent=option.textContent.replace(/×\d+/,`×${remaining}`);
+          }
+        }
+      }
+      const used=card.querySelector(action==='pet'?'.public-pet-pat':'.public-pet-feed');
+      if(used){used.textContent=action==='pet'?'✓ Acariciado hoje':'✓ Alimentado hoje';used.dataset.completed='1';}
+      toast(`+${money(response.visitor_coins||0)} moedas para você e +${money(response.owner_coins||0)} para o dono!`);
+      // Reconciliar apenas contadores, sem chamar openPublicProfile e recarregar seu modelo.
+      refreshProfile().catch(()=>{});
+      return response;
+    }catch(err){toast('⚠ '+(err?.message||'Não foi possível cuidar deste Poro.'));return null;}
+    finally{
+      delete card.dataset.carePending;
+      controls.forEach(b=>{if(!b.dataset.completed && !b.classList.contains('public-pet-buy'))b.disabled=b.classList.contains('public-pet-feed') && !card.querySelector('.public-pet-actions .select-input')?.options.length;});
+    }
+  }
+  // GLB: animações nomeadas (Idle, carinho e alimentação) são selecionadas
+  // sem recriar a cena. Embeds Khada não expõem API para trocar os clipes.
   const KHADA_EMBED_ORIGIN='https://modelviewer.lol';
   function khadaTftUrl(id){
     const value=String(id||'').trim();
@@ -811,10 +953,21 @@
   }
   function bestIdleClip(clips,requested){
     const names=Array.isArray(clips)?clips:[];
+    const explicit=String(requested||'').trim();
+    // Respeitar o nome exato configurado no gerenciador, sem exigir a palavra Idle.
+    if(explicit){const found=names.find(name=>name===explicit)||names.find(name=>name.toLowerCase()===explicit.toLowerCase());if(found)return found;}
     const isIdle=name=>/idle|stand|breath|parad/i.test(name);
-    const match=names.find(name=>name===requested && isIdle(name));
-    if(match)return match;
     return names.find(isIdle)||(names.length===1?names[0]:null);
+  }
+  function careClipName(clips,requested,action){
+    const names=Array.isArray(clips)?clips:[];
+    const explicit=String(requested||'').trim();
+    if(explicit){
+      // Se uma animação foi configurada, nunca escolher outra aleatoriamente.
+      return names.find(name=>name===explicit)||names.find(name=>name.toLowerCase()===explicit.toLowerCase())||null;
+    }
+    const rx=action==='feed'?/(?:feed|eat|eating|snack|treat|aliment|comer|munch|bite)/i:/(?:petting|pet_|_pet|pat|happy|affection|caress|carinho|purr)/i;
+    return names.find(name=>rx.test(name) && !/idle|stand/i.test(name))||null;
   }
   function petVisual(species,large=false,thumbnail=false){
     const wrap=h('div','pet-visual'+(large?' pet-visual-large':''));
@@ -844,14 +997,42 @@
       return wrap;
     }
     let visible=false,started=false,loaded=false;
-    let view=null;
+    let view=null,carePlaying=false,careFallbackTimer=null;
+    function returnToIdle(){
+      clearTimeout(careFallbackTimer);careFallbackTimer=null;
+      carePlaying=false;
+      if(!view)return;
+      view.dataset.carePlaying='';
+      const idle=view.dataset.idleAnimation;
+      if(idle){view.animationName=idle;if(visible && !reduced)try{view.play();}catch(_){/* A cena pode estar oculta. */}}
+      else view.pause?.();
+    }
+    // O botão não recria o elemento 3D. Ele troca apenas o clipe no viewer existente.
+    wrap.playCareAnimation=(action)=>{
+      if(!view || !loaded || khada || reduced || carePlaying)return false;
+      const requested=action==='feed'?species.feed_animation:species.pet_animation;
+      const clip=careClipName(view.availableAnimations,requested,action);
+      if(!clip)return false;
+      carePlaying=true;view.dataset.carePlaying='1';
+      try{
+        view.animationName=clip;
+        view.currentTime=0;
+        view.play({repetitions:1});
+        // Backup para clips cujos modelos não emitem finished por limitação do export.
+        const seconds=Number(view.duration);
+        careFallbackTimer=setTimeout(returnToIdle,Number.isFinite(seconds)&&seconds>0?Math.min(15000,Math.max(1600,seconds*1000+950)):8000);
+        return true;
+      }catch(_){returnToIdle();return false;}
+    };
     const syncVisibility=(show)=>{
       visible=show && document.visibilityState!=='hidden';
       if(visible && !started){started=true;startViewer();}
       if(!view || khada || !loaded)return;
-      if(visible && !reduced && view.dataset.idleAnimation){
+      if(!visible){view.pause?.();return;}
+      if(carePlaying)return; // A entrada/saída do viewport não reinicia a cena durante o carinho.
+      if(!reduced && view.dataset.idleAnimation){
         try{view.play();}catch(_){/* O componente ainda pode estar inicializando. */}
-      }else if(typeof view.pause==='function')view.pause();
+      }
     };
     function startViewer(){
       if(khada){
@@ -884,6 +1065,11 @@
       view.setAttribute('exposure','1.1');view.setAttribute('environment-image','neutral');
       view.setAttribute('interaction-prompt','none');
       view.setAttribute('loading','eager');view.setAttribute('reveal','auto');
+      if(large){
+        // Aproxima o Poro dentro do seu painel sem alterar escala do card.
+        view.setAttribute('camera-orbit','0deg 75deg 82%');
+        view.setAttribute('min-camera-orbit','auto auto 65%');
+      }
       view.setAttribute('animation-crossfade-duration','300');
       // Nao ativar autoplay antes de descobrir a animacao correta: isso disparava Walk/Dance.
       view.addEventListener('load',()=>{
@@ -909,7 +1095,8 @@
         if(!wrap.querySelector('.model-error'))wrap.append(h('small','model-error','Falha no GLB: confirme URL pública, extensão .glb e permissão CORS.'));
       });
       view.addEventListener('finished',()=>{
-        if(visible && !reduced && view.dataset.idleAnimation){view.animationName=view.dataset.idleAnimation;view.play();}
+        if(carePlaying)returnToIdle();
+        else if(visible && !reduced && view.dataset.idleAnimation){view.animationName=view.dataset.idleAnimation;view.play();}
       });
       wrap.append(view);
       load3DViewer().then(ready=>{
@@ -931,52 +1118,112 @@
     for(const view of document.querySelectorAll('model-viewer.pet-model')){
       if(document.hidden){view.pause?.();continue;}
       const rect=view.getBoundingClientRect();
-      if(view.dataset.idleAnimation && rect.width && rect.height && rect.bottom>0 && rect.top<innerHeight){
+      if(!view.dataset.carePlaying && view.dataset.idleAnimation && rect.width && rect.height && rect.bottom>0 && rect.top<innerHeight){
         try{view.play();}catch(_){/* Modelo ainda inicializando. */}
       }
     }
   });
   function petReaction(action){
-    // O pet permanece em Idle: alimentacao e carinho modificam apenas status/feedback.
-    const visual=$('petPane').querySelector('.pet-visual-large');if(!visual)return;
+    // Feedback no instante do clique: nenhuma navegação ou remontagem do GLB.
+    const visual=$('petPane').querySelector('.poro-main-card .pet-visual-large');if(!visual)return;
     const symbol=h('span','pet-spark',action==='feed'?'🍪':'💖');visual.append(symbol);
     setTimeout(()=>symbol.remove(),850);
+    visual.playCareAnimation?.(action);
   }
   async function petCare(action,sku='biscoito'){
-    const result=await safeRun(()=>API('/api/pets/care',{action,treat_sku:sku}),action==='feed'?'Poro alimentado!':'Seu Poro recebeu carinho!');
-    if(result)petReaction(action);
+    if(state.petCareBusy)return;
+    state.petCareBusy=true;
+    petReaction(action);
+    try{
+      const result=await API('/api/pets/care',{action,treat_sku:sku});
+      resetCachedData();
+      // Atualização pontual: preserva o <model-viewer>, o vídeo Idle e a rolagem.
+      if(result?.pet){
+        state.activePet=result.pet;
+        if(Number.isFinite(Number(result.treats)))state.activePetTreats=Number(result.treats);
+        const p=$('petPane').querySelector('.poro-status-card p');
+        if(p)p.textContent=`🍎 Fome: ${result.pet.food}/100 • 💕 Felicidade: ${result.pet.happiness}/100 • 🍪 Petiscos: ${state.activePetTreats??0}`;
+      }
+      if(action==='feed'){
+        const remaining=Number(result?.treats);
+        if(Number.isFinite(remaining)){
+          if(state.account){state.account.treats=remaining;}
+          for(const id of ['valPetiscos','desktopTreats']){const el=$(id);if(el)el.textContent=money(remaining);}
+        }
+        const choose=$('petPane').querySelector('.poro-care-actions-card .select-input');
+        if(choose){
+          const option=Array.from(choose.options).find(opt=>opt.value===sku);
+          if(option){
+            const qty=Number(result?.treat_quantity);
+            if(Number.isFinite(qty) && qty<=0)option.remove();
+            else if(Number.isFinite(qty))option.textContent=option.textContent.replace(/·\s*\d+\s*$/,`· ${qty}`);
+          }
+          if(!choose.options.length){choose.disabled=true;const btn=$('petPane').querySelector('.poro-care-actions-card .pet-actions button');if(btn){btn.disabled=true;btn.textContent='Sem petiscos';}}
+        }
+      }
+      toast(action==='feed'?'Poro alimentado!':'Seu Poro recebeu carinho!');
+      // Não chamar refreshActive nem refreshProfile aqui: ambos poderiam recriar o Poro.
+      return result;
+    }catch(err){
+      toast('⚠ '+(err?.message||'Não foi possível cuidar do Poro.'));
+      // Uma interação recusada não aumenta fome/felicidade nem desconta petiscos.
+      return null;
+    }finally{state.petCareBusy=false;}
   }
   async function loadPet(){
     const data=await API('/api/pets');const pane=$('petPane');pane.replaceChildren();const pet=data.pet;
-    state.activePet=pet;
+    state.activePet=pet;state.activePetTreats=Number(data.treats||0);
+    if(state.account && data.coins_balance!==undefined && Number.isFinite(Number(data.coins_balance))
+       && Number(data.coins_balance)!==Number(state.account.coins)){
+      applyConfirmedCoins({coins_balance:data.coins_balance});
+    }
     $('petStatus').textContent=pet?({ativo:'Em casa','vet':'No veterinário','morto':'Falecido','missao':'Em missão'}[pet.status]):'Sem Poro';
     if(!pet||pet.status==='morto'){
-      pane.append(block(pet?'Seu Poro faleceu':'Escolha seu Poro',pet?'O prazo de resgate terminou. Você pode adotar outro Poro.':'Você pode adotar apenas um Poro por vez. Cuide dele diariamente.'));
+      const deceased=pet?.status==='morto';
+      const waiting=deceased && pet.adoption_available_at && new Date(pet.adoption_available_at).getTime()>Date.now();
+      const message=deceased
+        ?`Seu Poro faleceu. Penalidade aplicada: ${pet.death_penalty||150} moedas. ${waiting?'Você poderá adotar outro em '+countdown(pet.adoption_available_at)+'.':'Já pode adotar um novo Poro.'}`
+        :'Você pode adotar apenas um Poro por vez. Cuide dele diariamente.';
+      const notice=block(deceased?'Seu Poro faleceu':'Escolha seu Poro',message);
+      if(waiting){
+        const until=h('p','poro-death-countdown');until.dataset.readyAt=pet.adoption_available_at;
+        const update=()=>{if(until.isConnected){until.textContent='Próxima adoção em: '+countdown(pet.adoption_available_at);}};
+        update();
+        const ticker=setInterval(()=>{if(!until.isConnected){clearInterval(ticker);return;}update();if(Date.now()>=new Date(pet.adoption_available_at).getTime()){clearInterval(ticker);loadPet().catch(()=>{});}},1000);
+        notice.append(until);
+      }
+      pane.append(notice);
       const grid=h('div','pet-grid');data.species.forEach(s=>{
         const row=block(poroSpeciesName(s.name),'Poro disponível para adoção');row.prepend(petVisual(s,false,true));
         const nameRow=h('label','poro-nickname-label','Nome do seu Poro');
         const nickname=h('input','text-input poro-nickname');nickname.type='text';nickname.maxLength=40;
         nickname.placeholder='Como seu Poro vai se chamar?';nickname.autocomplete='off';
         nameRow.append(nickname);
-        row.append(nameRow,button('Adotar',async()=>{
+        const adoptButton=button('Adotar',async()=>{
           const name=nickname.value.trim();
           if(name.length<2||name.length>40){toast('Escolha um nome de 2 a 40 caracteres para seu Poro.');nickname.focus();return;}
-          await safeRun(()=>API('/api/pets/adopt',{species_id:s.id,nickname:name}),name+' foi adotado!');
-        }));grid.append(row);
+          const created=await safeRun(()=>API('/api/pets/adopt',{species_id:s.id,nickname:name}),name+' foi adotado!');
+          if(created){resetCachedData();await loadPet();}
+        });
+        if(waiting){adoptButton.disabled=true;adoptButton.title='Aguarde 24 horas após o falecimento do Poro';}
+        row.append(nameRow,adoptButton);grid.append(row);
       });pane.append(grid);return;
     }
     const layout=h('div','poro-layout');const care=h('section','poro-care-column');const adventures=h('section','poro-expeditions-column');
     layout.append(care,adventures);pane.append(layout);
     const petName=pet.nickname||poroSpeciesName(pet.name);
     const show=h('section','game-box poro-main-card');
-    show.append(h('div','poro-name-banner',petName),petPortrait(pet,true));
+    const nameBar=h('div','poro-name-banner');
+    nameBar.append(h('strong','poro-name-text',petName),h('span','poro-home-badge',
+      ({ativo:'Em casa',missao:'Em expedição',vet:'No veterinário',morto:'Falecido'})[pet.status]||'Status indisponível'));
+    show.append(nameBar,petPortrait(pet,true));
     care.append(show);
 
     const statusCard=block('Status do Poro',pet.status==='missao'
-      ?`📍 Em missão • 🍎 Fome: ${pet.food}/100 • 💕 Felicidade: ${pet.happiness}/100 • 🍪 Petiscos: ${data.treats}`
+      ?`🍎 Fome: ${pet.food}/100 • 💕 Felicidade: ${pet.happiness}/100 • 🍪 Petiscos: ${data.treats}`
       :pet.status==='vet'
-        ?`🏥 No veterinário • Resgate por ${money(pet.rescue_cost)} moedas. Prazo: ${pet.vet_deadline?new Date(pet.vet_deadline).toLocaleString('pt-BR'):'—'}`
-        :`🏠 Em casa • 🍎 Fome: ${pet.food}/100 • 💕 Felicidade: ${pet.happiness}/100 • 🍪 Petiscos: ${data.treats}`
+        ?`🏥 Resgate por ${money(pet.rescue_cost)} moedas. Prazo: ${pet.vet_deadline?new Date(pet.vet_deadline).toLocaleString('pt-BR'):'—'}`
+        :`🍎 Fome: ${pet.food}/100 • 💕 Felicidade: ${pet.happiness}/100 • 🍪 Petiscos: ${data.treats}`
     );
     statusCard.classList.add('poro-status-card');
     care.append(statusCard);
@@ -1006,6 +1253,31 @@
     equip.append(equipmentRow);
     if(pet.equipped_collectible){const info=button('Ver item equipado',()=>showProfileItemDetail(pet.equipped_collectible,'collectible'),'soft-action poro-item-detail');equip.append(info);}
     adventures.append(equip);
+
+    if(pet.status==='ativo'){
+      const change=block('Trocar de Poro','Escolha outro Poro. A troca substitui o atual, mas seus colecionáveis continuam no inventário.');
+      change.classList.add('poro-change-card');
+      const toggle=button('Escolher outro Poro',()=>{choices.hidden=!choices.hidden;toggle.setAttribute('aria-expanded',String(!choices.hidden));},'soft-action');
+      toggle.setAttribute('aria-expanded','false');
+      const choices=h('div','poro-change-options');choices.hidden=true;
+      const speciesSelect=h('select','select-input');speciesSelect.setAttribute('aria-label','Escolha a espécie do novo Poro');
+      for(const specie of data.species||[]){
+        const opt=h('option','',poroSpeciesName(specie.name));opt.value=String(specie.id);speciesSelect.append(opt);
+      }
+      const newName=h('input','text-input');newName.placeholder='Nome do novo Poro';newName.maxLength=40;
+      newName.setAttribute('aria-label','Nome do novo Poro');
+      const confirmChange=button('Confirmar troca',async()=>{
+        const name=newName.value.trim();
+        if(name.length<2 || name.length>40){toast('Digite um nome de 2 a 40 caracteres.');newName.focus();return;}
+        if(!window.confirm(`Trocar ${petName} por ${name}? O progresso do Poro atual será substituído.`))return;
+        try{
+          const updated=await API('/api/pets/change',{species_id:Number(speciesSelect.value),nickname:name});
+          if(updated?.ok){resetCachedData();toast('Seu novo Poro chegou!');await loadPet();}
+        }catch(error){toast('⚠ '+(error?.message||'Não foi possível trocar o Poro.'));}
+      });
+      choices.append(speciesSelect,newName,confirmChange);
+      change.append(toggle,choices);adventures.append(change);
+    }
 
     if(pet.status==='missao'){
       const expedition=data.expedition;
@@ -1101,7 +1373,7 @@
     const wrapper=h('div',cls);if(src){const img=h('img');img.src=src;img.alt=title;img.loading='lazy';img.onerror=()=>{img.remove();wrapper.textContent=emoji;};wrapper.append(img);}else wrapper.textContent=emoji;
     return wrapper;
   }
-  async function loadShop(){const [shop,me,daily]=await Promise.all([API('/api/shop'),API('/api/me'),API('/api/daily/status')]);$('shopWallet').textContent=`🪙 ${money(me.coins)}`;state.reset=daily.next_reset;$('dailyCoins').disabled=daily.coins_claimed;$('dailyCoins').textContent=daily.coins_claimed?'✓ Resgatado':`Resgatar ${money(daily.reward)} moedas`;updateCountdowns();const pane=$('shopPane');pane.replaceChildren();for(const s of shop.products){const box=block(s.name,s.kind==='cards'?`${s.amount} cartas aleatórias · guarda no Inventário`:s.sku==='vaccine'?'1 vacina para Poros em recuperação':`${s.amount} petisco(s) · +${s.food||15} fome por unidade`);box.id='shop-'+s.sku;box.classList.add('product-card');box.prepend(mediaCover(s.image_url,s.emoji||'🎁',s.name,'product-cover'));if(s.rates)box.append(h('p','rates',Object.entries(s.rates).map(([k,v])=>`${tierLabels[k]} ${v}%`).join(' · ')));box.append(button(`Comprar · 🪙 ${money(s.price)}`,()=>safeRun(()=>API('/api/shop/purchase',{sku:s.sku}),result=>result.pack_id?`Pacote guardado no Inventário!`:`${result.treats_gained} item(ns) adicionado(s) ao Inventário!`)));pane.append(box);}if(state.focusShop){const selected=$('shop-'+state.focusShop);state.focusShop=null;if(selected){selected.classList.add('shop-focus');selected.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});setTimeout(()=>selected.classList.remove('shop-focus'),1800);}}}
+  async function loadShop(){const [shop,me,daily]=await Promise.all([API('/api/shop'),API('/api/me'),API('/api/daily/status')]);$('shopWallet').textContent=`🪙 ${money(me.coins)}`;state.reset=daily.next_reset;state.dailyReward=Number(daily.reward||0);$('dailyCoins').disabled=daily.coins_claimed||state.dailyClaimInFlight;$('dailyCoins').textContent=state.dailyClaimInFlight?'Confirmando resgate…':daily.coins_claimed?'✓ Resgatado':`Resgatar ${money(daily.reward)} moedas`;updateCountdowns();const pane=$('shopPane');pane.replaceChildren();for(const s of shop.products){const box=block(s.name,s.kind==='cards'?`${s.amount} cartas aleatórias · guarda no Inventário`:s.sku==='vaccine'?'1 vacina para Poros em recuperação':`${s.amount} petisco(s) · +${s.food||15} fome por unidade`);box.id='shop-'+s.sku;box.classList.add('product-card');box.prepend(mediaCover(s.image_url,s.emoji||'🎁',s.name,'product-cover'));if(s.rates)box.append(h('p','rates',Object.entries(s.rates).map(([k,v])=>`${tierLabels[k]} ${v}%`).join(' · ')));box.append(button(`Comprar · 🪙 ${money(s.price)}`,()=>safeRun(()=>API('/api/shop/purchase',{sku:s.sku}),result=>result.pack_id?`Pacote guardado no Inventário!`:`${result.treats_gained} item(ns) adicionado(s) ao Inventário!`)));pane.append(box);}if(state.focusShop){const selected=$('shop-'+state.focusShop);state.focusShop=null;if(selected){selected.classList.add('shop-focus');selected.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});setTimeout(()=>selected.classList.remove('shop-focus'),1800);}}}
   async function loadMissions(){
     const data=await API('/api/missions');state.missionReset=data.next_reset;
     const pane=$('missionPane');pane.replaceChildren();
@@ -1115,7 +1387,7 @@
         const box=block(poroLegacyText(m.title),`Progresso: ${m.progress}/${m.goal} · Recompensa: 🪙 ${m.reward}`);
         box.classList.add('mission-card');box.prepend(mediaCover(m.image_url,m.emoji||'🎯',poroLegacyText(m.title),'mission-cover'));
         const bar=h('div','mission-meter');const fill=h('div','mission-fill');fill.style.width=Math.min(100,100*m.progress/m.goal)+'%';bar.append(fill);box.append(bar);
-        const action=button(m.claimed?'✓ Resgatada':m.progress>=m.goal?'Resgatar recompensa':'Em andamento',()=>safeRun(()=>API('/api/missions/'+m.code+'/claim',{}),`+${m.reward} moedas!`));
+        const action=button(m.claimed?'✓ Resgatada':m.progress>=m.goal?'Resgatar recompensa':'Em andamento',()=>safeRun(()=>API('/api/missions/'+m.code+'/claim',{}),`+${m.reward} moedas!`,result=>{applyConfirmedCoins(result,m.reward);action.textContent='✓ Resgatada';action.dataset.keepDisabled='1';action.disabled=true;}));
         action.disabled=m.claimed||m.progress<m.goal;box.append(action);section.append(box);
       }
       pane.append(section);
@@ -1232,7 +1504,7 @@
       const khadaLabel=h('label','admin-field','ID do modelo no Khada (TFT, opcional)');
       khadaInput=h('input','text-input');khadaInput.type='text';khadaInput.inputMode='numeric';khadaInput.placeholder='ID de um modelo Khada TFT compatível';khadaLabel.append(khadaInput);form.append(khadaLabel);
       inputs.model_url.addEventListener('input',()=>{khadaInput.value='';});
-      form.append(h('small','','Somente Idle: o GLB deve conter a animação Idle ou um único clipe. Alternativamente, informe um ID de modelo Khada TFT compatível.'));
+      form.append(h('small','','Configure os nomes EXATOS dos clipes do GLB para Idle, Carinho e Alimentação. Modelos por embed Khada não permitem controlar clipes a partir do Recanto.'));
     }
     const actions=h('div','admin-action-row');
     const save=button('Salvar alterações',async()=>{
@@ -1742,8 +2014,33 @@
   $('flipStage').onclick=revealNext;
   $('revealExit').onclick=()=>{$('packReveal').hidden=true;state.reveal=null;chooseTab('inventario');};
 
-  $('dailyCoins').onclick=()=>safeRun(()=>API('/api/daily/coins',{}),'Moedas resgatadas!');
-  $('dailyCard').onclick=async()=>{const result=await safeRun(()=>API('/api/daily/card',{}),'Card diário recebido!');if(result?.card)showCard(result.card,`+${result.card.bonus_coins??result.card_bonus??state.game?.rules?.['card_bonus_'+result.card.rarity]??1} moedas pelo card!`);};
+  $('dailyCoins').onclick=async()=>{
+    const el=$('dailyCoins');if(state.dailyClaimInFlight||el.disabled)return;
+    state.dailyClaimInFlight=true;
+    const originalText=el.textContent;
+    const expected=Number(state.dailyReward||0);
+    // Valor provisório explicitamente sinalizado até confirmação do backend.
+    pendingCoinsPreview+=expected;paintCoins();
+    el.disabled=true;el.classList.add('action-pending');el.setAttribute('aria-busy','true');
+    el.textContent='Confirmando resgate…';
+    try{
+      const response=await API('/api/daily/coins',{});
+      pendingCoinsPreview-=expected;
+      applyConfirmedCoins(response,expected);
+      el.textContent='✓ Resgatado';el.disabled=true;
+      state.dailyClaimInFlight=false;state.reset=state.reset||null;
+      updateCountdowns();resetCachedData();toast(`+${money(response.coins_gained??expected)} moedas resgatadas!`);
+      reconcileAfterAction();
+    }catch(err){
+      pendingCoinsPreview-=expected;paintCoins();
+      el.textContent=originalText;el.disabled=false;
+      toast('⚠ '+(err?.message||'Não foi possível resgatar.'));
+      resetCachedData();reconcileAfterAction();
+    }finally{
+      state.dailyClaimInFlight=false;el.classList.remove('action-pending');el.removeAttribute('aria-busy');
+    }
+  };
+  $('dailyCard').onclick=async()=>{const result=await safeRun(()=>API('/api/daily/card',{}),'Card diário recebido!',r=>{applyConfirmedCoins({coins_gained:r?.card?.bonus_coins??0});$('dailyCard').disabled=true;$('dailyCard').textContent='⏳ Aguardar 5h';});if(result?.card)showCard(result.card,`+${result.card.bonus_coins??result.card_bonus??state.game?.rules?.['card_bonus_'+result.card.rarity]??1} moedas pelo card!`);};
   document.querySelectorAll('[data-tab]').forEach(btn=>btn.addEventListener('click',()=>chooseTab(btn.dataset.tab)));
   document.querySelectorAll('[data-card-tab]').forEach(btn=>btn.addEventListener('click',()=>cardPane(btn.dataset.cardTab).catch(err=>toast(err.message))));
   $('closeCardDetail').onclick=closeCardDetail;$('closeAdmin').onclick=()=>{$('adminModal').hidden=true;document.body.classList.remove('page-open');};

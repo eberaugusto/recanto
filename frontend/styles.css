@@ -2329,3 +2329,45 @@ body.dark-mode #profileContent .header-actions .settings-button.search-icon-butt
 .admin-artwork-preview img[hidden]{display:none!important;}
 .admin-artwork-preview small{overflow-wrap:anywhere;}
 body.dark-mode .admin-artwork-preview{background:rgba(8,15,40,.25);color:#f5f6ff;}
+
+
+/* Recanto 0.2.2 — retorno visual imediato e estado acessível durante requisições. */
+button.action-pending{position:relative;cursor:progress!important;opacity:.8;pointer-events:none;}
+button.action-pending:not(.feed-like){padding-right:clamp(26px,2.5vw,36px)!important;}
+button.action-pending:not(.feed-like)::after{
+  content:'';position:absolute;right:9px;top:calc(50% - 6px);width:12px;height:12px;
+  border-radius:50%;border:2px solid currentColor;border-right-color:transparent;
+  animation:recanto-action-spin .8s linear infinite;pointer-events:none;
+}
+@keyframes recanto-action-spin{to{transform:rotate(360deg);}}
+.feed-like.like-awaiting-confirmation{opacity:.7;cursor:progress!important;}
+.coins-awaiting-confirmation{opacity:.75;text-decoration:underline dotted;text-underline-offset:3px;}
+@media(prefers-reduced-motion:reduce){button.action-pending::after{animation:none!important;}}
+
+
+/* Recanto 0.2.2 — Troca segura de Poros e espera após falecimento. */
+#petPane .poro-change-card{display:flex;flex-direction:column;gap:13px;}
+#petPane .poro-change-options:not([hidden]){display:flex;flex-direction:column;gap:12px;padding-top:4px;}
+#petPane .poro-change-options .select-input,#petPane .poro-change-options .text-input{width:100%;min-height:44px;}
+#petPane .poro-change-options button{align-self:flex-start;max-width:100%;}
+#petPane .poro-death-countdown{font-weight:800;font-variant-numeric:tabular-nums;}
+#petPane .poro-change-options[hidden]{display:none!important;}
+
+/* RECANTO 0.2.2 — nome destacado e situação lado a lado. */
+#petPane .poro-name-banner{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:center;text-align:center;}
+#petPane .poro-name-banner .poro-name-text{font-size:clamp(26px,2.4vw,38px);font-weight:900;line-height:1.1;overflow-wrap:anywhere;}
+#petPane .poro-home-badge{display:inline-flex;align-items:center;justify-content:center;padding:7px 12px;
+  font-size:clamp(12px,1.1vw,15px);font-weight:750;line-height:1.1;border-radius:999px;
+  color:#34448a;background:#ffffffa8;white-space:nowrap;}
+body.dark-mode #petPane .poro-home-badge{background:#30466c;color:#fff;}
+/* O retrato dá prioridade ao modelo 3D, sem cortar o colecionável equipado. */
+#petPane .poro-main-card .pet-visual-large{min-height:340px!important;height:clamp(340px,38vw,540px)!important;}
+#petPane .poro-main-card .pet-visual-large model-viewer{width:100%;height:100%;}
+@media(max-width:767px){
+  #petPane .poro-main-card .pet-visual-large{min-height:290px!important;height:clamp(290px,100vw,450px)!important;}
+}
+/* Cuidados de outros membros, agrupados no próprio bloco do Poro visitado. */
+.public-pet .public-pet-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px;}
+.public-pet .public-pet-actions .select-input{flex:1 1 165px;min-width:0;}
+.public-pet .public-pet-actions button{flex:1 1 120px;min-width:0;}
+.public-pet .public-pet-closed{font-size:13px;line-height:1.5;opacity:.8;}

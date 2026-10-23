@@ -44,6 +44,7 @@ DEFAULTS = {
     'visit_pet_reward': 3, 'visit_feed_reward': 5, 'visit_owner_reward': 1,
     'vet_cost': 180, 'vaccine_cost': 120, 'neglect_hours': 48,
     'vet_dead_days': 3,
+    'pet_death_penalty': 150,
 }
 MISSIONS = [
     ('daily_card', 'Resgate um card', 1, 12),
@@ -314,6 +315,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         last_feed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
         last_pet_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
         vet_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+        death_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+        death_penalty_applied: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
     # v0.7: pacotes persistem fechados; a reserva impede extrapolar copias globais.
@@ -379,7 +382,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     connection.execute(text(f'ALTER TABLE pet_species ADD COLUMN {field} VARCHAR(512)' if field == 'model_url' else f'ALTER TABLE pet_species ADD COLUMN {field} VARCHAR(80)'))
     # 0.1.21: migracoes aditivas, sem perder Poros, expedicoes ou colecoes antigas.
     for table, fields in {
-        'user_pets': {'nickname': 'VARCHAR(40)', 'equipped_collectible_id': 'INTEGER'},
+        'user_pets': {'nickname': 'VARCHAR(40)', 'equipped_collectible_id': 'INTEGER',
+                      'death_at': 'TIMESTAMP', 'death_penalty_applied': 'BOOLEAN NOT NULL DEFAULT FALSE'},
         'pet_expeditions': {
             'reward_card_id': 'INTEGER',
             'reward_collectible_id': 'INTEGER',
@@ -392,6 +396,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 for field, sql_type in fields.items():
                     if field not in existing:
                         connection.execute(text(f'ALTER TABLE {table} ADD COLUMN {field} {sql_type}'))
+                # Falecimentos anteriores à atualização não são cobrados retroativamente.
+                if table == 'user_pets' and 'death_penalty_applied' not in existing:
+                    connection.execute(text("UPDATE user_pets SET death_penalty_applied = TRUE WHERE status = 'morto'"))
     Base.metadata.create_all(engine)
     with SessionLocal.begin() as db:
         if not db.get(FeaturedCollection,1):
@@ -662,7 +669,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if entry.user_id == uid:raise HTTPException(403,detail='Você não pode curtir sua própria publicação')
             existing=db.get(FeedLike,(event_id,uid))
             if existing:
-                return {'ok':True,'liked':True,'coins_gained':0}
+                return {'ok':True,'liked':True,'coins_gained':0,'reward_today':(db.get(FeedDailyReward,(uid,local_day())).count if db.get(FeedDailyReward,(uid,local_day())) else 0)}
             db.add(FeedLike(event_id=event_id,user_id=uid))
             day=local_day();state=db.get(FeedDailyReward,(uid,day))
             if state is None:
@@ -671,7 +678,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if gained:
                 wallet(db,uid).coins+=1
                 state.count+=1
-            return {'ok':True,'liked':True,'coins_gained':gained,'reward_today':state.count}
+            return {'ok':True,'liked':True,'coins_gained':gained,'reward_today':state.count,'coins_balance':wallet(db,uid).coins}
 
     def achievement_event(db, uid, event, amount=1):
         # Nunca aceitar progresso arbitrário enviado pelo navegador.
@@ -760,6 +767,16 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             deadline = naive_to_utc(obj.vet_since) + timedelta(days=setting(db, 'vet_dead_days'))
             if now >= deadline:
                 obj.status = 'morto'
+                obj.death_at = deadline  # A espera começa na morte, não na próxima visita.
+        if obj.status == 'morto':
+            if obj.death_at is None:
+                # Dados antigos sem data exata: usar o prazo do veterinário quando houver.
+                obj.death_at = (naive_to_utc(obj.vet_since) + timedelta(days=setting(db, 'vet_dead_days'))) if obj.vet_since else now
+            if not obj.death_penalty_applied:
+                # Penalidade única e transacional; saldo negativo representa dívida a pagar
+                # com as próximas moedas recebidas, sem perdoar parte dos 150.
+                wallet(db, obj.user_id).coins -= setting(db, 'pet_death_penalty')
+                obj.death_penalty_applied = True
 
     def pet_dict(db, obj):
         if obj is None:
@@ -774,9 +791,12 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             item = db.get(Collectible, obj.equipped_collectible_id) if owned and owned.quantity > 0 else None
             if item:
                 equipped = collectible_dict(item, owned.quantity, owned.acquired_at)
+        allowed=(naive_to_utc(obj.death_at)+timedelta(hours=24)).isoformat() if obj.status=='morto' and obj.death_at else None
         return {'species_id': sp.id, 'name': sp.name, 'emoji': sp.emoji, 'image_url': sp.image_url, **model_fields(sp),
                 'nickname': obj.nickname or sp.name, 'equipped_collectible': equipped, 'status': obj.status, 'food': obj.food, 'happiness': obj.happiness,
                 'rescue_cost': setting(db, 'vet_cost'), 'vet_deadline': deadline,
+                'death_at': naive_to_utc(obj.death_at).isoformat() if obj.death_at else None,
+                'adoption_available_at': allowed, 'death_penalty': setting(db,'pet_death_penalty'),
                 'next_feed': nextfeed, 'next_pet': nextpet}
 
     def model_fields(s):
@@ -875,9 +895,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         with writing() as db:
             record_claim(db, uid, 'coins')
             gain = setting(db, 'daily_coins')
-            wallet(db, uid).coins += gain
+            balance=wallet(db, uid)
+            balance.coins += gain
             progress(db, uid, 'daily_coins')
-        return {'ok': True, 'coins_gained': gain}
+            balance_after=balance.coins
+        return {'ok': True, 'coins_gained': gain, 'coins_balance': balance_after}
 
     @app.post('/api/daily/card')
     def daily_card(request: Request):
@@ -889,7 +911,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             chosen = random_card(stock(db), 'diario')
             result = grant_card(db, uid, chosen)
             reward=card_bonus(db, result['rarity'])
-            wallet(db, uid).coins += reward
+            balance=wallet(db, uid)
+            balance.coins += reward
+            result['coins_balance']=balance.coins
             cooldown=db.get(CardCooldown,uid)
             if cooldown: cooldown.last_claimed=utcnow()
             else: db.add(CardCooldown(user_id=uid,last_claimed=utcnow()))
@@ -1379,7 +1403,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             progress(db,visitor,'pet' if action=='pet' else 'feed')
             achievement_event(db,visitor,'pet' if action=='pet' else 'feed')
             result=pet_dict(db,obj)
-        return {'ok':True,'visitor_coins':gain,'owner_coins':owner_gain,'pet':result}
+            visitor_balance=wallet(db,visitor).coins
+            visitor_treats=wallet(db,visitor).treats
+            remaining=treat_qty(db,visitor,sku) if action=='feed' else None
+        return {'ok':True,'visitor_coins':gain,'owner_coins':owner_gain,'pet':result,
+                'visitor_balance':visitor_balance,'visitor_treats':visitor_treats,'treat_quantity':remaining}
 
     @app.post('/api/inventory/gift')
     async def gift_treat(request: Request):
@@ -1404,6 +1432,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             return {'pet': pet_dict(db, obj), 'species': [
                 {'id': s.id, 'name': s.name, 'emoji': s.emoji, 'image_url': s.image_url, **model_fields(s)} for s in types],
                     'treats': wallet(db, uid).treats,
+                    'coins_balance': wallet(db, uid).coins,
                     'expedition':({'mission':mission.mission,'name':EXPEDITIONS[mission.mission]['name'],
                        'ends_at':naive_to_utc(mission.ends_at).isoformat(),'ready':utcnow()>=naive_to_utc(mission.ends_at)}
                        if (mission:=db.get(PetExpedition,uid)) else None),
@@ -1496,6 +1525,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 pet_tick(db, pet)
                 if pet.status != 'morto':
                     raise HTTPException(409, detail='Cada jogador pode ter apenas um Poro')
+                death_at=naive_to_utc(pet.death_at) if pet.death_at else utcnow()
+                if utcnow() < death_at + timedelta(hours=24):
+                    until=(death_at+timedelta(hours=24)).isoformat()
+                    raise HTTPException(409, detail='Após o falecimento, espere 24 horas para adotar outro Poro. Disponível em: '+until)
                 db.delete(pet)
                 db.flush()
             db.add(UserPet(user_id=uid, species_id=sid, nickname=nickname, status='ativo',
@@ -1504,6 +1537,34 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             progress(db, uid, 'adopt')
             achievement_event(db, uid, 'adopt')
         return {'ok': True, 'message': f'{nickname} foi adotado!'}
+
+    @app.post('/api/pets/change')
+    async def change_poro(request: Request):
+        uid=me(request)
+        data=json_body(await request.json(),('species_id','nickname'))
+        sid=integer(data['species_id'])
+        nickname=str(data['nickname'] or '').strip()
+        if not 2<=len(nickname)<=40 or any(ord(ch)<32 or ord(ch)==127 for ch in nickname):
+            raise HTTPException(422,detail='Nome do novo Poro: entre 2 e 40 caracteres')
+        with writing() as db:
+            obj=db.get(UserPet,uid)
+            if obj is None:raise HTTPException(409,detail='Você ainda não tem um Poro')
+            pet_tick(db,obj)
+            if obj.status!='ativo':
+                raise HTTPException(409,detail='Só é possível trocar um Poro em casa, fora de expedições e do veterinário')
+            if db.get(PetExpedition,uid):
+                raise HTTPException(409,detail='Conclua a expedição antes de trocar de Poro')
+            specie=db.get(PetSpecies,sid)
+            if not specie or not specie.active:raise HTTPException(404,detail='Poro indisponível para adoção')
+            now=utcnow()
+            obj.species_id=sid;obj.nickname=nickname;obj.status='ativo'
+            obj.food=85;obj.happiness=85;obj.adopted_at=now
+            obj.last_tick_at=now;obj.last_action_at=now
+            obj.last_pet_at=None;obj.last_feed_at=None;obj.vet_since=None
+            obj.death_at=None;obj.death_penalty_applied=False
+            obj.equipped_collectible_id=None  # O colecionável permanece no inventário.
+            updated=pet_dict(db,obj)
+        return {'ok':True,'pet':updated}
 
     @app.post('/api/pets/rename')
     async def rename_poro(request: Request):
@@ -1573,7 +1634,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             progress(db, uid, action)
             achievement_event(db, uid, action)
             result = pet_dict(db, obj)
-        return {'ok': True, 'pet': result}
+            remaining_treats = wallet(db, uid).treats
+            selected_quantity = treat_qty(db, uid, sku) if action == 'feed' else None
+        return {'ok': True, 'pet': result, 'treats': remaining_treats, 'treat_quantity': selected_quantity}
 
     @app.post('/api/pets/vaccinate')
     def vaccinate_poro(request:Request):
@@ -1635,9 +1698,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if record.claimed:
                 raise HTTPException(409, detail='Recompensa já resgatada')
             record.claimed = True
-            wallet(db, uid).coins += definitions[code][3]
+            balance=wallet(db, uid)
+            balance.coins += definitions[code][3]
             achievement_event(db, uid, 'mission')
-        return {'ok': True, 'coins_gained': definitions[code][3]}
+            balance_after=balance.coins
+        return {'ok': True, 'coins_gained': definitions[code][3], 'coins_balance': balance_after}
 
     @app.get('/api/admin/authorized-ids')
     def admin_ids(request: Request):
