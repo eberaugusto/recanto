@@ -184,6 +184,13 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         name: Mapped[str] = mapped_column(String(100), nullable=False)
         image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
+    class CollectionCardStyle(Base):
+        """Visual separado da arte do Card: moldura e emblema por coleção."""
+        __tablename__ = 'collection_card_styles'
+        collection_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+        frame_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+        emblem_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
     class PetExpedition(Base):
         __tablename__ = 'pet_expeditions'
         user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
@@ -1154,6 +1161,36 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             earned=DUPLICATE_SALE[card.rarity]
             wallet(db,uid).coins+=earned
             return {'ok':True,'coins_gained':earned}
+
+    @app.get('/api/collections/card-styles')
+    def collection_card_styles(request: Request):
+        # As artes são públicas para todos os membros logados, sem expor opções administrativas.
+        me(request)
+        with SessionLocal() as db:
+            rows=db.scalars(select(CollectionCardStyle).order_by(CollectionCardStyle.collection_name)).all()
+            return {'styles': {row.collection_name: {
+                'frame_url': row.frame_url, 'emblem_url': row.emblem_url
+            } for row in rows}}
+
+    @app.post('/api/admin/collections/card-styles')
+    async def save_collection_card_style(request: Request):
+        only_admin(request)
+        data=json_body(await request.json(), ('collection',))
+        name=str(data['collection'] or '').strip()
+        if name!='__default__' and not 2<=len(name)<=100:
+            raise HTTPException(422,detail='Informe uma coleção de 2 a 100 caracteres')
+        if len(name)>100:
+            raise HTTPException(422,detail='Nome da coleção muito longo')
+        frame=safe_artwork(data.get('frame_url'))
+        emblem=safe_artwork(data.get('emblem_url'))
+        with writing() as db:
+            current=db.get(CollectionCardStyle,name)
+            if current is None:
+                db.add(CollectionCardStyle(collection_name=name,frame_url=frame,emblem_url=emblem))
+            else:
+                current.frame_url=frame
+                current.emblem_url=emblem
+        return {'ok':True,'collection':name,'frame_url':frame,'emblem_url':emblem}
 
     @app.get('/api/collections/featured')
     def featured_collection(request:Request):

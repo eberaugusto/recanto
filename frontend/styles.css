@@ -2458,3 +2458,84 @@ body.dark-mode .poro-stat-header{color:#eaf0ff;}
   }
   .public-pet>.pet-visual{height:clamp(275px,76vw,410px)!important;}
 }
+
+/* RECANTO 0.2.4 — molduras independentes da arte e emblema R por coleção. */
+.recanto-framed-art {
+  --recanto-frame-thickness: clamp(6px, .9vw, 10px);
+  --recanto-frame-base: linear-gradient(135deg,#d2daff 0%,#9eabd8 52%,#e2e7ff 100%);
+  position:relative!important;
+  box-sizing:border-box!important;
+  padding:var(--recanto-frame-thickness)!important;
+  border:0!important;
+  overflow:hidden!important;
+  isolation:isolate;
+  background-image:var(--recanto-custom-frame, var(--recanto-frame-base))!important;
+  background-position:center!important;
+  background-size:100% 100%!important;
+  background-repeat:no-repeat!important;
+}
+.recanto-framed-art.tier-comum {--recanto-frame-base:linear-gradient(135deg,#c9d3eb,#7f91ba 52%,#e3e7f0);--recanto-emblem-color:#8d9bc3;}
+.recanto-framed-art.tier-raro {--recanto-frame-base:linear-gradient(135deg,#caefff,#54addf 50%,#a6e1f3);--recanto-emblem-color:#3f9cd4;}
+.recanto-framed-art.tier-lendário {--recanto-frame-base:linear-gradient(135deg,#fff1bc,#c89525 48%,#f7d66a);--recanto-emblem-color:#d6a52b;}
+.recanto-framed-art.tier-prismático {--recanto-frame-base:linear-gradient(135deg,#bbf7f0 0%,#bc8aef 40%,#f6b0df 75%,#94dcff);--recanto-emblem-color:#996ee8;}
+.recanto-framed-art>.recanto-card-photo {
+  width:100%!important;height:100%!important;
+  min-width:0;min-height:0;
+  display:grid;place-items:center;
+  background:#202b55;
+  border-radius:clamp(3px, .6vw, 7px);
+  overflow:hidden;position:relative;z-index:1;
+}
+.recanto-framed-art .recanto-card-photo-image {
+  display:block!important;width:100%!important;height:100%!important;
+  min-height:0;max-height:none!important;
+  position:static!important;inset:auto!important;
+  object-fit:cover!important;object-position:center!important;
+  border:0!important;border-radius:0!important;
+}
+.recanto-framed-art .recanto-card-placeholder{font-size:clamp(28px,5vw,60px);color:#fff;}
+.recanto-framed-art>.recanto-card-emblem {
+  position:absolute;z-index:4;
+  top:calc(var(--recanto-frame-thickness) + 3px);
+  left:calc(var(--recanto-frame-thickness) + 3px);
+  width:clamp(25px,24%,42px);aspect-ratio:1;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:50%;overflow:hidden;
+  background:var(--recanto-emblem-color,#899ccc);
+  border:2px solid rgba(255,255,255,.9);
+  box-shadow:0 2px 8px #07153588;
+  pointer-events:none;
+}
+.recanto-framed-art>.recanto-card-emblem>.recanto-card-emblem-art {width:76%!important;height:76%!important;max-width:100%!important;object-fit:contain!important;position:static!important;filter:none!important;border-radius:0!important;}
+.recanto-framed-art>.recanto-card-emblem>.recanto-card-emblem-letter {font-family:Arial,sans-serif;font-size:clamp(14px,3vw,24px);font-style:italic;font-weight:900;color:#fff;text-shadow:0 1px 2px #0005;line-height:1;}
+.card-art.recanto-framed-art {height:auto!important;aspect-ratio:2/3!important;width:100%!important;}
+.detail-art.recanto-framed-art {width:min(100%,345px);aspect-ratio:2/3;height:auto;}
+.detail-art.recanto-framed-art>.recanto-card-emblem {
+  width:clamp(38px,13%,60px);top:calc(var(--recanto-frame-thickness) + 9px);left:calc(var(--recanto-frame-thickness) + 9px);
+}
+.detail-art.recanto-framed-art>.recanto-card-emblem>.recanto-card-emblem-letter{font-size:30px;}
+#cardModal.favorite-fullscreen .detail-art.recanto-framed-art {
+  width:min(78vw,440px)!important;max-width:min(78vw,440px)!important;
+  max-height:70dvh!important;height:auto!important;
+  aspect-ratio:2/3!important;
+  --recanto-frame-thickness:clamp(9px,1.2vw,15px);
+  padding:var(--recanto-frame-thickness)!important;
+}
+#cardModal.favorite-fullscreen .detail-art.recanto-framed-art .recanto-card-photo-image{object-fit:cover!important;max-height:none!important;}
+.recanto-favorite-frame{padding:0!important;overflow:hidden!important;}
+.recanto-favorite-frame>.recanto-favorite-art{width:100%;height:100%;aspect-ratio:2/3;--recanto-frame-thickness:5px;}
+.recanto-favorite-frame .recanto-card-emblem{width:clamp(18px,25%,27px);top:6px;left:6px;border-width:1px;}
+.recanto-favorite-frame .recanto-card-emblem-letter{font-size:15px;}
+.flip-front:has(>.recanto-pack-portrait){padding:0!important;border:0!important;}
+.flip-front>.recanto-pack-portrait{width:100%;height:100%;aspect-ratio:auto;--recanto-frame-thickness:10px;}
+.flip-front>.recanto-pack-portrait .recanto-card-emblem{width:44px;height:44px;top:18px;left:18px;}
+.flip-front>.reveal-caption{z-index:6;pointer-events:none;}
+.admin-collection-frame-editor .admin-frame-preview{display:flex;gap:20px;align-items:center;justify-content:flex-start;margin:14px 0;flex-wrap:wrap;}
+.admin-collection-frame-editor .admin-frame-preview>.card-art{width:148px!important;max-width:148px;flex:0 0 148px;}
+.admin-collection-frame-editor .admin-frame-preview>small{max-width:230px;line-height:1.55;}
+.admin-style-help{line-height:1.5;font-size:12px;opacity:.85;}
+@media(max-width:767px){
+  .recanto-framed-art{--recanto-frame-thickness:clamp(6px,1.8vw,9px);}
+  .detail-art.recanto-framed-art{--recanto-frame-thickness:9px;}
+  #cardModal.favorite-fullscreen .detail-art.recanto-framed-art{width:min(82vw,380px)!important;max-width:min(82vw,380px)!important;}
+}

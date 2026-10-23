@@ -5,7 +5,7 @@
   const tabLoadedAt={};
   const TAB_SOFT_TTL=20000;
   const getCache=new Map();
-  const cacheable=url=>/^(\/api\/(game\/config|achievements|games\/preferences|shop|daily\/status|catalog|cards|inventory|pets|missions|collections\/featured|assets|community\/profiles))(\?|$|\/)/.test(url);
+  const cacheable=url=>/^(\/api\/(game\/config|achievements|games\/preferences|shop|daily\/status|catalog|cards|inventory|pets|missions|collections\/featured|collections\/card-styles|assets|community\/profiles))(\?|$|\/)/.test(url);
   function resetCachedData(){getCache.clear();for(const k of Object.keys(tabLoadedAt))delete tabLoadedAt[k];if(typeof state!=='undefined')state.petPreviewLoaded=false;}
   const API = async (url, data) => {
     if(data===undefined && cacheable(url)){
@@ -53,6 +53,58 @@
   const labels={feed:'Feed',perfil:'Perfil',cards:'Cards',inventario:'Inventário',pet:'Poros',loja:'Loja',missoes:'Missões'};
   const tierLabels={comum:'Comum',raro:'Raro',lendário:'Lendário',prismático:'Prismático'};
   const state={dailyReward:0,dailyClaimInFlight:false,assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:8,cardPage:1,cardPageSize:12,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:matchMedia('(min-width:768px)').matches?'raridade':'padrao',missing:false,newOnly:false},detailClosing:false};
+  // RECANTO 0.2.4 — identidade visual independente por coleção e raridade.
+  let collectionStyles={};
+  let collectionStylesLoaded=false;
+  let collectionStylesRequest=null;
+  function cardVisualStyle(collection){
+    const standard=collectionStyles.__default__||{};
+    const special=collectionStyles[collection]||{};
+    return {frame_url:special.frame_url||standard.frame_url||'',emblem_url:special.emblem_url||standard.emblem_url||''};
+  }
+  function updateOneCardFrame(art){
+    if(!art?.classList?.contains('recanto-framed-art'))return;
+    const collection=art.dataset.collection||'Recanto Original';
+    const visual=cardVisualStyle(collection);
+    if(visual.frame_url){art.style.setProperty('--recanto-custom-frame',`url(${JSON.stringify(visual.frame_url)})`);art.classList.add('custom-collection-frame');}
+    else{art.style.removeProperty('--recanto-custom-frame');art.classList.remove('custom-collection-frame');}
+    const emblem=art.querySelector(':scope > .recanto-card-emblem');
+    if(!emblem)return;
+    const source=emblem.dataset.source||'';
+    if(source===visual.emblem_url)return;
+    emblem.dataset.source=visual.emblem_url;
+    emblem.replaceChildren();
+    if(visual.emblem_url){
+      const image=h('img','recanto-card-emblem-art');image.src=visual.emblem_url;image.alt='';image.loading='lazy';
+      image.onerror=()=>{if(image.isConnected)image.replaceWith(h('span','recanto-card-emblem-letter','R'));};
+      emblem.append(image);
+    }else{
+      // Emblema temporário: o administrador pode enviar o SVG oficial do R.
+      emblem.append(h('span','recanto-card-emblem-letter','R'));
+    }
+  }
+  function updateAllCardFrames(){document.querySelectorAll('.recanto-framed-art').forEach(updateOneCardFrame);}
+  async function loadCollectionCardStyles(force=false){
+    if(collectionStylesRequest&&!force)return collectionStylesRequest;
+    if(collectionStylesLoaded&&!force)return collectionStyles;
+    const request=(force?fetchJson:API)('/api/collections/card-styles');
+    collectionStylesRequest=request.then(data=>{
+      collectionStyles=data.styles||{};collectionStylesLoaded=true;updateAllCardFrames();return collectionStyles;
+    }).catch(()=>collectionStyles).finally(()=>{collectionStylesRequest=null;});
+    return collectionStylesRequest;
+  }
+  function frameCardArt(item,kind='card-art'){
+    const art=h('div',kind+' recanto-framed-art tier-'+(item.rarity||'comum'));
+    art.dataset.collection=item.collection||'Recanto Original';
+    const photo=h('div','recanto-card-photo');
+    if(item.image_url){const img=h('img','recanto-card-photo-image');img.src=item.image_url;img.alt=item.name||'Card';img.loading=kind==='detail-art'?'eager':'lazy';photo.append(img);}
+    else photo.append(h('span','recanto-card-placeholder','✦'));
+    const emblem=h('span','recanto-card-emblem');emblem.setAttribute('aria-hidden','true');
+    art.append(photo,emblem);updateOneCardFrame(art);
+    if(!collectionStylesLoaded)loadCollectionCardStyles().catch(()=>{});
+    return art;
+  }
+
   const toast=(message)=>{const el=$('toast');el.textContent=message;el.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>{el.hidden=true;},4000);};
   $('toast').addEventListener('click',()=>{$('toast').hidden=true;clearTimeout(toast.timer);});
   $('toast').title='Clique para dispensar';
@@ -139,7 +191,7 @@
     btn.disabled=installed;
     btn.querySelector('span').textContent='Instalar';
   }
-  function renderProfile(me){state.account=me;$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);$('desktopWallet').textContent=money(me.coins);$('desktopCards').textContent=money(me.cards);$('desktopTreats').textContent=money(me.treats);$('desktopUserName').textContent=me.name;$('desktopProfileName').textContent=me.name;avatar($('userAvatar'),me.name,me.avatar_url);avatar($('desktopAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.toggle('has-card',false);recent.setAttribute('aria-label','Nenhum card favorito selecionado');recent.onclick=()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};recent.textContent='?';paintCoins();const profileId=me.name;API('/api/cards/favorite').then(({card})=>{if(state.account?.name!==profileId)return;recent.replaceChildren();recent.classList.toggle('has-card',!!card);recent.setAttribute('aria-label',card?'Ampliar card favorito: '+card.name:'Nenhum card favorito selecionado');recent.onclick=card?()=>showCard(card,'Card favorito',true):()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};if(card?.image_url){const img=h('img');img.src=card.image_url;img.alt=card.name;recent.append(img);}else recent.textContent=card?.name||'?';}).catch(()=>{});}
+  function renderProfile(me){loadCollectionCardStyles().catch(()=>{});state.account=me;$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);$('desktopWallet').textContent=money(me.coins);$('desktopCards').textContent=money(me.cards);$('desktopTreats').textContent=money(me.treats);$('desktopUserName').textContent=me.name;$('desktopProfileName').textContent=me.name;avatar($('userAvatar'),me.name,me.avatar_url);avatar($('desktopAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.remove('recanto-favorite-frame');recent.classList.toggle('has-card',false);recent.setAttribute('aria-label','Nenhum card favorito selecionado');recent.onclick=()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};recent.textContent='?';paintCoins();const profileId=me.name;API('/api/cards/favorite').then(({card})=>{if(state.account?.name!==profileId)return;recent.replaceChildren();recent.classList.toggle('has-card',!!card);recent.setAttribute('aria-label',card?'Ampliar card favorito: '+card.name:'Nenhum card favorito selecionado');recent.onclick=card?()=>showCard(card,'Card favorito',true):()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};if(card){recent.classList.add('recanto-favorite-frame');recent.append(frameCardArt(card,'recanto-favorite-art'));}else{recent.classList.remove('recanto-favorite-frame');recent.textContent='?';}}).catch(()=>{});}
 
   async function refreshProfile(){
     if(!state.account)return;
@@ -552,7 +604,7 @@
   }
     function cardTile(item,onClick){
     const tile=h('div','card-tile tier-'+item.rarity);tile.setAttribute('role','button');tile.tabIndex=0;
-    const art=h('div','card-art');if(item.image_url){const im=h('img');im.src=item.image_url;im.alt=item.name;im.loading='lazy';art.append(im);}else art.textContent='✦';
+    const art=frameCardArt(item,'card-art');
     tile.append(art,h('strong','',item.name),h('small','',tierLabels[item.rarity]||item.rarity));
     if(item.is_favorite)tile.append(h('span','fav-mark','★ Favorito'));
     tile.addEventListener('click',()=>{if(onClick)onClick(item);});
@@ -561,7 +613,7 @@
   }
   function showCard(item,extra='',favoriteFullscreen=false){
     const p=$('cardDetail');p.replaceChildren();const modal=$('cardModal');modal.classList.remove('detail-closing','profile-info-fullscreen','collectible-fullscreen');modal.querySelector('.card-detail-dialog').setAttribute('aria-label','Detalhes do card');modal.classList.toggle('favorite-fullscreen',favoriteFullscreen);state.detailClosing=false;
-    const art=h('div','detail-art tier-'+item.rarity);if(item.image_url){const img=h('img');img.src=item.image_url;img.alt=item.name;art.append(img);}else art.textContent='✦';
+    const art=frameCardArt(item,'detail-art');
     p.append(art,h('h2','',item.name),h('p','',tierLabels[item.rarity]||item.rarity));
     if(item.collection)p.append(h('p','detail-meta',`Coleção: ${item.collection}`));
     if(extra)p.append(h('p','detail-meta',extra));
@@ -777,8 +829,14 @@
       $('revealNext').hidden=true;$('revealExit').hidden=false;return;}
     $('flipStage').hidden=false;$('revealNext').hidden=false;
     front.replaceChildren();const c=cards[index];
-    if(c.image_url){const img=h('img');img.src=c.image_url;img.alt=c.name;front.append(img);}else front.append(h('div','', '✦'));
+    front.className='flip-face flip-front recanto-framed-art tier-'+c.rarity;
+    front.dataset.collection=c.collection||'Recanto Original';
+    const face=frameCardArt(c,'recanto-pack-portrait');
+    // A camada externa do Card aberto acompanha a moldura e o emblema personalizados.
+    front.append(face);
     front.append(h('span','reveal-caption',c.name+' · '+(tierLabels[c.rarity]||c.rarity)));
+    // Somente a camada interna exibe o emblema: evita dois círculos sobrepostos.
+    front.classList.remove('recanto-framed-art');
     $('revealHint').textContent='Card '+(index+1)+' de '+cards.length;
     $('revealCounter').textContent='Toque para revelar';$('revealNext').textContent='Revelar card';
     requestAnimationFrame(()=>{flip.classList.remove('is-revealed');});
@@ -1715,6 +1773,68 @@
     const [featuredUrlLabel,featuredUrl]=adminField('URL da capa (opcional)','');
     const featuredFile=h('input','text-input');featuredFile.type='file';featuredFile.accept='image/png,image/jpeg,image/webp,.webp';
     featured.append(featuredNameLabel,featuredUrlLabel,h('label','','Ou escolha uma capa'),featuredFile,button('Salvar destaque',()=>safeRun(async()=>API('/api/admin/collections/featured',{name:featuredName.value,image_url:featuredFile.files.length?await uploadArtwork(featuredFile.files[0]):featuredUrl.value}),'Coleção em destaque atualizada!')));pane.append(featured);
+    // Moldura e R são independentes da imagem do Card e não exigem editar Card por Card.
+    const styleBox=block('Molduras e emblemas por coleção','Configure o fundo da borda e o R de cada coleção. Uma configuração específica substitui a global; sem arte, o Card usa a cor da raridade e um R provisório.');
+    styleBox.classList.add('admin-collection-frame-editor');
+    const styleNames=h('datalist');styleNames.id='cardCollectionStyleOptions';
+    const styleNameRow=h('label','admin-field','Coleção (ou padrão para todas)');
+    const styleName=h('input','text-input');styleName.type='text';styleName.value='__default__';
+    styleName.setAttribute('list','cardCollectionStyleOptions');styleName.autocomplete='off';
+    styleNameRow.append(styleName);
+    const styleHelp=h('p','admin-style-help','Use __default__ para o visual de todas as coleções. Para uma coleção exclusiva, informe o nome exato dela.');
+    const frameUrlRow=adminField('URL HTTPS da arte da borda (PNG, WEBP, JPG ou SVG)','');
+    const emblemUrlRow=adminField('URL HTTPS do R / emblema da coleção (SVG preferencial)','');
+    const frameFile=h('input','text-input');frameFile.type='file';frameFile.accept='image/png,image/jpeg,image/webp,image/svg+xml,.svg';
+    const emblemFile=h('input','text-input');emblemFile.type='file';emblemFile.accept='image/png,image/jpeg,image/webp,image/svg+xml,.svg';
+    const stylePreview=h('div','admin-frame-preview');
+    const previewCard={name:'Prévia do Card',rarity:'raro',collection:'__preview__'};
+    const previewArt=frameCardArt(previewCard,'card-art');
+    previewArt.dataset.collection='__preview__';
+    stylePreview.append(previewArt,h('small','','Prévia: moldura de raridade Rara e emblema. Coleções exclusivas podem usar outras artes.'));
+    const savedStyles=h('small','admin-style-help','Carregando configurações...');
+    let stylesForAdmin={};
+    const refreshStyleInputs=()=>{
+      const name=styleName.value.trim()||'__default__';
+      const found=stylesForAdmin[name]||{};
+      frameUrlRow[1].value=found.frame_url||'';
+      emblemUrlRow[1].value=found.emblem_url||'';
+      frameFile.value='';emblemFile.value='';
+      collectionStyles.__preview__={frame_url:found.frame_url||null,emblem_url:found.emblem_url||null};
+      updateOneCardFrame(previewArt);
+    };
+    styleName.addEventListener('change',refreshStyleInputs);
+    loadCollectionCardStyles().then(styles=>{
+      stylesForAdmin={...styles};
+      const names=new Set(['__default__',...Object.keys(styles)]);
+      for(const n of ['Recanto Original','Celebridades','Personagens','Memes'])names.add(n);
+      catalogTask.then(catalog=>{
+        for(const item of catalog.items||[])names.add(item.collection||'Recanto Original');
+        styleNames.replaceChildren(...[...names].sort().map(name=>{const op=h('option');op.value=name;return op;}));
+      }).catch(()=>{styleNames.replaceChildren(...[...names].sort().map(name=>{const op=h('option');op.value=name;return op;}));});
+      savedStyles.textContent='Configurações existentes: '+(Object.keys(styles).filter(x=>x!=='__default__').join(' · ')||'nenhuma coleção exclusiva');
+      refreshStyleInputs();
+    });
+    styleBox.append(styleNameRow,styleNames,styleHelp,frameUrlRow[0],h('label','','Ou envie a arte da moldura'),frameFile,
+      emblemUrlRow[0],h('label','','Ou envie o R / emblema (SVG, PNG ou WEBP)'),emblemFile,stylePreview,savedStyles,
+      button('Salvar moldura e emblema',async()=>{
+        const name=styleName.value.trim();
+        if(!name){toast('Informe o nome exato da coleção.');return;}
+        const result=await safeRun(async()=>{
+          const frame_url=frameFile.files[0]?await uploadArtwork(frameFile.files[0]):frameUrlRow[1].value.trim();
+          const emblem_url=emblemFile.files[0]?await uploadArtwork(emblemFile.files[0]):emblemUrlRow[1].value.trim();
+          return API('/api/admin/collections/card-styles',{collection:name,frame_url,emblem_url});
+        },'Moldura e emblema salvos!');
+        if(result){
+          // Atualização imediata das miniaturas e visualizações abertas.
+          collectionStylesLoaded=false;resetCachedData();
+          await loadCollectionCardStyles(true);
+          stylesForAdmin={...collectionStyles};
+          refreshStyleInputs();
+          savedStyles.textContent='Configurações salvas para: '+name;
+        }
+      }));
+    pane.append(styleBox);
+
     const pet=block('Cadastrar Poro','Aceita imagem, modelo 3D GLB/GLTF e nomes de animações do arquivo.');
     const [pn,pni]=adminField('Nome do Poro','');const [pe,pei]=adminField('Emoji para fallback','🐾');const [pu,pui]=adminField('Imagem de capa (HTTPS ou /uploads/...)','');
     const petFile=h('input','text-input');petFile.type='file';petFile.accept='image/png,image/jpeg,image/webp,.webp';
