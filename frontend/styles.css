@@ -1778,3 +1778,102 @@ body.dark-mode :is(#homeScreen,.full-page,#modal) :is(
 body.dark-mode :is(#homeScreen,.full-page,#modal) :is(
   .mini-tabs .mini-active,.tab-button.active,.admin-tab.selected,.card-tab.active,.main-action
 ) {background:#5865f2 !important;color:#fff !important;}
+
+
+/* ===============================================================
+   RECANTO 0.1.20 — Gestao, status, timer, Poros e icones visuais
+   =============================================================== */
+
+/* O menu administrativo mantém o fundo da pagina (sem retangulo de
+   cor diferente ao redor dos paineis de ferramentas). */
+body.dark-mode #adminModal .admin-dialog,
+body.dark-mode #adminModal #adminContent,
+body.dark-mode #adminModal .admin-scroll {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none;
+}
+/* Atualizar deve ter fundo escuro e texto branco no tema escuro. */
+body.dark-mode #adminModal #refreshAdmin.admin-refresh {
+  background: #293b5b !important;
+  background-color: #293b5b !important;
+  border: 1px solid #4c628a !important;
+  color: #fff !important;
+  opacity: 1;
+}
+body.dark-mode #adminModal #refreshAdmin.admin-refresh:hover {
+  background: #344a70 !important;
+}
+
+/* Status online sempre VERDE, inclusive com texto branco em outras
+   partes do modo escuro. */
+body.dark-mode #profileContent .desktop-online,
+body.dark-mode #publicProfilePage .public-online,
+body.dark-mode .desktop-online,
+body.dark-mode .public-online {
+  background: #d7f8e5 !important;
+  background-color: #d7f8e5 !important;
+  color: #087346 !important;
+  border-color: #b2ebcd !important;
+}
+
+/* Cronometro de reinicio das missoes sempre claro no modo escuro. */
+body.dark-mode #missionsScreen #missionTimer,
+body.dark-mode #missionsScreen .reset-note {
+  color: #fff !important;
+}
+
+/* No PC, foto do Poro grande e QUADRADA: preserva a imagem inteira.
+   Sem alterar a grade quadrada das especies nem o layout mobile. */
+@media (min-width:768px) {
+  #petPane .pet-visual-large {
+    width: min(100%, 590px) !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 auto 18px !important;
+    overflow: hidden;
+  }
+  #petPane .pet-visual-large .pet-fallback img {
+    width:100%;height:100%;object-fit:contain !important;
+    object-position:center !important;
+  }
+  #profileContent .desktop-pet-content .pet-visual {
+    width: min(100%, 340px);
+    height:auto !important;
+    aspect-ratio:1 / 1;
+    margin:0 auto 14px;
+  }
+  #profileContent .desktop-pet-content .pet-fallback img {
+    width:100%;height:100%;object-fit:contain !important;
+  }
+}
+
+/* Selos e jogos: use a imagem quando existir e emoji como fallback.
+   O movimento ao hover/toque dos jogos segue o mesmo padrão dos selos. */
+.badge-chip .icon-artwork,.game-icon .icon-artwork,
+.public-badges .icon-artwork,.public-games .icon-artwork {
+  display:block;
+  width:76% !important;height:76% !important;
+  max-width:100%;max-height:100%;
+  object-fit:contain !important;
+  object-position:center;
+  border-radius:0 !important;
+  pointer-events:none;
+}
+.badge-chip .icon-emoji,.game-icon .icon-emoji {
+  display:grid;place-items:center;width:100%;height:100%;
+  line-height:1;
+}
+.badge-chip,.game-icon {place-items:center;overflow:hidden;}
+.game-icon {
+  transition:transform .18s var(--ease-app,ease), background .18s ease,
+             border-color .18s ease !important;
+}
+@media (hover:hover) {
+  .game-icon:hover {transform:translateY(-2px);}
+}
+.game-icon:active {transform:scale(.92);}
+.game-icon:focus-visible {outline:3px solid #ffbd4b;outline-offset:2px;}
+@media (prefers-reduced-motion:reduce){.game-icon{transition:none !important;}}

@@ -125,7 +125,7 @@
     const line=h('div','badge-strip');
     const visible=Math.max(8,state.badgesVisible||8);
     const shown=ach.items.slice(0,visible);
-    for(const a of shown){const chip=h('button','badge-chip'+(a.locked?' locked':''),a.icon);chip.title=poroLegacyText(a.title)+' — '+poroLegacyText(a.description)+(a.available?'':' (integração com Discord futuramente)');chip.addEventListener('click',()=>toast(chip.title));line.append(chip);}
+    for(const a of shown){const chip=h('button','badge-chip'+(a.locked?' locked':''));chip.append(iconArtwork(a.image_url,a.icon||'🏅'));chip.title=poroLegacyText(a.title)+' — '+poroLegacyText(a.description)+(a.available?'':' (integração com Discord futuramente)');chip.addEventListener('click',()=>toast(chip.title));line.append(chip);}
     b.append(line);
     if(ach.items.length>8){
       const remaining=Math.max(0,ach.items.length-shown.length);
@@ -141,7 +141,7 @@
     const head=h('div','badge-title');head.append(h('strong','','🎮 Jogos favoritos'),button('Editar',()=>editFavoriteGames(prefs),'game-edit'));gamesSection.append(head);
     const lineGames=h('div','game-icons');
     if(!prefs.selected.length)lineGames.append(h('p','', 'Escolha até cinco jogos para exibir no seu perfil.'));
-    for(const g of prefs.selected){const chip=h('span','game-icon');chip.append(gameIcon(g));chip.title=g.name;chip.setAttribute('aria-label',g.name);lineGames.append(chip);}
+    for(const g of prefs.selected){const chip=h('span','game-icon');chip.append(gameIcon(g));chip.title=g.name;chip.setAttribute('aria-label',g.name);chip.tabIndex=0;lineGames.append(chip);}
     gamesSection.append(lineGames);applyUiAssets();
     if(!state.discordWidgetStarted)startDiscordWidget();
     if(matchMedia('(min-width:768px)').matches && !state.petPreviewLoaded)loadPetPreview().catch(()=>{});
@@ -585,7 +585,7 @@
         if(d.favorite){const fav=block('★ Card favorito',d.favorite.name);fav.classList.add('public-section','public-favorite');
           const art=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');art.setAttribute('role','button');art.tabIndex=0;art.addEventListener('click',()=>showCard(d.favorite,'Card favorito',true));art.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showCard(d.favorite,'Card favorito',true);}});fav.prepend(art);pane.append(fav);}
         const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section');const line=h('div','public-badges');
-        (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip',b.icon);badge.title=b.title;line.append(badge);});
+        (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip');badge.append(iconArtwork(b.image_url,b.icon||'🏅'));badge.title=b.title;line.append(badge);});
         if(!d.badges?.length)line.append(h('p','','Nenhum selo por enquanto.'));badges.append(line);pane.append(badges);
         const favorites=block('🎮 Jogos favoritos');favorites.classList.add('public-section');
         const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
@@ -613,7 +613,7 @@
       if(d.favorite){const recent=h('div','public-hero-favorite');const cover=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');cover.tabIndex=0;cover.setAttribute('role','button');cover.setAttribute('aria-label','Ampliar card favorito de '+d.name);cover.addEventListener('click',()=>showCard(d.favorite,'Card favorito de '+d.name,true));cover.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showCard(d.favorite,'Card favorito de '+d.name,true);}});recent.append(cover,h('strong','','Card favorito: '+d.favorite.name));hero.prepend(recent);}
       main.append(hero);
       const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section','public-badges');const line=h('div','public-badges-row');
-      (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip',b.icon);badge.title=b.title;line.append(badge);});
+      (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip');badge.append(iconArtwork(b.image_url,b.icon||'🏅'));badge.title=b.title;line.append(badge);});
       if(!d.badges?.length)line.append(h('p','','Nenhum selo por enquanto.'));badges.append(line);main.append(badges);
       const favorites=block('🎮 Jogos favoritos');favorites.classList.add('public-section','public-games');
       const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
@@ -845,10 +845,18 @@
       row.append(button('Enviar',()=>safeRun(()=>API('/api/pets/expedition/start',{mission:option.id}),'Seu Poro iniciou a missão!'),'soft-action'));ex.append(row);
     }pane.append(ex);
   }
-  function gameIcon(game){
-    if(game.image_url){const img=h('img');img.src=game.image_url;img.alt='';img.loading='lazy';return img;}
-    return h('span','',game.icon||'🎮');
+  // Exibe sempre a arte cadastrada. O emoji e usado apenas se nao houver
+  // imagem ou se o endereco da imagem deixar de funcionar.
+  function iconArtwork(imageUrl,emoji){
+    const placeholder=()=>h('span','icon-emoji',emoji||'🏅');
+    const url=String(imageUrl||'').trim();
+    if(!url)return placeholder();
+    const img=h('img','icon-artwork');
+    img.src=url;img.alt='';img.loading='lazy';img.decoding='async';
+    img.onerror=()=>{if(img.isConnected)img.replaceWith(placeholder());};
+    return img;
   }
+  function gameIcon(game){return iconArtwork(game.image_url,game.icon||'🎮');}
   async function loadUiAssets(){
     try{const result=await API('/api/assets');state.assets=result.items||[];applyUiAssets();}
     catch(_){/* assets opcionais; UI padrao continua funcionando */}
