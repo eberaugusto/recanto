@@ -1973,3 +1973,65 @@ body.dark-mode .expedition-cover {background:#263655!important;}
     top:calc(3px + env(safe-area-inset-top,0px));
   }
 }
+
+
+/* Recanto 0.1.22 — Selos e Jogos favoritos em overlay circular. */
+#cardModal.profile-info-fullscreen .card-detail-dialog{max-width:560px;text-align:center;}
+#cardModal.profile-info-fullscreen #cardDetail{display:flex;flex-direction:column;align-items:center;gap:14px;padding:10px 12px 30px;}
+#cardModal.profile-info-fullscreen .profile-info-art{width:clamp(145px,38vw,230px);height:clamp(145px,38vw,230px);border-radius:50%;display:grid;place-items:center;overflow:hidden;background:#39487c;border:3px solid rgba(255,255,255,.18);box-shadow:0 12px 34px rgba(0,0,0,.18);}
+#cardModal.profile-info-fullscreen .profile-info-art .icon-artwork,#cardModal.profile-info-fullscreen .profile-info-art img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+#cardModal.profile-info-fullscreen .profile-info-art .icon-emoji{font-size:90px;line-height:1;}
+#cardModal.profile-info-fullscreen .profile-info-name{margin:0;font-size:clamp(22px,5vw,28px);line-height:1.25;color:#fff;}
+#cardModal.profile-info-fullscreen .profile-info-description{max-width:420px;line-height:1.6;overflow-wrap:anywhere;white-space:pre-line;}
+#cardModal.profile-info-fullscreen .profile-info-status{font-weight:700;color:#fff!important;}
+#cardModal.profile-info-fullscreen .profile-info-progress,#cardModal.profile-info-fullscreen .profile-info-note{font-size:14px;opacity:.85;}
+#profileContent .badge-chip,#profileContent .game-icon,.public-badges .badge-chip,.public-games .game-icon{cursor:zoom-in;touch-action:manipulation;}
+#profileContent .game-icon{appearance:none;padding:0;color:inherit;}
+#profileContent .badge-chip:focus-visible,#profileContent .game-icon:focus-visible,.public-badges .badge-chip:focus-visible,.public-games .game-icon:focus-visible{outline:3px solid #7f8fff;outline-offset:3px;}
+
+/* Recanto 0.1.22 — Negociações: largura e espaçamento consistentes no mobile. */
+#cardsPane[data-mode="trocas"]{min-width:0;width:100%;max-width:100%;box-sizing:border-box;}
+#cardsPane[data-mode="trocas"] .trade-columns{min-width:0;max-width:100%;}
+#cardsPane[data-mode="trocas"] .trade-section{min-width:0;box-sizing:border-box;}
+#cardsPane[data-mode="trocas"] .trade-section>.game-box{min-width:0;max-width:100%;box-sizing:border-box;}
+#cardsPane[data-mode="trocas"] .trade-section .game-box *{overflow-wrap:anywhere;}
+#cardsPane[data-mode="trocas"] .trade-section .select-input,#cardsPane[data-mode="trocas"] .trade-section .text-input{display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0;}
+#cardsPane[data-mode="trocas"] .trade-history-group{display:flex;flex-direction:column;gap:14px;min-width:0;}
+#cardsPane[data-mode="trocas"] .trade-history-group .section-heading{margin:0;font-size:19px;}
+#cardsPane[data-mode="trocas"] .trade-pending{gap:20px;}
+#cardsPane[data-mode="trocas"] .trade-row{display:flex;flex-direction:column;align-items:stretch;gap:10px;}
+@media(max-width:767px){
+  #cardsPane[data-mode="trocas"] .trade-columns{display:flex!important;flex-direction:column!important;gap:22px!important;grid-template-columns:none!important;padding:0!important;margin:0!important;width:100%!important;}
+  #cardsPane[data-mode="trocas"] .trade-section{display:flex!important;flex-direction:column!important;gap:14px!important;width:100%!important;margin:0!important;padding:0!important;}
+  #cardsPane[data-mode="trocas"] .trade-section>.game-box{width:100%!important;margin:0!important;padding:20px!important;border-radius:20px!important;}
+  #cardsPane[data-mode="trocas"] .trade-section .game-box h3{font-size:19px;line-height:1.3;margin:0 0 14px;}
+  #cardsPane[data-mode="trocas"] .trade-section .game-box p{margin:0 0 12px;font-size:14px;line-height:1.65;}
+  #cardsPane[data-mode="trocas"] .trade-section .game-box label{display:block;margin:15px 0 7px;font-size:14px;line-height:1.35;}
+  #cardsPane[data-mode="trocas"] .trade-section .game-box .main-action,#cardsPane[data-mode="trocas"] .trade-section .game-box .soft-action{width:100%;max-width:100%;box-sizing:border-box;white-space:normal;margin-top:14px;}
+  #cardsPane[data-mode="trocas"] .trade-section>.section-heading{margin:0 0 2px!important;font-size:19px!important;line-height:1.3;}
+  #cardsPane[data-mode="trocas"] .trade-history-group{gap:12px;}
+  #cardsPane[data-mode="trocas"] .trade-pending{gap:18px!important;}
+  #cardsPane[data-mode="trocas"] .trade-history-group .game-box{margin:0!important;}
+}
+
+/* Indicações de deslize aparecem só por cinco segundos, com fade leve. */
+@media(max-width:767px){
+  .recanto-swipe-guide:not([hidden]){z-index:4;animation:recanto-guide-in .5s ease-out both;}
+  .recanto-swipe-guide.recanto-guide-fadeout:not([hidden]){animation:recanto-guide-out .42s ease-in forwards;}
+  .recanto-swipe-guide > span,.recanto-swipe-guide .recanto-swipe-guide-right{
+    border-radius:50%;width:36px;height:36px;padding:0;display:grid;place-items:center;
+    background:rgba(35,53,127,.28);box-shadow:none;color:rgba(255,255,255,.65);
+    font-size:29px;font-weight:400;animation:recanto-swipe-nudge 2.2s ease-in-out 2;
+  }
+  .recanto-swipe-guide small{display:none!important;}
+  body.dark-mode .recanto-swipe-guide > span{background:rgba(54,72,114,.28);color:rgba(255,255,255,.7);}
+}
+@keyframes recanto-guide-in{from{opacity:0}to{opacity:1}}
+@keyframes recanto-guide-out{from{opacity:1}to{opacity:0}}
+@media(prefers-reduced-motion:reduce){.recanto-swipe-guide:not([hidden]),.recanto-swipe-guide.recanto-guide-fadeout:not([hidden]),.recanto-swipe-guide > span{animation:none!important;}}
+/* Ritmo único dos campos e descrições nos formulários de negociação. */
+#cardsPane[data-mode="trocas"] .trade-section>.game-box {gap:12px;}
+#cardsPane[data-mode="trocas"] .trade-section>.game-box>p {margin:0!important;}
+#cardsPane[data-mode="trocas"] .trade-section>.game-box>label {margin:5px 0 0!important;}
+#cardsPane[data-mode="trocas"] .trade-section>.game-box>h3 {margin:0 0 2px!important;}
+#cardsPane[data-mode="trocas"] .trade-section>.game-box>.main-action {margin-top:8px!important;}

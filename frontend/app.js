@@ -106,21 +106,26 @@
   // 0.1.21: animação entre telas ao deslizar no celular.
   const MOBILE_TAB_ORDER=['feed','perfil','missoes','inventario','cards','pet','loja'];
   let swipeCleanup=null;
+  let swipeGuideDismissed=false;
+  let swipeGuideTimer=null;
+  function hideSwipeGuide(){
+    swipeGuideDismissed=true;
+    clearTimeout(swipeGuideTimer);swipeGuideTimer=null;
+    const guide=$('recantoSwipeGuide');if(!guide)return;
+    guide.classList.add('recanto-guide-fadeout');
+    setTimeout(()=>{guide.hidden=true;guide.classList.remove('recanto-guide-fadeout');},420);
+  }
   function showSwipeGuide(){
     const guide=$('recantoSwipeGuide');if(!guide)return;
     const mobile=matchMedia('(max-width:767px)').matches;
-    let used=false;try{used=localStorage.getItem('recanto-swipe-discovered')==='1';}catch(_){}
-    guide.hidden=!mobile||used||!state.account;
-    if(guide.hidden)return;
+    if(!mobile||!state.account||swipeGuideDismissed){guide.hidden=true;return;}
     const idx=MOBILE_TAB_ORDER.indexOf(state.tab);
     const left=$('recantoSwipeLeft'),right=$('recantoSwipeRight');
     left.hidden=idx<=0;right.hidden=idx>=MOBILE_TAB_ORDER.length-1;
-    if(!left.hidden)left.querySelector('small').textContent=idx===1?'Feed':'Voltar';
+    guide.hidden=false;
+    if(!swipeGuideTimer)swipeGuideTimer=setTimeout(hideSwipeGuide,5000);
   }
-  function registerSwipeDiscovery(){
-    try{localStorage.setItem('recanto-swipe-discovered','1');}catch(_){}
-    showSwipeGuide();
-  }
+  function registerSwipeDiscovery(){hideSwipeGuide();}
   async function chooseTab(tab,focusSku=null,transitionDirection=0){
     if(!labels[tab]||!state.account)return;
     const pages={feed:$('feedScreen'),perfil:$('profileContent'),cards:$('cardsScreen'),inventario:$('inventoryScreen'),pet:$('petScreen'),loja:$('shopScreen'),missoes:$('missionsScreen')};
@@ -148,6 +153,42 @@
     if(changed && nextPage && nextPage.dataset.firstVisit!=='yes'){nextPage.dataset.firstVisit='yes';nextPage.scrollTop=0;}
     try{await refreshActive();if(seq===state.tabTransition)applyUiAssets();}catch(err){if(seq===state.tabTransition)toast('⚠ Não foi possível carregar esta aba. Tente novamente.');}
   }
+  // Detalhes de Selos e Jogos usam o mesmo overlay de tela inteira dos Cards.
+  function showProfileItemDetail(item,kind){
+    const modal=$('cardModal'),pane=$('cardDetail');
+    state.detailClosing=false;modal.classList.remove('detail-closing');
+    modal.classList.add('favorite-fullscreen','profile-info-fullscreen');
+    const isBadge=kind==='badge';
+    const name=poroLegacyText(isBadge?item.title:item.name)||'Sem título';
+    modal.querySelector('.card-detail-dialog').setAttribute('aria-label',`Detalhes de ${name}`);
+    pane.replaceChildren();
+    const art=h('div','profile-info-art');art.append(iconArtwork(item.image_url,item.icon||(isBadge?'🏅':'🎮')));
+    pane.append(art,h('h2','profile-info-name',name));
+    if(isBadge){
+      if(item.description)pane.append(h('p','profile-info-description',poroLegacyText(item.description)));
+      const locked=Boolean(item.locked);
+      pane.append(h('p','profile-info-status',locked?'🔒 Selo bloqueado':'✓ Selo desbloqueado'));
+      if(Number.isFinite(Number(item.target)) && Number(item.target)>0){
+        pane.append(h('p','profile-info-progress',`Progresso: ${Math.min(Number(item.target),Number(item.progress)||0)} / ${item.target}`));
+      }
+      if(item.available===false)pane.append(h('p','profile-info-note','Disponível em uma integração futura com o Discord.'));
+    }else{
+      pane.append(h('p','profile-info-status','Jogo favorito'));
+      if(item.description)pane.append(h('p','profile-info-description',poroLegacyText(item.description)));
+    }
+    modal.hidden=false;
+  }
+  function makeProfileItemInteractive(chip,item,kind){
+    chip.type='button';chip.title=poroLegacyText(kind==='badge'?item.title:item.name)||'Ver detalhes';
+    chip.setAttribute('aria-label','Ver detalhes: '+chip.title);
+    chip.addEventListener('click',()=>showProfileItemDetail(item,kind));
+    if(chip.tagName!=='BUTTON'){
+      chip.setAttribute('role','button');chip.tabIndex=0;
+      chip.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();chip.click();}});
+    }
+    return chip;
+  }
+
   async function loadProfileExtras(){
     const [ach,game,prefs]=await Promise.all([API('/api/achievements'),API('/api/game/config'),API('/api/games/preferences')]);state.game=game;
     if(!$('badgesSection')){const b=h('section','profile-badges');b.id='badgesSection';$('desktopLeftColumn').append(b);}
@@ -156,7 +197,7 @@
     const line=h('div','badge-strip');
     const visible=Math.max(8,state.badgesVisible||8);
     const shown=ach.items.slice(0,visible);
-    for(const a of shown){const chip=h('button','badge-chip'+(a.locked?' locked':''));chip.append(iconArtwork(a.image_url,a.icon||'🏅'));chip.title=poroLegacyText(a.title)+' — '+poroLegacyText(a.description)+(a.available?'':' (integração com Discord futuramente)');chip.addEventListener('click',()=>toast(chip.title));line.append(chip);}
+    for(const a of shown){const chip=h('button','badge-chip'+(a.locked?' locked':''));chip.append(iconArtwork(a.image_url,a.icon||'🏅'));makeProfileItemInteractive(chip,a,'badge');line.append(chip);}
     b.append(line);
     if(ach.items.length>8){
       const remaining=Math.max(0,ach.items.length-shown.length);
@@ -172,7 +213,7 @@
     const head=h('div','badge-title');head.append(h('strong','','🎮 Jogos favoritos'),button('Editar',()=>editFavoriteGames(prefs),'game-edit'));gamesSection.append(head);
     const lineGames=h('div','game-icons');
     if(!prefs.selected.length)lineGames.append(h('p','', 'Escolha até cinco jogos para exibir no seu perfil.'));
-    for(const g of prefs.selected){const chip=h('span','game-icon');chip.append(gameIcon(g));chip.title=g.name;chip.setAttribute('aria-label',g.name);chip.tabIndex=0;lineGames.append(chip);}
+    for(const g of prefs.selected){const chip=h('button','game-icon');chip.append(gameIcon(g));makeProfileItemInteractive(chip,g,'game');lineGames.append(chip);}
     gamesSection.append(lineGames);applyUiAssets();
     if(!state.discordWidgetStarted)startDiscordWidget();
     if(matchMedia('(min-width:768px)').matches && !state.petPreviewLoaded)loadPetPreview().catch(()=>{});
@@ -372,7 +413,7 @@
     return tile;
   }
   function showCard(item,extra='',favoriteFullscreen=false){
-    const p=$('cardDetail');p.replaceChildren();const modal=$('cardModal');modal.classList.remove('detail-closing');modal.classList.toggle('favorite-fullscreen',favoriteFullscreen);state.detailClosing=false;
+    const p=$('cardDetail');p.replaceChildren();const modal=$('cardModal');modal.classList.remove('detail-closing','profile-info-fullscreen');modal.querySelector('.card-detail-dialog').setAttribute('aria-label','Detalhes do card');modal.classList.toggle('favorite-fullscreen',favoriteFullscreen);state.detailClosing=false;
     const art=h('div','detail-art tier-'+item.rarity);if(item.image_url){const img=h('img');img.src=item.image_url;img.alt=item.name;art.append(img);}else art.textContent='✦';
     p.append(art,h('h2','',item.name),h('p','',tierLabels[item.rarity]||item.rarity));
     if(item.collection)p.append(h('p','detail-meta',`Coleção: ${item.collection}`));
@@ -498,9 +539,10 @@
         form.append(h('label','','Membro'),memberSelect,h('label','','Sua carta'),mySelect,h('label','','Carta desejada'),theirs,button('Enviar proposta',()=>safeRun(()=>API('/api/trades',{to_user:memberSelect.value,offered_owned_id:Number(mySelect.value),wanted_owned_id:Number(theirs.value)}),'Proposta enviada!')));
       }else form.append(h('p','',mineCards.length?'Ainda não há outros jogadores com cartas cadastradas.':'Primeiro obtenha um card para oferecer.'));
       const tradeColumns=h('div','trade-columns');const tradeProposals=h('section','trade-section');const tradeOffers=h('section','trade-section');
-      tradeProposals.append(form,h('h3','section-heading','Minhas propostas'));
-      if(!trades.items.length)tradeProposals.append(block('Sem propostas','As negociações aparecerão aqui.'));
-      for(const t of trades.items){const row=block(`${t.from_name} ↔ ${t.to_name}`,`${t.offered?.name||'Card'} ↔ ${t.wanted?.name||'Card'} · ${t.status}`);row.classList.add('trade-row');if(t.can_accept){row.append(button('Aceitar',()=>actTrade(t.id,'accept')));row.append(button('Recusar',()=>actTrade(t.id,'reject'),'soft-action'));}if(t.can_cancel)row.append(button('Cancelar proposta',()=>actTrade(t.id,'cancel'),'soft-action'));tradeProposals.append(row);}
+      tradeProposals.append(form);
+      const proposalHistory=h('div','trade-history-group');proposalHistory.append(h('h3','section-heading','Minhas propostas'));
+      if(!trades.items.length)proposalHistory.append(block('Sem propostas','As negociações aparecerão aqui.'));
+      for(const t of trades.items){const row=block(`${t.from_name} ↔ ${t.to_name}`,`${t.offered?.name||'Card'} ↔ ${t.wanted?.name||'Card'} · ${t.status}`);row.classList.add('trade-row');if(t.can_accept){row.append(button('Aceitar',()=>actTrade(t.id,'accept')));row.append(button('Recusar',()=>actTrade(t.id,'reject'),'soft-action'));}if(t.can_cancel)row.append(button('Cancelar proposta',()=>actTrade(t.id,'cancel'),'soft-action'));proposalHistory.append(row);}
       const [offers,eco]=await Promise.all([API('/api/coin-offers'),API('/api/card-economy')]);if(requestId!==currentCardPaneRequest||state.cardTab!==tab)return;
       const prices=Object.entries(eco.minimum_offers).map(([tier,v])=>`${tierLabels[tier]}: ${v}`).join(' • ');
       const bid=block('Oferecer moedas por card',`Valores mínimos: ${prices}. A oferta reserva suas moedas até a decisão do dono.`);
@@ -514,15 +556,15 @@
         bid.append(h('label','','Quem receberá a oferta'),selectMember,h('label','','Card desejado'),selectCard,h('label','','Moedas ofertadas'),value,
           button('Enviar oferta em moedas',()=>safeRun(()=>API('/api/coin-offers',{to_user:selectMember.value,wanted_owned_id:Number(selectCard.value),amount:Number(value.value)}),'Oferta enviada e moedas reservadas!')));
       }else bid.append(h('p','','Ainda não há cartas disponíveis de outros membros.'));
-      tradeOffers.append(bid,h('h3','section-heading','Ofertas de moedas'));
-      if(!offers.items.length)tradeOffers.append(block('Nenhuma oferta','As propostas em moedas aparecerão aqui.'));
+      tradeOffers.append(bid);const offerHistory=h('div','trade-history-group');offerHistory.append(h('h3','section-heading','Ofertas de moedas'));
+      if(!offers.items.length)offerHistory.append(block('Nenhuma oferta','As propostas em moedas aparecerão aqui.'));
       for(const offer of offers.items){const row=block(`${offer.buyer_name} → ${offer.seller_name}`,`${offer.card_name} • ${money(offer.amount)} moedas • ${offer.status}`);
         if(offer.can_accept){row.append(button('Aceitar oferta',()=>decideCoinOffer(offer.id,'accept')));row.append(button('Recusar',()=>decideCoinOffer(offer.id,'reject'),'soft-action'));}
         if(offer.can_cancel)row.append(button('Cancelar e receber reembolso',()=>decideCoinOffer(offer.id,'cancel'),'soft-action'));
-        tradeOffers.append(row);
+        offerHistory.append(row);
       }
       const pending=h('section','trade-section trade-pending');pending.append(h('h3','section-heading','Propostas e ofertas'));
-      for(const entry of [...tradeProposals.querySelectorAll('.game-box')].slice(1)){pending.append(entry);}for(const entry of [...tradeOffers.querySelectorAll('.game-box')].slice(1)){pending.append(entry);}
+      pending.append(proposalHistory,offerHistory);
       tradeColumns.append(tradeProposals,tradeOffers,pending);p.replaceChildren(tradeColumns);
     }
   }
@@ -623,11 +665,11 @@
         if(d.favorite){const fav=block('★ Card favorito',d.favorite.name);fav.classList.add('public-section','public-favorite');
           const art=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');art.setAttribute('role','button');art.tabIndex=0;art.addEventListener('click',()=>showCard(d.favorite,'Card favorito',true));art.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showCard(d.favorite,'Card favorito',true);}});fav.prepend(art);pane.append(fav);}
         const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section');const line=h('div','public-badges');
-        (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip');badge.append(iconArtwork(b.image_url,b.icon||'🏅'));badge.title=b.title;line.append(badge);});
+        (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip');badge.append(iconArtwork(b.image_url,b.icon||'🏅'));makeProfileItemInteractive(badge,b,'badge');line.append(badge);});
         if(!d.badges?.length)line.append(h('p','','Nenhum selo por enquanto.'));badges.append(line);pane.append(badges);
         const favorites=block('🎮 Jogos favoritos');favorites.classList.add('public-section');
         const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
-        for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));chip.title=game.name;gameIcons.append(chip);}
+        for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));makeProfileItemInteractive(chip,game,'game');gameIcons.append(chip);}
         favorites.append(gameIcons);pane.append(favorites);
         if(d.collectibles?.length){const found=block('🏆 Colecionáveis');found.classList.add('public-section','public-collectibles');const grid=h('div','collectible-grid');
           for(const item of d.collectibles){const tile=h('article','collectible-item');tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'));tile.append(h('strong','',item.name),h('small','',`×${item.quantity}`));if(item.description)tile.title=item.description;grid.append(tile);}found.append(grid);pane.append(found);}
@@ -653,11 +695,11 @@
       if(d.favorite){const recent=h('div','public-hero-favorite');const cover=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');cover.tabIndex=0;cover.setAttribute('role','button');cover.setAttribute('aria-label','Ampliar card favorito de '+d.name);cover.addEventListener('click',()=>showCard(d.favorite,'Card favorito de '+d.name,true));cover.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showCard(d.favorite,'Card favorito de '+d.name,true);}});recent.append(cover,h('strong','','Card favorito: '+d.favorite.name));hero.prepend(recent);}
       main.append(hero);
       const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section','public-badges');const line=h('div','public-badges-row');
-      (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip');badge.append(iconArtwork(b.image_url,b.icon||'🏅'));badge.title=b.title;line.append(badge);});
+      (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip');badge.append(iconArtwork(b.image_url,b.icon||'🏅'));makeProfileItemInteractive(badge,b,'badge');line.append(badge);});
       if(!d.badges?.length)line.append(h('p','','Nenhum selo por enquanto.'));badges.append(line);main.append(badges);
       const favorites=block('🎮 Jogos favoritos');favorites.classList.add('public-section','public-games');
       const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
-      for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));chip.title=game.name;gameIcons.append(chip);}
+      for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));makeProfileItemInteractive(chip,game,'game');gameIcons.append(chip);}
       favorites.append(gameIcons);main.append(favorites);
       if(d.collectibles?.length){const found=block('🏆 Colecionáveis');found.classList.add('public-section','public-collectibles');const grid=h('div','collectible-grid');
         for(const item of d.collectibles){const tile=h('article','collectible-item');tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'));tile.append(h('strong','',item.name),h('small','',`×${item.quantity}`));if(item.description)tile.title=item.description;grid.append(tile);}found.append(grid);main.append(found);}
