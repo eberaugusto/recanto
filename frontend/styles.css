@@ -3053,3 +3053,114 @@ body.dark-mode :is(
     pointer-events:none;
   }
 }
+
+
+/* RECANTO 0.2.20 — Ícones dos títulos brancos no modo claro do Mobile.
+   Regra propositalmente posterior ao tema geral 0.2.18. */
+@media (max-width: 767px) {
+  body:not(.dark-mode) #homeScreen .content-page .content-head h1 > .section-title-icon,
+  body:not(.dark-mode) #homeScreen .content-page .content-head h1 > .section-title-icon > svg {
+    color:#fff!important;
+    stroke:currentColor!important;
+  }
+  body:not(.dark-mode) #homeScreen .content-page .content-head h1 > .section-title-icon > img.ui-asset-icon {
+    filter:brightness(0) invert(1)!important;
+    opacity:1!important;
+  }
+}
+
+/* RECANTO 0.2.20 — Capas da Loja acompanham a largura do produto no Mobile.
+   Imagem preenche o quadro sem distorção e sem faixas vazias. */
+@media (max-width: 767px) {
+  #shopPane .product-card {min-width:0;overflow:hidden;}
+  #shopPane .product-card > .product-cover {
+    position:relative;
+    display:grid;place-items:center;
+    width:100%!important;
+    height:auto!important;
+    aspect-ratio:1 / 1;
+    flex:0 0 auto;
+    overflow:hidden;
+  }
+  #shopPane .product-card > .product-cover > img {
+    position:absolute!important;inset:0!important;
+    display:block;width:100%!important;height:100%!important;
+    max-width:none!important;max-height:none!important;
+    object-fit:cover!important;object-position:center!important;
+  }
+}
+
+/* RECANTO 0.2.20 — Espaço final verdadeiro no contêiner rolável do Perfil do PC.
+   Um elemento real ocupa a última linha da grade, após ambas as colunas. */
+#profileContent > .desktop-profile-bottom-spacer{display:none;}
+@media (min-width: 768px) {
+  #profileContent > .desktop-profile-bottom-spacer {
+    display:block!important;
+    grid-column:1 / -1!important;
+    grid-row:auto!important;
+    align-self:stretch;
+    width:100%;
+    height:clamp(42px,5vh,62px)!important;
+    min-height:42px!important;
+    pointer-events:none;
+  }
+  #profileContent::after{display:none!important;}
+}
+
+
+/* RECANTO 0.2.20 — No PC, ícones dos títulos seguem o azul do texto.
+   No Mobile continuam brancos no modo claro; tema escuro fica claro em ambos. */
+@media (min-width:768px) {
+  body:not(.dark-mode) #homeScreen .content-page .content-head h1 > .section-title-icon,
+  body:not(.dark-mode) #homeScreen .content-page .content-head h1 > .section-title-icon > svg {
+    color:#263b86!important;
+    stroke:currentColor!important;
+  }
+  body:not(.dark-mode) #homeScreen .content-page .content-head h1 > .section-title-icon > img.ui-asset-icon {
+    filter:brightness(0) saturate(100%) invert(20%) sepia(33%) saturate(1780%) hue-rotate(195deg) brightness(92%) contrast(99%)!important;
+    opacity:1!important;
+  }
+}
+
+/* Respiro que faz parte da área rolável, independente da altura das colunas. */
+@media (min-width:768px) {
+  #profileContent {
+    padding-bottom:24px!important;
+  }
+  #profileContent > .desktop-profile-bottom-spacer {
+    display:block!important;
+    grid-column:1 / -1!important;
+    height:64px!important;
+    min-height:64px!important;
+    align-self:stretch!important;
+    visibility:hidden;
+    pointer-events:none;
+  }
+}
+@media (min-width:1321px){
+  #profileContent > .desktop-profile-bottom-spacer {grid-row:2!important;}
+}
+@media (min-width:768px) and (max-width:1320px){
+  #profileContent > .desktop-profile-bottom-spacer {grid-row:3!important;}
+}
+
+/* A regra geral de ícones contém seletores de configuração de maior peso.
+   Forçar aqui a cor dos SVGs de título nos dois breakpoints, após a cascata. */
+@media (max-width:767px) {
+  body:not(.dark-mode) #homeScreen#homeScreen .content-page .content-head h1 > .section-title-icon > svg {
+    color:#fff!important;
+    stroke:currentColor!important;
+  }
+  body:not(.dark-mode) #homeScreen#homeScreen .content-page .content-head h1 > .section-title-icon > img.ui-asset-icon {
+    filter:brightness(0) invert(1)!important;
+  }
+}
+@media (min-width:768px) {
+  body:not(.dark-mode) #homeScreen#homeScreen .content-page .content-head h1 > .section-title-icon > svg {
+    color:#263b86!important;
+    stroke:currentColor!important;
+  }
+  body:not(.dark-mode) #homeScreen#homeScreen .content-page .content-head h1 > .section-title-icon > img.ui-asset-icon {
+    filter:brightness(0) saturate(100%) invert(20%) sepia(33%) saturate(1780%) hue-rotate(195deg) brightness(92%) contrast(99%)!important;
+  }
+}
