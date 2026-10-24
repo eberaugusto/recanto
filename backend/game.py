@@ -621,7 +621,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
 
     def next_card_available(db, uid):
         row=db.get(CardCooldown,uid)
-        return naive_to_utc(row.last_claimed)+timedelta(hours=5) if row else None
+        return naive_to_utc(row.last_claimed)+timedelta(hours=3) if row else None
 
     def game_entry(db, row):
         key,name,emoji=row
@@ -1148,7 +1148,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         with writing() as db:
             at=next_card_available(db,uid)
             if at and at>utcnow():
-                raise HTTPException(409, detail='Aguarde 5 horas entre resgates de cartas.')
+                raise HTTPException(409, detail='Aguarde 3 horas entre resgates de cartas.')
             chosen = random_card(stock(db), 'diario')
             result = grant_card(db, uid, chosen)
             reward=card_bonus(db, result['rarity'])
