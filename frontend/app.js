@@ -48,8 +48,11 @@
 
   const h = (tag, className='', content='') => {const el=document.createElement(tag);if(className)el.className=className;if(content!==undefined&&content!==null)el.textContent=String(content);return el;};
   const money = n=>Number(n||0).toLocaleString('pt-BR');
-  const poroLegacyText = value => String(value ?? '').replace(/Pequenas Lendas/gi,'Pets').replace(/Pequena Lenda/gi,'Pet').replace(/Poros/gi,'Pets').replace(/Poro/gi,'Pet');
-  const poroSpeciesName = value => poroLegacyText(value);
+  // Textos vindos do cadastro são dados do usuário, não rótulos da interface.
+  // Não renomear Pets cadastrados como 'Poro', 'Poros' ou quaisquer outros nomes.
+  // Os rótulos fixos da interface usam 'Pet'/'Pets' diretamente.
+  const poroLegacyText = value => String(value ?? '');
+  const poroSpeciesName = value => String(value ?? '');
   const labels={feed:'Feed',perfil:'Perfil',cards:'Cards',inventario:'Inventário',pet:'Pets',loja:'Loja',missoes:'Missões'};
   const tierLabels={comum:'Comum',raro:'Raro',lendário:'Lendário',prismático:'Prismático'};
   const state={dailyReward:0,dailyClaimInFlight:false,assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:8,cardPage:1,cardPageSize:12,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:matchMedia('(min-width:768px)').matches?'raridade':'padrao',missing:false,newOnly:false},detailClosing:false};

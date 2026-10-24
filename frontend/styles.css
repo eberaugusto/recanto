@@ -2808,3 +2808,65 @@ body.dark-mode .pet-visual.pet-has-3d .pet-3d-loading{
 }
 @keyframes recanto-3d-loader{0%,100%{opacity:.35;transform:scale(.85)}50%{opacity:.9;transform:scale(1.12)}}
 @media(prefers-reduced-motion:reduce){.pet-visual.pet-has-3d .pet-3d-loading-icon{animation:none;}}
+
+
+/* RECANTO 0.2.16 — contrastes dos ícones e preenchimento da moeda no Mobile.
+   Apenas a área de perfil e os títulos mobile são afetados; ícones do PC
+   e da navegação inferior mantêm as cores e dimensões próprias. */
+@media (max-width:767px) {
+  /* O ícone personalizado deve preencher por completo a bolinha de moedas.
+     Sem os limites globais de 61%/82% aplicados aos outros ícones. */
+  #profileContent .stats-list .stat:first-child .stat-icon.asset-icon-host {
+    overflow:hidden;
+    padding:0!important;
+    border-radius:50%;
+  }
+  #profileContent .stats-list .stat:first-child .stat-icon.asset-icon-host > img.ui-asset-icon {
+    display:block!important;
+    width:100%!important;
+    height:100%!important;
+    max-width:none!important;
+    max-height:none!important;
+    flex:none!important;
+    object-fit:cover!important;
+    object-position:center!important;
+    border-radius:50%;
+  }
+
+  /* Botões de buscar perfis e configurações: contraste do ícone em cada tema.
+     Cobre símbolos SVG internos e arquivos personalizados via Central de Assets. */
+  body:not(.dark-mode) #profileContent .header-actions :is(#searchUsers,#settings) {
+    background:#f7f8ff!important;
+    color:#263760!important;
+    border-color:#d7def5!important;
+  }
+  body:not(.dark-mode) #profileContent .header-actions :is(#searchUsers,#settings) > svg {
+    color:#263760!important;
+  }
+  body:not(.dark-mode) #profileContent .header-actions :is(#searchUsers,#settings) > img.ui-asset-icon {
+    filter:brightness(0) saturate(100%)!important;
+    opacity:1!important;
+  }
+  body.dark-mode #profileContent .header-actions :is(#searchUsers,#settings) {
+    background:#1b2949!important;
+    color:#f7f9ff!important;
+    border-color:#41547b!important;
+  }
+  body.dark-mode #profileContent .header-actions :is(#searchUsers,#settings) > svg {
+    color:#f7f9ff!important;
+  }
+  body.dark-mode #profileContent .header-actions :is(#searchUsers,#settings) > img.ui-asset-icon {
+    filter:brightness(0) invert(1)!important;
+    opacity:1!important;
+  }
+
+  /* Apenas no celular: título continua azul no tema claro,
+     mas seu pictograma passa a ser branco, como os ícones do menu inferior. */
+  body:not(.dark-mode) .content-page .content-head h1 > .section-title-icon {
+    color:#fff!important;
+  }
+  body:not(.dark-mode) .content-page .content-head h1 > .section-title-icon > img.ui-asset-icon {
+    filter:brightness(0) invert(1)!important;
+    opacity:1!important;
+  }
+}
