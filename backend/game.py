@@ -5,6 +5,7 @@ operações; nunca escolhe resultado de sorteio, saldo, recompensa ou tempo.
 """
 from __future__ import annotations
 import logging
+import asyncio
 
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -1674,14 +1675,120 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             else: db.add(FavoriteCard(user_id=uid,owned_id=owned_id))
         return {'ok':True,'owned_id':owned_id}
 
+    # 0.2.21: listagem opcional de TODOS os membros do Discord, inclusive os que
+    # ainda não abriram o Recanto. O token do bot nunca é enviado ao cliente.
+    # Cache evita consultar a API do Discord a cada tecla digitada na busca.
+    _guild_cache={'data':None, 'until':0.0}
+    _guild_cache_lock=asyncio.Lock()
+
+    async def discord_server_members():
+        token=os.getenv('DISCORD_BOT_TOKEN','').strip()
+        guild=os.getenv('DISCORD_GUILD_ID','958567158479208458').strip()
+        if not token or not guild.isdecimal():
+            return None
+        now=time.monotonic()
+        if _guild_cache['data'] is not None and now < _guild_cache['until']:
+            return _guild_cache['data']
+        async with _guild_cache_lock:
+            now=time.monotonic()
+            if _guild_cache['data'] is not None and now < _guild_cache['until']:
+                return _guild_cache['data']
+            members=[]
+            after='0'
+            try:
+                # Endpoint oficial, com paginação de 1.000 registros.
+                # Exige bot no servidor e Server Members Intent habilitado.
+                async with httpx.AsyncClient(timeout=12.0) as client:
+                    for _ in range(100):
+                        response=await client.get(
+                            f'https://discord.com/api/v10/guilds/{guild}/members',
+                            headers={'Authorization':'Bot '+token},
+                            params={'limit':1000,'after':after},
+                        )
+                        response.raise_for_status()
+                        batch=response.json()
+                        if not isinstance(batch,list):
+                            raise ValueError('Resposta inesperada do Discord')
+                        members.extend(batch)
+                        if len(batch)<1000:
+                            break
+                        previous=after
+                        after=max((str(m.get('user',{}).get('id','0')) for m in batch), key=lambda x:int(x))
+                        if after==previous:
+                            break
+                # Cache válido por 10 min; permissões da API são verificadas
+                # novamente quando o cache expirar.
+                _guild_cache.update(data=members, until=time.monotonic()+600)
+                return members
+            except (httpx.HTTPError,ValueError,TypeError):
+                logging.getLogger('recanto.discord').warning(
+                    'Listagem de membros indisponível. Verifique bot, servidor e Server Members Intent.'
+                )
+                # Caso haja cache anterior, usa dados antigos por mais 60 s.
+                if _guild_cache['data'] is not None:
+                    _guild_cache['until']=time.monotonic()+60
+                    return _guild_cache['data']
+                return None
+
+    def discord_member_brief(member, guild_id):
+        user=member.get('user') or {}
+        user_id=str(user.get('id') or '')
+        if not user_id.isdecimal():return None
+        display=(member.get('nick') or user.get('global_name') or user.get('username') or 'Membro').strip()
+        username=str(user.get('username') or '')
+        avatar_hash=member.get('avatar')
+        if avatar_hash:
+            ext='gif' if avatar_hash.startswith('a_') else 'png'
+            avatar=f'https://cdn.discordapp.com/guilds/{guild_id}/users/{user_id}/avatars/{avatar_hash}.{ext}?size=128'
+        else:
+            avatar_hash=user.get('avatar')
+            ext='gif' if avatar_hash and avatar_hash.startswith('a_') else 'png'
+            avatar=f'https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.{ext}?size=128' if avatar_hash else None
+        return {'key':user_id,'name':display,'username':username,'avatar_url':avatar,'bot':bool(user.get('bot'))}
+
     @app.get('/api/community/profiles')
-    def community_profiles(request: Request, q: str=''):
+    async def community_profiles(request: Request, q: str='', offset: int=0, limit: int=100, registered_only: bool=False):
         uid=me(request)
-        q=q.strip()[:80]
+        q=q.strip()[:80].casefold()
+        offset=max(0,min(int(offset),100000))
+        limit=max(1,min(int(limit),200))
+        roster=None if registered_only else await discord_server_members()
         with SessionLocal() as db:
-            users=db.scalars(select(User).where(User.id != uid,User.username.ilike('%'+q.replace('%', r'\%').replace('_', r'\_')+'%')).order_by(User.username).limit(60)).all()
-            return {'members':[{'key':u.id,'name':u.username,'avatar_url':u.avatar_url,
-                                 'card_count':db.scalar(select(func.count(OwnedCard.id)).where(OwnedCard.user_id==u.id)) or 0} for u in users]}
+            if roster is None:
+                # Fallback preserva o comportamento anterior quando o bot não
+                # estiver configurado ou a API do Discord estiver indisponível.
+                all_users=db.scalars(select(User).where(User.id!=uid).order_by(User.username)).all()
+                found=[u for u in all_users if not q or q in u.username.casefold()]
+                shown=found[offset:offset+limit]
+                count_map=dict(db.execute(select(OwnedCard.user_id,func.count(OwnedCard.id))
+                    .where(OwnedCard.user_id.in_([u.id for u in shown]))
+                    .group_by(OwnedCard.user_id)).all()) if shown else {}
+                return {'members':[{'key':u.id,'name':u.username,'avatar_url':u.avatar_url,
+                    'card_count':count_map.get(u.id,0),'registered':True} for u in shown],
+                    'total':len(found),'has_more':offset+limit<len(found),'discord_enabled':False}
+            guild=os.getenv('DISCORD_GUILD_ID','958567158479208458').strip()
+            normalized=[]
+            seen=set()
+            for m in roster:
+                brief=discord_member_brief(m,guild)
+                if not brief or brief['key']==uid or brief['key'] in seen:continue
+                seen.add(brief['key'])
+                if q and q not in brief['name'].casefold() and q not in brief['username'].casefold():continue
+                normalized.append(brief)
+            normalized.sort(key=lambda v:(v['name'].casefold(),v['key']))
+            shown=normalized[offset:offset+limit]
+            ids=[m['key'] for m in shown]
+            users={u.id:u for u in db.scalars(select(User).where(User.id.in_(ids))).all()} if ids else {}
+            counts=dict(db.execute(select(OwnedCard.user_id,func.count(OwnedCard.id))
+                .where(OwnedCard.user_id.in_(ids)).group_by(OwnedCard.user_id)).all()) if ids else {}
+            for m in shown:
+                u=users.get(m['key'])
+                m['registered']=u is not None
+                m['card_count']=counts.get(m['key'],0) if u else 0
+                # Nome e avatar mais recentes do Discord têm prioridade;
+                # perfil completo do Recanto só existe após o primeiro login.
+            return {'members':shown,'total':len(normalized),
+                'has_more':offset+limit<len(normalized),'discord_enabled':True}
 
     @app.get('/api/community/profiles/{member_id}')
     def public_profile(member_id: str, request: Request):

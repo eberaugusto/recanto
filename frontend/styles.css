@@ -3164,3 +3164,36 @@ body.dark-mode :is(
     filter:brightness(0) saturate(100%) invert(20%) sepia(33%) saturate(1780%) hue-rotate(195deg) brightness(92%) contrast(99%)!important;
   }
 }
+
+/* RECANTO 0.2.21 — respiro real após Jogos favoritos no Perfil do PC.
+   A coluna esquerda é um flex container: o pseudo-elemento participa
+   diretamente da altura rolável, em vez de uma linha separada da grid. */
+@media (min-width:768px) {
+  #profileContent > .desktop-left-column::after {
+    content:"";
+    display:block!important;
+    flex:0 0 64px!important;
+    min-height:64px!important;
+    width:100%;
+    pointer-events:none;
+    visibility:hidden;
+  }
+  #profileContent {
+    padding-bottom:36px!important;
+    scroll-padding-bottom:36px!important;
+  }
+  /* O espaçador de versões anteriores ocupava outra linha da grid e
+     podia ficar separado do último cartão. Não precisamos mais dele. */
+  #profileContent > .desktop-profile-bottom-spacer {
+    display:none!important;
+    height:0!important;
+    min-height:0!important;
+  }
+}
+
+/* 0.2.21 — listagem completa do Discord e perfis ainda não ativados */
+.community-search-hint{display:block;margin:12px 0;color:inherit;opacity:.8;font-size:13px;}
+.community-search-results{display:flex;flex-direction:column;gap:8px;}
+#profilesPane > .soft-action:has(+ *){max-width:100%;}
+.discord-only-member{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;}
+.discord-only-avatar{width:clamp(88px,15vw,150px);aspect-ratio:1;border-radius:50%;object-fit:cover;}

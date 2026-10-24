@@ -1014,7 +1014,7 @@
     }
   }
   async function giftDialog(item){
-    try{const data=await API('/api/community/profiles');const choices=data.members;
+    try{const data=await API('/api/community/profiles?registered_only=true&limit=200');const choices=data.members.filter(m=>m.registered!==false);
       if(!choices.length){toast('Não há outros membros cadastrados para presentear.');return;}
       const wrap=$('profilesPane');$('profilesModal').hidden=false;wrap.replaceChildren(h('h3','','Presentear '+item.name));
       const select=h('select','select-input');choices.forEach(x=>{const opt=h('option','',x.name);opt.value=x.key;select.append(opt);});
@@ -1063,17 +1063,50 @@
       $('revealNext').textContent=state.revealIndex===cards.length-1?'Ver resumo':'Próximo card';
     }else{state.revealIndex++;showRevealStep();}
   }
+  function openDiscordOnlyMember(member){
+    $('profilesModal').hidden=true;
+    $('publicProfilePage').hidden=false;
+    const pane=$('publicProfileContent');pane.replaceChildren();
+    pane.append(button('← Voltar à busca',()=>{$('publicProfilePage').hidden=true;searchProfiles();},'soft-action'));
+    const info=block(member.name,'Este membro participa do servidor Discord, mas ainda não acessou o Recanto.');
+    info.classList.add('public-section','discord-only-member');
+    if(member.avatar_url){const avatar=h('img','discord-only-avatar');avatar.src=member.avatar_url;avatar.alt='Avatar de '+member.name;avatar.loading='lazy';info.prepend(avatar);}
+    info.append(h('p','','Quando entrar no Recanto, as coleções, os Pets e as conquistas aparecerão aqui.'));
+    pane.append(info);
+  }
   async function searchProfiles(){
     $('profilesModal').hidden=false;const pane=$('profilesPane');pane.replaceChildren();
-    const input=h('input','profiles-search');input.placeholder='Buscar por nome...';input.setAttribute('aria-label','Buscar usuários');pane.append(input);
-    const results=h('div');pane.append(results);
-    async function search(){try{const d=await API('/api/community/profiles?q='+encodeURIComponent(input.value));results.replaceChildren();
-      if(!d.members.length)results.append(h('p','','Nenhum perfil encontrado.'));
-      d.members.forEach(m=>{const row=h('button','profile-result');if(m.avatar_url){const img=h('img');img.src=m.avatar_url;img.alt=m.name;row.append(img);}else row.append(h('span','profile-thumb','◉'));
-        const info=h('div');info.append(h('strong','',m.name),h('small','',m.card_count+' cards'));row.append(info);
-        row.addEventListener('click',()=>openPublicProfile(m.key));results.append(row);});
-    }catch(err){toast(err.message);}}
-    let seq=0;input.addEventListener('input',()=>{const n=++seq;setTimeout(()=>{if(n===seq)search();},250);});await search();
+    const input=h('input','profiles-search');input.placeholder='Buscar membros do servidor…';input.setAttribute('aria-label','Buscar membros do Discord');pane.append(input);
+    const hint=h('small','community-search-hint','Carregando membros…');pane.append(hint);
+    const results=h('div','community-search-results');pane.append(results);
+    const next=button('Mostrar mais membros',()=>fetchPage(false),'soft-action');next.hidden=true;pane.append(next);
+    let token=0,offset=0,current='';
+    async function fetchPage(replace){
+      const myToken=token;
+      try{
+        if(replace){offset=0;results.replaceChildren();}
+        const q=encodeURIComponent(current);
+        const d=await API('/api/community/profiles?q='+q+'&offset='+offset+'&limit=100');
+        if(myToken!==token||$('profilesModal').hidden)return;
+        if(replace&&!d.members.length)results.append(h('p','','Nenhum membro encontrado.'));
+        d.members.forEach(m=>{
+          const row=h('button','profile-result');row.type='button';
+          if(m.avatar_url){const img=h('img');img.src=m.avatar_url;img.alt=m.name;row.append(img);}
+          else row.append(h('span','profile-thumb','◉'));
+          const info=h('div');info.append(h('strong','',m.name));
+          info.append(h('small','',m.registered?m.card_count+' Cards no Recanto':'Ainda não entrou no Recanto'));
+          row.append(info);row.addEventListener('click',()=>m.registered?openPublicProfile(m.key):openDiscordOnlyMember(m));
+          results.append(row);
+        });
+        offset+=d.members.length;
+        next.hidden=!d.has_more;
+        hint.textContent=d.discord_enabled
+          ?`${d.total} membro(s) do servidor Discord encontrados.`
+          :`${d.total} membro(s) cadastrados no Recanto. A lista completa do Discord requer a configuração do bot.`;
+      }catch(err){if(myToken===token)toast(err.message);}
+    }
+    let seq=0;input.addEventListener('input',()=>{const n=++seq;token++;current=input.value.trim();setTimeout(()=>{if(n===seq)fetchPage(true);},280);});
+    await fetchPage(true);
   }
   // Todos os exemplares do perfil visitado ficam abaixo do Pet.
   // Reutilizamos a visualização dos Cards, sem qualquer ação sobre itens alheios.
