@@ -353,6 +353,7 @@
     token.tabIndex=0;
     if(item.image_url){
       const preview=h('span','feed-preview');const img=h('img');img.src=item.image_url;img.loading='lazy';img.alt=item.name||'Prévia';preview.append(img);token.append(preview);
+      token.addEventListener('click',()=>token.classList.toggle('preview-open'));
     }else if(item.emoji){const preview=h('span','feed-preview feed-emoji',item.emoji);token.append(preview);}
     parent.append(token);
   }
@@ -366,11 +367,169 @@
     else if(item.kind==='trade_cards'){add(' trocou ');card(d.card_a);add(' por ');card(d.card_b);add(' com '+(d.other||'outro membro')+'.');}
     else if(item.kind==='trade_coins'){add(' trocou ');card(d.card);add(' por '+(Number(d.coins)||0)+' moedas com '+(d.other||'outro membro')+'.');}
     else if(item.kind==='badge'){add(' conquistou o selo ');if(d.badge?.icon)add(d.badge.icon+' ');feedImageText(row,{name:d.badge?.name,image_url:d.badge?.image_url},'pet');add('!');}
+    else if(item.kind==='visitor_pet_care'){
+      add(d.action==='feed'?' alimentou ':' acariciou ');pet(d.pet);
+      add(' do perfil de '+(d.owner||'outro membro')+'.');
+    }
+    else if(item.kind==='trade_proposal'){
+      if(d.mode==='card_for_card'){
+        add(' está disposto(a) a trocar ');card(d.offered_card);add(' por ');card(d.wanted_card);add('.');
+      }else if(d.mode==='card_for_coins'){
+        add(' está disposto(a) a trocar ');card(d.offered_card);add(' por '+money(d.wanted_coins)+' moedas.');
+      }else{
+        add(' procura ');card(d.wanted_card);add(' e está aceitando propostas.');
+      }
+      if(d.note)add(' '+d.note);
+    }
+  }
+  // RECANTO 0.2.18 — propostas públicas e conversas de negociação no Feed.
+  let feedOpenThreadId=null;
+  const feedTime=iso=>{
+    const date=new Date(iso);
+    return Number.isNaN(date.getTime())?'—':new Intl.DateTimeFormat('pt-BR',
+      {timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(date);
+  };
+  function feedCardSelect(items,emptyLabel){
+    const select=h('select','select-input');
+    const none=h('option','',emptyLabel);none.value='';select.append(none);
+    for(const item of items){const option=h('option','',`${item.name} • ${tierLabels[item.rarity]||item.rarity}`);option.value=String(item.owned_id||item.id);select.append(option);}
+    return select;
+  }
+  async function openFeedTradeComposer(){
+    const modal=$('profilesModal'),pane=$('profilesPane');modal.hidden=false;
+    pane.replaceChildren(h('h3','','Publicar proposta no Feed'),h('p','','Escolha o que você oferece e o que procura. Publicar não transfere Cards nem moedas.'));
+    const progress=h('p','feed-compose-loading','Carregando seus Cards e o catálogo…');pane.append(progress);
+    let mine,catalog;
+    try{[mine,catalog]=await Promise.all([API('/api/cards'),API('/api/catalog')]);}
+    catch(err){progress.textContent='Não foi possível carregar Cards: '+err.message;return;}
+    if(modal.hidden)return;
+    progress.remove();
+    const typeLabel=h('label','feed-compose-field','Tipo de proposta');
+    const mode=h('select','select-input');
+    for(const [key,title] of [['card_for_card','Ofereço Card por outro Card'],['card_for_coins','Ofereço Card por moedas'],['wanted_card','Quero um Card e aceito propostas']]){
+      const option=h('option','',title);option.value=key;mode.append(option);
+    }
+    typeLabel.append(mode);
+    const offerLabel=h('label','feed-compose-field','Seu Card oferecido');
+    const offer=feedCardSelect(mine.items||[],'Selecione um Card que você possui');offerLabel.append(offer);
+    const wantedLabel=h('label','feed-compose-field','Card desejado');
+    const wanted=feedCardSelect(catalog.items||[],'Selecione o Card desejado');wantedLabel.append(wanted);
+    const amountLabel=h('label','feed-compose-field','Moedas desejadas');
+    const amount=h('input','text-input');amount.type='number';amount.min='1';amount.max='1000000';amount.step='1';amount.placeholder='Ex.: 150';amountLabel.append(amount);
+    const noteLabel=h('label','feed-compose-field','Mensagem opcional');
+    const note=h('textarea','text-input');note.rows=3;note.maxLength=250;note.placeholder='Especifique detalhes para os interessados…';noteLabel.append(note);
+    const update=()=>{
+      const m=mode.value;offerLabel.hidden=m==='wanted_card';wantedLabel.hidden=m==='card_for_coins';amountLabel.hidden=m!=='card_for_coins';
+    };mode.addEventListener('change',update);update();
+    const actions=h('div','feed-compose-actions');
+    actions.append(button('Publicar no Feed',async()=>{
+      const m=mode.value;
+      const data={mode:m,note:note.value.trim()};
+      if(m!=='wanted_card'){
+        if(!offer.value){toast('Escolha um Card para oferecer.');return;}
+        data.offered_owned_id=Number(offer.value);
+      }
+      if(m!=='card_for_coins'){
+        if(!wanted.value){toast('Escolha o Card desejado.');return;}
+        data.wanted_card_id=Number(wanted.value);
+      }else{
+        if(!amount.value||!Number.isInteger(Number(amount.value))||Number(amount.value)<1){toast('Informe um valor válido de moedas.');return;}
+        data.wanted_coins=Number(amount.value);
+      }
+      try{
+        await API('/api/feed/proposals',data);
+        modal.hidden=true;toast('Proposta publicada no Feed!');
+        if(state.tab==='feed')await loadFeedRefresh();
+        if(state.tab==='cards' && state.cardTab==='trocas')await cardPane('trocas');
+      }catch(err){toast('⚠ '+err.message);}
+    }));
+    actions.append(button('Cancelar',()=>{modal.hidden=true;},'soft-action'));
+    pane.append(typeLabel,offerLabel,wantedLabel,amountLabel,noteLabel,actions);
+  }
+  function feedReplyRow(reply){
+    const row=h('div','feed-reply');
+    const ava=h('div','feed-reply-avatar');avatar(ava,reply.user.name,reply.user.avatar_url);
+    const content=h('div','feed-reply-content');
+    const meta=h('div','feed-reply-meta');meta.append(h('strong','',reply.user.name),h('time','',feedTime(reply.created_at)));
+    content.append(meta);
+    if(reply.message)content.append(h('p','feed-reply-text',reply.message));
+    const extra=h('div','feed-reply-counter');
+    if(reply.data?.offered_card){extra.append(document.createTextNode('Oferece '));feedImageText(extra,reply.data.offered_card,'card');}
+    if(reply.data?.offered_coins){if(extra.hasChildNodes())extra.append(document.createTextNode(' · '));extra.append(document.createTextNode(money(reply.data.offered_coins)+' moedas'));}
+    if(extra.hasChildNodes())content.append(extra);
+    row.append(ava,content);return row;
+  }
+  function addFeedThread(article,box,item,actions){
+    const data=item.data||{},closed=data.status==='closed';
+    const n=item.replies?.length||0;
+    const toggle=button(`💬 ${n} resposta${n===1?'':'s'}`,()=>{
+      feedOpenThreadId=thread.hidden?item.id:null;thread.hidden=!thread.hidden;
+      toggle.setAttribute('aria-expanded',String(!thread.hidden));
+    },'soft-action feed-thread-toggle');
+    toggle.setAttribute('aria-expanded','false');actions.append(toggle);
+    if(item.mine && !closed)actions.append(button('Encerrar proposta',async()=>{
+      if(!confirm('Encerrar esta proposta? O histórico de respostas ficará visível.'))return;
+      const ans=await safeRun(()=>API(`/api/feed/${item.id}/close`,{}),'Proposta encerrada.');
+      if(ans)await loadFeedRefresh();
+    },'soft-action feed-close'));
+    if(!item.mine && !closed){
+      const interested=item.replies?.some(r=>r.mine&&r.message==='Tenho interesse nesta proposta!');
+      const quick=button(interested?'✓ Interesse registrado':'Tenho interesse',async()=>{
+        try{await API(`/api/feed/${item.id}/replies`,{message:'Tenho interesse nesta proposta!',interested:true});
+          feedOpenThreadId=item.id;await loadFeedRefresh();}
+        catch(err){toast('⚠ '+err.message);}
+      },'soft-action feed-interest');
+      if(interested){quick.disabled=true;quick.dataset.keepDisabled='1';}
+      actions.append(quick);
+    }
+    const thread=h('div','feed-thread');thread.hidden=feedOpenThreadId!==item.id;
+    toggle.setAttribute('aria-expanded',String(!thread.hidden));
+    if(n){for(const r of item.replies)thread.append(feedReplyRow(r));}
+    else thread.append(h('p','feed-reply-empty','Ainda não há respostas. Seja o primeiro a negociar!'));
+    if(!closed){
+      const compose=h('div','feed-reply-compose');
+      const label=h('label','',item.mine?'Responder à conversa':'Comentar ou fazer contraproposta');
+      const message=h('textarea','text-input');message.maxLength=400;message.rows=2;message.placeholder='Escreva sua proposta ou responda a outro membro…';
+      const offerRow=h('div','feed-reply-offer-row');
+      const cardSelect=feedCardSelect([],'Sem Card na contraproposta');
+      const coin=h('input','text-input');coin.type='number';coin.min='1';coin.max='1000000';coin.placeholder='Moedas (opcional)';
+      offerRow.append(cardSelect,coin);
+      let loaded=false;
+      const fill=async()=>{
+        if(loaded)return;loaded=true;
+        try{
+          const mine=await API('/api/cards');
+          const options=feedCardSelect(mine.items||[],'Sem Card na contraproposta');
+          cardSelect.replaceChildren(...Array.from(options.children));
+        }catch(err){loaded=false;toast('⚠ '+err.message);}
+      };
+      toggle.addEventListener('click',()=>{if(!thread.hidden)fill();});
+      if(!thread.hidden)fill();
+      const send=button('Responder',async()=>{
+        const data={message:message.value.trim()};
+        if(cardSelect.value)data.offered_owned_id=Number(cardSelect.value);
+        if(coin.value){data.offered_coins=Number(coin.value);if(!Number.isInteger(data.offered_coins)||data.offered_coins<1){toast('Informe um número inteiro de moedas.');return;}}
+        if(!data.message&&!data.offered_owned_id&&!data.offered_coins){toast('Escreva uma mensagem ou proponha Card/moedas.');return;}
+        try{await API(`/api/feed/${item.id}/replies`,data);feedOpenThreadId=item.id;await loadFeedRefresh();}
+        catch(err){toast('⚠ '+err.message);}
+      },'main-action');
+      compose.append(label,message,offerRow,send);
+      thread.append(compose);
+    }else thread.append(h('p','feed-proposal-status','Esta proposta foi encerrada pelo autor.'));
+    box.append(thread);
   }
   async function loadFeed(){
-    if(feedLoading||pendingFeedLikes.size)return;feedLoading=true;
+    if(feedLoading||pendingFeedLikes.size)return;
+    // Não apagar o que o usuário está digitando quando o Feed é atualizado automaticamente.
+    const active=document.activeElement;
+    if(active?.closest?.('.feed-reply-compose') && document.getElementById('feedList')?.contains(active))return;
+    feedLoading=true;
     try{
       const data=await API('/api/feed');const list=$('feedList');if(!list)return;
+      let bar=$('feedTradeComposerBar');
+      if(!bar){bar=h('div','feed-trade-composer-bar');bar.id='feedTradeComposerBar';
+        bar.append(h('span','','💬 Tem uma negociação em mente?'),button('Publicar proposta de troca',openFeedTradeComposer,'main-action'));
+        $('feedScreen').querySelector('.feed-info').after(bar);}
       list.replaceChildren();$('feedCount').textContent=`${data.items.length} publicações recentes`;
       $('feedReward').textContent=`Moedas com likes hoje: ${data.reward_today}/20`;
       if(!data.items.length)list.append(h('div','feed-empty','Nenhuma novidade por enquanto.'));
@@ -414,11 +573,20 @@
         like.setAttribute('aria-label',item.mine?'Não é possível curtir publicação própria':'Curtir publicação; '+item.likes+' curtidas');
         if(item.mine||item.liked){like.disabled=true;like.dataset.keepDisabled='1';like.title=item.mine?'Você não pode curtir sua própria publicação':'Você já curtiu esta publicação';if(item.mine)like.classList.add('feed-like-own');}
         actions.append(like);
-        box.append(header,msg,actions);article.append(pic,box);list.append(article);
+        if(item.kind==='trade_proposal'){
+          const status=h('span','feed-proposal-pill'+(item.data?.status==='closed'?' closed':''),item.data?.status==='closed'?'Encerrada':'Proposta aberta');
+          header.append(status);
+        }
+        box.append(header,msg,actions);
+        if(item.kind==='trade_proposal')addFeedThread(article,box,item,actions);
+        article.append(pic,box);list.append(article);
       }
     }finally{feedLoading=false;}
   }
-  async function loadFeedRefresh(){feedLoading=false;await loadFeed();}
+  async function loadFeedRefresh(){
+    if(document.activeElement?.closest?.('.feed-reply-compose'))document.activeElement.blur();
+    feedLoading=false;await loadFeed();
+  }
   function startFeedPolling(){if(feedRefreshTimer)return;feedRefreshTimer=setInterval(()=>{if(state.tab==='feed'&&!document.hidden&&state.account)loadFeed().catch(()=>{});},12000);}
   // Recanto 0.1.18: gesto pull-to-refresh com deslocamento visual e indicador.
   // Só intercepta arrasto vertical para baixo iniciado no topo; o swipe entre abas permanece.
@@ -801,7 +969,13 @@
       }
       const pending=h('section','trade-section trade-pending');
       pending.append(proposalHistory,offerHistory);
-      tradeColumns.append(tradeProposals,tradeOffers,pending);p.replaceChildren(tradeColumns);
+      tradeColumns.append(tradeProposals,tradeOffers,pending);p.replaceChildren();
+      const publicTrade=block('📣 Propostas públicas no Feed',
+        'Anuncie o Card que oferece, quanto deseja receber ou qual Card está procurando. Os interessados podem responder e apresentar contrapropostas no Feed.');
+      publicTrade.classList.add('public-trade-entry');
+      publicTrade.append(button('Criar proposta pública',openFeedTradeComposer),
+        button('Ver conversas no Feed',()=>chooseTab('feed'),'soft-action'));
+      p.append(publicTrade,tradeColumns);
     }
   }
     async function decideCoinOffer(id,action){await safeRun(()=>API(`/api/coin-offers/${id}/decide`,{action}),'Oferta atualizada!');}

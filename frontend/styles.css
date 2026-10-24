@@ -2899,3 +2899,139 @@ body.dark-mode .pet-visual.pet-has-3d.pet-scenery .pet-3d-loading{
 }
 .admin-pet-scenery-editor .admin-action-row{display:flex;gap:8px;flex-wrap:wrap;}
 .admin-pet-scenery-editor .admin-action-row button{flex:1 1 145px;min-width:0;}
+
+/* RECANTO v0.2.18 — propostas públicas e conversas dentro do Feed. */
+.feed-trade-composer-bar,.public-trade-entry{
+  background:#fff;color:#2c3b7c;border-radius:20px;padding:16px 18px;
+  box-shadow:0 5px 18px rgba(30,49,114,.08);
+}
+.feed-trade-composer-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+.feed-trade-composer-bar span{font-weight:700;}
+.feed-trade-composer-bar button{max-width:100%;}
+.public-trade-entry{margin:0 0 22px;display:flex;flex-direction:column;gap:12px;}
+.public-trade-entry .main-action,.public-trade-entry .soft-action{width:auto;align-self:flex-start;}
+.feed-proposal-pill{font-size:11px;font-weight:800;background:#e2f6ee;color:#15764c;padding:6px 10px;border-radius:99px;white-space:nowrap;}
+.feed-proposal-pill.closed{background:#eaeaf0;color:#5d6479;}
+.feed-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.feed-actions .soft-action{font-size:12px;padding:9px 12px;min-height:35px;border-radius:12px;}
+.feed-thread{border-left:2px solid #cbd4ff;margin:15px 0 2px 14px;padding:2px 0 2px 16px;min-width:0;}
+.feed-reply{display:flex;align-items:flex-start;gap:10px;margin:0 0 14px;min-width:0;}
+.feed-reply-avatar{width:32px;height:32px;flex:0 0 32px;display:grid;place-items:center;border-radius:50%;background:#dfe7ff;overflow:hidden;}
+.feed-reply-avatar img{width:100%;height:100%;object-fit:cover;}
+.feed-reply-content{flex:1;min-width:0;}
+.feed-reply-meta{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;}
+.feed-reply-meta time{font-size:11px;color:#707ca8;}
+.feed-reply-text{white-space:pre-line;overflow-wrap:anywhere;font-size:14px;line-height:1.5;margin:4px 0;}
+.feed-reply-counter{font-size:13px;line-height:1.6;margin:4px 0 0;color:#4657a0;}
+.feed-reply-empty{font-size:13px;color:#657399;line-height:1.5;}
+.feed-reply-compose{display:flex;flex-direction:column;gap:8px;padding:12px;background:#f4f6ff;border-radius:15px;min-width:0;}
+.feed-reply-compose>label{font-size:13px;font-weight:700;}
+.feed-reply-compose textarea{width:100%;min-height:74px;box-sizing:border-box;resize:vertical;}
+.feed-reply-offer-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(110px,.42fr);gap:8px;}
+.feed-reply-offer-row>*{min-width:0;max-width:100%;box-sizing:border-box;}
+.feed-reply-compose>button{align-self:flex-start;}
+.feed-proposal-status{font-weight:700;font-size:13px;color:#637092;}
+.feed-compose-field{display:flex;flex-direction:column;gap:7px;margin:12px 0;font-size:14px;font-weight:700;}
+.feed-compose-field[hidden],.feed-thread[hidden]{display:none!important;}
+.feed-compose-field textarea{resize:vertical;min-height:85px;}
+.feed-compose-actions{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0 10px;}
+.feed-entity.preview-open .feed-preview{display:flex;}
+body.dark-mode .feed-trade-composer-bar,body.dark-mode .public-trade-entry{
+  background:#1b2949;color:#f2f5ff;box-shadow:none;
+}
+body.dark-mode .feed-thread{border-left-color:#475f91;}
+body.dark-mode .feed-reply-compose{background:#24365d;color:#f2f5ff;}
+body.dark-mode .feed-reply-text,body.dark-mode .feed-reply-counter,body.dark-mode .feed-reply-meta,
+body.dark-mode .feed-reply-empty,body.dark-mode .feed-proposal-status{color:#dae2ff;}
+body.dark-mode .feed-reply-meta time{color:#b6c2e1;}
+body.dark-mode .feed-proposal-pill{background:#235044;color:#aaf0d3;}
+body.dark-mode .feed-proposal-pill.closed{background:#39445f;color:#c7d1e4;}
+@media(max-width:767px){
+  .feed-trade-composer-bar{align-items:stretch;flex-direction:column;}
+  .feed-trade-composer-bar button{width:100%;}
+  .feed-reply-offer-row{grid-template-columns:1fr;}
+  .feed-thread{margin-left:3px;padding-left:10px;}
+  .feed-actions .soft-action{font-size:12px;}
+  .public-trade-entry .main-action,.public-trade-entry .soft-action{align-self:stretch;width:100%;}
+}
+
+/* RECANTO 0.2.18 — faixas de título das Missões, coerentes com Cards/Trocas. */
+#missionPane .mission-category > .mission-category-title {
+  display:flex!important;
+  justify-content:center!important;
+  align-items:center!important;
+  box-sizing:border-box!important;
+  width:100%!important;
+  min-height:52px!important;
+  margin:0 0 2px!important;
+  padding:12px 14px!important;
+  background:#f7f8ff!important;
+  border:1px solid #cbd4ff!important;
+  border-radius:15px!important;
+  box-shadow:none!important;
+  color:#283f96!important;
+  text-align:center!important;
+  font-size:clamp(17px,1.4vw,21px)!important;
+  font-weight:800!important;
+  line-height:1.3!important;
+}
+body.dark-mode #missionPane .mission-category > .mission-category-title {
+  background:#293b60!important;
+  color:#f4f7ff!important;
+  border-color:#526791!important;
+}
+@media(max-width:767px){
+  #missionPane .mission-category > .mission-category-title {
+    min-height:52px!important;
+    font-size:19px!important;
+    border-radius:14px!important;
+  }
+}
+
+/* RECANTO 0.2.18 — ícones funcionais com contraste preto/branco por tema.
+   Afeta apenas SVGs/ícones de navegação textual, títulos, configurações e
+   comandos de busca, nunca capas, Cards, Selos ou ilustrações de Pets. */
+body:not(.dark-mode) :is(
+  .content-page .content-head h1>.section-title-icon,
+  .setting-label,
+  #settingsAdmin,
+  #checkUpdates,
+  #profileContent .header-actions :is(#searchUsers,#settings),
+  .desktop-search
+) > svg,
+body:not(.dark-mode) .content-page .content-head h1>.section-title-icon {
+  color:#000!important;
+  stroke:currentColor;
+}
+body.dark-mode :is(
+  .content-page .content-head h1>.section-title-icon,
+  .setting-label,
+  #settingsAdmin,
+  #checkUpdates,
+  #profileContent .header-actions :is(#searchUsers,#settings),
+  .desktop-search
+) > svg,
+body.dark-mode .content-page .content-head h1>.section-title-icon {
+  color:#fff!important;
+  stroke:currentColor;
+}
+body:not(.dark-mode) :is(
+  .content-page .content-head h1>.section-title-icon,
+  .setting-label,
+  #settingsAdmin,
+  #checkUpdates,
+  #profileContent .header-actions :is(#searchUsers,#settings),
+  .desktop-search
+) > img.ui-asset-icon {
+  filter:brightness(0)!important;
+}
+body.dark-mode :is(
+  .content-page .content-head h1>.section-title-icon,
+  .setting-label,
+  #settingsAdmin,
+  #checkUpdates,
+  #profileContent .header-actions :is(#searchUsers,#settings),
+  .desktop-search
+) > img.ui-asset-icon {
+  filter:brightness(0) invert(1)!important;
+}

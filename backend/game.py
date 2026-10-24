@@ -329,6 +329,15 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         payload: Mapped[str] = mapped_column(String(4096), nullable=False)
         created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
+    class FeedReply(Base):
+        __tablename__ = 'recanto_feed_replies'
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        event_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+        user_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+        message: Mapped[str] = mapped_column(String(400), nullable=False)
+        payload: Mapped[str] = mapped_column(String(2048), nullable=False, default='{}')
+        created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
     class FeedLike(Base):
         __tablename__ = 'recanto_feed_likes'
         event_id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -711,13 +720,14 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             mission_tracker(db, uid, mission, amount)
 
     def publish_feed(db, uid, kind, **payload):
-        # Somente ações confirmadas pelo servidor. Não incluir missões, loja nem cuidados.
+        # Somente ações confirmadas pelo servidor; propostas são anúncios, não transações.
         entry = FeedEvent(user_id=uid, kind=kind, payload=json.dumps(payload, ensure_ascii=False), created_at=utcnow())
         db.add(entry)
         db.flush()
-        # Manter apenas as 30 publicações mais recentes e eliminar likes antigos.
-        old_ids = db.scalars(select(FeedEvent.id).order_by(FeedEvent.id.desc()).offset(30)).all()
+        # Reter 100 publicações: conversas de negociação precisam durar mais que o feed antigo.
+        old_ids = db.scalars(select(FeedEvent.id).order_by(FeedEvent.id.desc()).offset(100)).all()
         if old_ids:
+            db.execute(delete(FeedReply).where(FeedReply.event_id.in_(old_ids)))
             db.execute(delete(FeedLike).where(FeedLike.event_id.in_(old_ids)))
             db.execute(delete(FeedEvent).where(FeedEvent.id.in_(old_ids)))
 
@@ -726,19 +736,121 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
 
     @app.get('/api/feed')
     def community_feed(request: Request):
-        uid = me(request)
+        uid=me(request)
         with SessionLocal() as db:
-            entries = db.scalars(select(FeedEvent).order_by(FeedEvent.id.desc()).limit(30)).all()
-            users = {u.id:u for u in db.scalars(select(User).where(User.id.in_([e.user_id for e in entries]))).all()} if entries else {}
-            counts = dict(db.execute(select(FeedLike.event_id,func.count(FeedLike.user_id)).where(FeedLike.event_id.in_([e.id for e in entries])).group_by(FeedLike.event_id)).all()) if entries else {}
-            liked = set(db.scalars(select(FeedLike.event_id).where(FeedLike.user_id==uid,FeedLike.event_id.in_([e.id for e in entries]))).all()) if entries else set()
+            entries=db.scalars(select(FeedEvent).order_by(FeedEvent.id.desc()).limit(60)).all()
+            event_ids=[entry.id for entry in entries]
+            replies=db.scalars(select(FeedReply).where(FeedReply.event_id.in_(event_ids))
+                               .order_by(FeedReply.created_at,FeedReply.id)).all() if entries else []
+            uids=set([e.user_id for e in entries]+[r.user_id for r in replies])
+            users={u.id:u for u in db.scalars(select(User).where(User.id.in_(uids))).all()} if uids else {}
+            counts=dict(db.execute(select(FeedLike.event_id,func.count(FeedLike.user_id))
+                                   .where(FeedLike.event_id.in_(event_ids)).group_by(FeedLike.event_id)).all()) if entries else {}
+            liked=set(db.scalars(select(FeedLike.event_id).where(FeedLike.user_id==uid,
+                                      FeedLike.event_id.in_(event_ids))).all()) if entries else set()
+            all_replies={eid:[] for eid in event_ids}
+            for reply in replies:
+                who=users.get(reply.user_id)
+                all_replies[reply.event_id].append({
+                    'id':reply.id,'message':reply.message,'data':json.loads(reply.payload or '{}'),
+                    'created_at':naive_to_utc(reply.created_at).isoformat(),
+                    'mine':reply.user_id==uid,
+                    'user':{'name':who.username if who else 'Membro','avatar_url':who.avatar_url if who else None}
+                })
             day_state=db.get(FeedDailyReward,(uid,local_day()))
             return {'items':[{'id':e.id,'kind':e.kind,'created_at':naive_to_utc(e.created_at).isoformat(),
                 'user':{'name':users[e.user_id].username if e.user_id in users else 'Membro',
                         'avatar_url':users[e.user_id].avatar_url if e.user_id in users else None},
                 'mine':e.user_id==uid,
-                'data':json.loads(e.payload),'likes':counts.get(e.id,0),'liked':e.id in liked} for e in entries],
+                'data':json.loads(e.payload),'likes':counts.get(e.id,0),'liked':e.id in liked,
+                'replies':all_replies[e.id] if e.kind=='trade_proposal' else []}
+                for e in entries],
                 'reward_today':day_state.count if day_state else 0,'reward_limit':20}
+
+    def postable_card(db, card_id):
+        card=db.get(Card,card_id)
+        if not card or not card.active:
+            raise HTTPException(409,detail='Card indisponível no catálogo')
+        return {'id':card.id,'name':card.name,'rarity':card.rarity,
+                'image_url':card.image_url,'collection':card.collection_name}
+
+    def member_offered_card(db,uid,owned_id):
+        owned=db.get(OwnedCard,owned_id)
+        if not owned or owned.user_id!=uid:
+            raise HTTPException(409,detail='Você precisa possuir o Card oferecido')
+        card=postable_card(db,owned.card_id)
+        return card
+
+    @app.post('/api/feed/proposals')
+    async def create_public_trade_proposal(request:Request):
+        uid=me(request)
+        payload=json_body(await request.json(),('mode',))
+        mode=str(payload['mode'])
+        if mode not in ('card_for_card','card_for_coins','wanted_card'):
+            raise HTTPException(422,detail='Tipo de proposta inválido')
+        note=str(payload.get('note') or '').strip()
+        if len(note)>250:raise HTTPException(422,detail='Descrição limitada a 250 caracteres')
+        with writing() as db:
+            day_start=utcnow()-timedelta(days=1)
+            recent=db.scalars(select(FeedEvent).where(FeedEvent.user_id==uid,
+                              FeedEvent.kind=='trade_proposal',FeedEvent.created_at>=day_start)).all()
+            if len(recent)>=10:raise HTTPException(429,detail='Limite de 10 propostas públicas a cada 24 horas')
+            offered=member_offered_card(db,uid,integer(payload.get('offered_owned_id'))) if mode!='wanted_card' else None
+            wanted=postable_card(db,integer(payload.get('wanted_card_id'))) if mode!='card_for_coins' else None
+            coins=integer(payload.get('wanted_coins')) if mode=='card_for_coins' else None
+            if mode=='card_for_coins' and not 1<=coins<=1000000:
+                raise HTTPException(422,detail='Informe de 1 a 1.000.000 moedas')
+            if mode=='card_for_card' and wanted['id']==offered['id']:
+                raise HTTPException(422,detail='Selecione dois Cards diferentes')
+            # A oferta não reserva moedas nem entrega Cards: somente a aceitação privada poderá fazê-lo.
+            publish_feed(db,uid,'trade_proposal',mode=mode,offered_card=offered,wanted_card=wanted,
+                         wanted_coins=coins,note=note,status='open')
+        return {'ok':True}
+
+    @app.post('/api/feed/{event_id}/replies')
+    async def reply_public_trade_proposal(event_id:int,request:Request):
+        uid=me(request)
+        payload=json_body(await request.json(),('message',))
+        message=str(payload.get('message') or '').strip()
+        interested=bool(payload.get('interested',False))
+        if interested and not message:message='Tenho interesse nesta proposta!'
+        if len(message)>400:raise HTTPException(422,detail='Comentário limitado a 400 caracteres')
+        with writing() as db:
+            post=db.get(FeedEvent,event_id)
+            if not post or post.kind!='trade_proposal':raise HTTPException(404,detail='Proposta não encontrada')
+            if json.loads(post.payload).get('status')!='open':
+                raise HTTPException(409,detail='Esta proposta foi encerrada')
+            if post.user_id==uid and interested:
+                raise HTTPException(422,detail='Você não pode demonstrar interesse na própria proposta')
+            count=db.scalar(select(func.count()).select_from(FeedReply).where(FeedReply.event_id==event_id)) or 0
+            mine=db.scalar(select(func.count()).select_from(FeedReply).where(FeedReply.event_id==event_id,FeedReply.user_id==uid)) or 0
+            if count>=50 or mine>=12:raise HTTPException(429,detail='Limite de respostas desta conversa atingido')
+            offered_id=payload.get('offered_owned_id')
+            offered=member_offered_card(db,uid,integer(offered_id)) if offered_id not in (None,'') else None
+            proposed_coins=payload.get('offered_coins')
+            coins=integer(proposed_coins) if proposed_coins not in (None,'') else None
+            if coins is not None and not 1<=coins<=1000000:raise HTTPException(422,detail='Valor inválido de moedas')
+            if not message and not offered and coins is None:
+                raise HTTPException(422,detail='Escreva uma resposta ou indique Card/moedas')
+            if interested and db.scalar(select(FeedReply.id).where(FeedReply.event_id==event_id,
+                    FeedReply.user_id==uid,FeedReply.message=='Tenho interesse nesta proposta!').limit(1)):
+                raise HTTPException(409,detail='Você já demonstrou interesse')
+            db.add(FeedReply(event_id=event_id,user_id=uid,message=message,
+                             payload=json.dumps({'offered_card':offered,'offered_coins':coins},ensure_ascii=False),
+                             created_at=utcnow()))
+        return {'ok':True}
+
+    @app.post('/api/feed/{event_id}/close')
+    def close_public_trade_proposal(event_id:int,request:Request):
+        uid=me(request)
+        with writing() as db:
+            post=db.get(FeedEvent,event_id)
+            if not post or post.kind!='trade_proposal':raise HTTPException(404,detail='Proposta não encontrada')
+            if post.user_id!=uid:raise HTTPException(403,detail='Somente o autor pode encerrar a proposta')
+            data=json.loads(post.payload)
+            data['status']='closed'
+            post.payload=json.dumps(data,ensure_ascii=False)
+        return {'ok':True,'status':'closed'}
 
     @app.post('/api/admin/feed/clear')
     async def admin_clear_feed(request: Request):
@@ -750,6 +862,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             raise HTTPException(422, detail='Digite LIMPAR FEED para confirmar')
         with writing() as db:
             removed = db.scalar(select(func.count()).select_from(FeedEvent)) or 0
+            db.execute(delete(FeedReply))
             db.execute(delete(FeedLike))
             db.execute(delete(FeedEvent))
         logging.getLogger('recanto.admin').info(
@@ -1624,6 +1737,12 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 obj.health=min(100,(obj.health if obj.health is not None else 100)+1)
             obj.last_action_at=utcnow()
             db.add(VisitorCare(visitor_id=visitor,owner_id=owner_id,day=local_day(),action=action))
+            species=db.get(PetSpecies,obj.species_id)
+            owner=db.get(User,owner_id)
+            publish_feed(db,visitor,'visitor_pet_care',action=action,owner=owner.username if owner else 'um membro',
+                         pet={'name':obj.nickname or (species.name if species else 'Pet'),
+                              'image_url':species.image_url if species else None,
+                              'emoji':species.emoji if species else '🐾'})
             gain=setting(db,'visit_pet_reward' if action=='pet' else 'visit_feed_reward')
             owner_gain=setting(db,'visit_owner_reward')
             wallet(db,visitor).coins+=gain
