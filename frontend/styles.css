@@ -2681,3 +2681,36 @@ body.dark-mode .poro-stat-header{color:#eaf0ff;}
 }
 /* Ajuda para Sorte: frase completa e legível, inclusive em telas pequenas. */
 .poro-luck-hint{font-size:clamp(12px,1vw,14px)!important;line-height:1.6!important;opacity:.92!important;}
+
+
+/* RECANTO 0.2.13 — títulos e ícones de abas em tamanho legível. A regra antiga
+   `.content-head span` reduzia os dois spans dentro do H1 a 12px. */
+.content-page .content-head h1{
+  display:flex;align-items:center;gap:12px;min-width:0;
+  font-size:34px!important;font-weight:800!important;line-height:1.2;
+}
+.content-page .content-head h1 > span:not(.section-title-icon){
+  font-size:inherit!important;font-weight:inherit!important;
+  line-height:inherit!important;opacity:1!important;
+}
+.content-page .content-head h1 > .section-title-icon{
+  font-size:inherit!important;width:1.08em!important;height:1.08em!important;
+  min-width:1.08em;min-height:1.08em;flex:0 0 auto;
+  opacity:1!important;
+}
+.content-page .content-head h1 > .section-title-icon > svg{
+  width:100%!important;height:100%!important;
+}
+@media(max-width:767px){
+  .content-page .content-head h1{font-size:clamp(26px,7vw,30px)!important;gap:9px;}
+}
+
+/* Gestos iniciados no modelo GLB manipulam o Pet, nunca a página.
+   As demais regiões continuam usando a rolagem normal do aplicativo. */
+.pet-visual:has(model-viewer.pet-model),
+.pet-visual:has(.pet-khada-embed){
+  touch-action:none;overscroll-behavior:contain;
+}
+.pet-visual model-viewer.pet-model{
+  touch-action:none!important;overscroll-behavior:none;
+}

@@ -457,6 +457,13 @@
          e.target.closest('input,textarea,select,button,a,[role="dialog"],.card-grid,.mini-tabs,.badge-strip')){
         start=null;return;
       }
+      // Gestos iniciados na área 3D pertencem ao visualizador, não ao pull-to-refresh
+      // nem ao gesto horizontal de trocar de aba. Isso inclui as áreas transparentes
+      // do model-viewer e os embeds Khada, mesmo antes do GLB terminar de carregar.
+      const petVisualTarget=e.target.closest('.pet-visual');
+      if(petVisualTarget && petVisualTarget.querySelector('model-viewer.pet-model,.pet-khada-embed')){
+        start=null;return;
+      }
       const t=e.touches[0];
       const scroll=e.target.closest('.scroll-content,#profileContent,.content-page');
       start={x:t.clientX,y:t.clientY,atTop:(!scroll||scroll.scrollTop<=2),scroll,pulling:false,distance:0};
@@ -1187,16 +1194,19 @@
       view=h('model-viewer','pet-model');
       view.setAttribute('alt','Modelo 3D de '+poroSpeciesName(species.name));
       view.setAttribute('camera-controls','');
+      // O gesto sobre o Pet controla exclusivamente o modelo 3D no celular.
+      // Sem isso, um arrasto vertical pode ser encaminhado à rolagem da página.
+      view.setAttribute('touch-action','none');
       view.setAttribute('shadow-intensity','0.65');
       view.setAttribute('exposure','1.1');view.setAttribute('environment-image','neutral');
       view.setAttribute('interaction-prompt','none');
       view.setAttribute('loading','eager');view.setAttribute('reveal','auto');
-      if(large){
-        // Aproxima o Pet dentro do seu painel sem alterar escala do card.
-        // Enquadramento mais próximo: ocupa o quadro com o Pet, sem distorcer a malha.
-        view.setAttribute('camera-orbit','0deg 75deg 65%');
-        view.setAttribute('min-camera-orbit','auto auto 48%');
-      }
+      // Começa no limite mais afastado do zoom, relativo ao tamanho do próprio GLB.
+      // O usuário continua livre para aproximar e girar o modelo com os controles.
+      // Antes, o valor de 65% abria alguns modelos muito próximos/cortados.
+      view.setAttribute('min-camera-orbit','auto auto 65%');
+      view.setAttribute('max-camera-orbit','auto auto 180%');
+      view.setAttribute('camera-orbit','0deg 75deg 180%');
       view.setAttribute('animation-crossfade-duration','300');
       // Nao ativar autoplay antes de descobrir a animacao correta: isso disparava Walk/Dance.
       view.addEventListener('load',()=>{
