@@ -3035,3 +3035,21 @@ body.dark-mode :is(
 ) > img.ui-asset-icon {
   filter:brightness(0) invert(1)!important;
 }
+
+
+/* RECANTO 0.2.19 — respiro após a última seção do Perfil no PC.
+   A grade tem duas colunas com alturas diferentes; o espaçador ocupa uma
+   última linha real, para que nenhuma coluna termine rente ao rodapé. */
+@media (min-width:768px){
+  #profileContent{
+    padding-bottom:clamp(72px,9vh,112px)!important;
+    scroll-padding-bottom:clamp(72px,9vh,112px);
+  }
+  #profileContent::after{
+    content:"";
+    display:block;
+    grid-column:1 / -1;
+    min-height:28px;
+    pointer-events:none;
+  }
+}
