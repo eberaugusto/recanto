@@ -1359,7 +1359,7 @@
     statusCard.classList.add('poro-status-card');
     statusCard.append(poroStats(pet));
     if(pet.status==='vet')statusCard.append(h('p','poro-status-note',`🏥 Resgate: ${money(pet.rescue_cost)} moedas • Prazo: ${pet.vet_deadline?new Date(pet.vet_deadline).toLocaleString('pt-BR'):'—'}`));
-    care.append(statusCard);
+    // O status pertence à coluna direita, depois do bloco de Cuidados.
 
     const rename=block('Nome do Pet');rename.classList.add('poro-config-card');
     const renameRow=h('div','poro-inline-control');const nickname=h('input','text-input');nickname.type='text';nickname.maxLength=40;
@@ -1375,6 +1375,29 @@
     equip.classList.add('poro-config-card');
     const inv=await API('/api/inventory');
     const collectibles=inv.collectibles||[];
+
+    // Coluna direita: Nome → Cuidados → Status → Colecionável.
+    // Cuidados permanecem visíveis, porém indisponíveis, no veterinário/expedição.
+    const careMessage=pet.status==='missao'
+      ?'Cuidados indisponíveis enquanto seu Pet estiver em expedição.'
+      :pet.status==='vet'
+        ?'Cuidados indisponíveis durante a recuperação no veterinário.'
+        :'Alimente seu Pet com um petisco do inventário ou faça carinho nele.';
+    const careCard=block('Cuidados',careMessage);
+    careCard.classList.add('poro-care-actions-card');
+    if(pet.status==='ativo'){
+      const actions=h('div','pet-actions');
+      if(inv.treats.length){
+        const choose=h('select','select-input');
+        inv.treats.forEach(t=>{const opt=h('option','',t.name+' (+'+t.food+' fome) · '+t.quantity);opt.value=t.sku;choose.append(opt);});
+        careCard.append(choose);
+        actions.append(button('🍪 Alimentar',()=>petCare('feed',choose.value)));
+      }else actions.append(button('Petiscos na Loja →',()=>chooseTab('loja','treat3')));
+      actions.append(button('💗 Acariciar',()=>petCare('pet'),'soft-action'));
+      careCard.append(actions);
+    }
+    adventures.append(careCard,statusCard);
+
     const equipmentRow=h('div','poro-equipment-control');
     if(collectibles.length){
       const selector=h('select','select-input');selector.setAttribute('aria-label','Selecionar colecionável para o Pet');
@@ -1418,18 +1441,19 @@
         }catch(error){toast('⚠ '+(error?.message||'Não foi possível trocar o Pet.'));}
       });
       choices.append(speciesSelect,newName,confirmChange);
-      change.append(toggle,choices);adventures.append(change);
+      change.append(toggle,choices);care.append(change);
     }
 
     if(pet.status==='missao'){
       const expedition=data.expedition;
       const mission=block('🗺️ Em missão',`Seu Pet está em ${expedition?.name||'uma aventura'} e não pode receber carinho nem comida.`);
-      adventures.append(mission);
-      const when=h('p','expedition-time',expedition?.ready?'Seu Pet voltou!':'Volta em: '+countdown(expedition?.ends_at));adventures.append(when);
-      if(expedition?.ready)adventures.append(button('Receber recompensas',async()=>{
+      mission.classList.add('poro-mission-card');
+      care.append(mission);
+      const when=h('p','expedition-time',expedition?.ready?'Seu Pet voltou!':'Volta em: '+countdown(expedition?.ends_at));care.append(when);
+      if(expedition?.ready)care.append(button('Receber recompensas',async()=>{
         const result=await safeRun(()=>API('/api/pets/expedition/collect',{}),r=>`+${r.coins_gained} moedas${r.converted_coins?' (+'+r.converted_coins+' por card repetido)':''}${r.collectible?' e '+r.collectible.name:''}${r.card?' e um card!':''}`);
         if(result?.card)showCard(result.card,'Card encontrado pelo Pet!');
-      }));
+      },'main-action poro-mission-reward'));
       return;
     }
     if(pet.status==='vet'){
@@ -1437,28 +1461,24 @@
       rescueCard.classList.add('poro-rescue-card');
       rescueCard.append(button('Resgatar Pet',()=>safeRun(()=>API('/api/pets/rescue',{}),'Companheiro resgatado!')));
       care.append(rescueCard);
-      adventures.append(block('🗺️ Expedições','Resgate seu Pet no veterinário para voltar a explorar.'));
+      const lockedExpeditions=block('🗺️ Expedições','Resgate seu Pet no veterinário para voltar a explorar.');
+      lockedExpeditions.classList.add('poro-expeditions-disabled');
+      care.append(lockedExpeditions);
       return;
     }
 
-    const careCard=block('Cuidados','Alimente seu Pet com um petisco do inventário ou faça carinho nele.');
-    careCard.classList.add('poro-care-actions-card');
-    const actions=h('div','pet-actions');
-    if(inv.treats.length){const choose=h('select','select-input');inv.treats.forEach(t=>{const opt=h('option','',t.name+' (+'+t.food+' fome) · '+t.quantity);opt.value=t.sku;choose.append(opt);});careCard.append(choose);
-      actions.append(button('🍪 Alimentar',()=>petCare('feed',choose.value)));}
-    else actions.append(button('Petiscos na Loja →',()=>chooseTab('loja','treat3')));
-    actions.append(button('💗 Acariciar',()=>petCare('pet'),'soft-action'));careCard.append(actions);care.append(careCard);
     const ex=block('🗺️ Expedições dos Pets','Envie seu Pet em uma aventura. Ele não poderá receber cuidados durante a missão e voltará com fome.');
     for(const option of data.expedition_options||[]){
       const row=h('div','expedition-choice');
       const expInfo=h('div','expedition-info');
       expInfo.append(h('strong','',option.name),h('small','',`${option.minutes/60}h • -${option.food} fome • ${option.coins[0]}–${option.coins[1]} moedas • ${option.card_chance}% chance de Card${option.collectible_chance?' • '+option.collectible_chance+'% colecionável':''}`));
       expInfo.append(button('Enviar',()=>safeRun(()=>API('/api/pets/expedition/start',{mission:option.id}),'Seu Pet iniciou a missão!'),'soft-action'));
-      row.append(expInfo);
       const expeditionEmoji={passeio:'🌲',exploracao:'🏛️',jornada:'🧭'}[option.id]||'🗺️';
-      row.append(mediaCover(option.image_url,expeditionEmoji,option.name,'expedition-cover'));
+      row.append(mediaCover(option.image_url,expeditionEmoji,option.name,'expedition-cover'),expInfo);
       ex.append(row);
-    }adventures.append(ex);
+    }
+    ex.classList.add('poro-expedition-card');
+    care.append(ex);
   }
   // Exibe sempre a arte cadastrada. O emoji e usado apenas se nao houver
   // imagem ou se o endereco da imagem deixar de funcionar.

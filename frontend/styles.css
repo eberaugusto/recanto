@@ -2714,3 +2714,78 @@ body.dark-mode .poro-stat-header{color:#eaf0ff;}
 .pet-visual model-viewer.pet-model{
   touch-action:none!important;overscroll-behavior:none;
 }
+
+
+/* RECANTO 0.2.14 — Pets: estrutura solicitada para PC e sequência útil no celular. */
+@media(min-width:768px){
+  /* A coluna da esquerda contém retrato, troca e expedições.
+     A da direita contém nome, cuidados, status e colecionável. */
+  #petPane .poro-layout{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    align-items:start!important;
+    gap:24px!important;
+  }
+  #petPane .poro-care-column,
+  #petPane .poro-expeditions-column{
+    display:flex!important;
+    flex-direction:column!important;
+    gap:16px!important;
+    min-width:0;
+  }
+  /* A expedição tem a capa à ESQUERDA e as informações à DIREITA. */
+  #petPane .poro-expedition-card .expedition-choice{
+    display:grid!important;
+    grid-template-columns:minmax(155px,36%) minmax(0,1fr)!important;
+    align-items:center!important;
+    gap:18px!important;
+  }
+  #petPane .poro-expedition-card .expedition-cover{
+    grid-column:1!important;
+    width:100%!important;
+    height:clamp(150px,15vw,225px)!important;
+    min-width:0;
+  }
+  #petPane .poro-expedition-card .expedition-info{
+    grid-column:2!important;
+    min-width:0!important;
+    overflow-wrap:anywhere;
+  }
+}
+@media(max-width:767px){
+  /* Sem duas colunas estreitas no telefone. As áreas continuam em ordem de uso. */
+  #petPane .poro-layout{display:flex!important;flex-direction:column!important;gap:16px!important;}
+  #petPane .poro-layout>.poro-care-column,
+  #petPane .poro-layout>.poro-expeditions-column{display:contents!important;}
+  #petPane .poro-main-card{order:1;}
+  #petPane .poro-config-card:not(:has(.poro-equipment-control)){order:2;}
+  #petPane .poro-care-actions-card{order:3;}
+  #petPane .poro-status-card{order:4;}
+  #petPane .poro-config-card:has(.poro-equipment-control){order:5;}
+  #petPane .poro-change-card{order:6;}
+  #petPane .poro-rescue-card,
+  #petPane .poro-mission-card{order:7;}
+  #petPane .poro-care-column>.expedition-time,
+  #petPane .poro-expeditions-disabled{order:8;}
+  #petPane .poro-mission-reward{order:9;}
+  #petPane .poro-expedition-card{order:10;}
+  #petPane .poro-expedition-card .expedition-choice{display:flex!important;flex-direction:column!important;align-items:stretch!important;}
+  #petPane .poro-expedition-card .expedition-cover{width:100%!important;height:clamp(155px,48vw,245px)!important;}
+  #petPane .poro-expedition-card .expedition-info{width:100%;}
+}
+
+/* Nos títulos: desenhos escuros no tema claro e claros no tema escuro.
+   Aplica também a imagens/SVGs personalizados pelo gerenciador, sem mudar
+   o arquivo original nem os ícones da barra de navegação. */
+body:not(.dark-mode) .content-page .content-head h1>.section-title-icon{
+  color:#263b86!important;
+}
+body:not(.dark-mode) .content-page .content-head h1>.section-title-icon>.ui-asset-icon{
+  filter:brightness(0) saturate(100%) invert(20%) sepia(33%) saturate(1780%) hue-rotate(195deg) brightness(92%) contrast(99%);
+}
+body.dark-mode .content-page .content-head h1>.section-title-icon{
+  color:#f5f7ff!important;
+}
+body.dark-mode .content-page .content-head h1>.section-title-icon>.ui-asset-icon{
+  filter:brightness(0) invert(1);
+}
