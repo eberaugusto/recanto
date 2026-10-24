@@ -1105,9 +1105,48 @@
     const rx=action==='feed'?/(?:feed|eat|eating|snack|treat|aliment|comer|munch|bite)/i:/(?:petting|pet_|_pet|pat|happy|affection|caress|carinho|purr)/i;
     return names.find(name=>rx.test(name) && !/idle|stand/i.test(name))||null;
   }
+  // 0.2.17 — fundo global e por espécie, aplicado por trás do modelo GLB.
+  // O arquivo da capa continua reservado ao fallback sem modelo e ao Feed.
+  let petBackgrounds={global_url:'',species:{}};
+  let petBackgroundsLoaded=false;
+  let petBackgroundsRequest=null;
+  function applyPetBackground(view){
+    if(!view?.classList?.contains('pet-visual'))return;
+    const id=view.dataset.petSpeciesId;
+    const custom=(petBackgrounds.species||{})[id]||petBackgrounds.global_url||'';
+    const is3D=view.classList.contains('pet-has-3d');
+    if(is3D&&custom){
+      view.classList.add('pet-scenery');
+      view.style.setProperty('--recanto-pet-scenery',`url(${JSON.stringify(custom)})`);
+    }else{
+      view.classList.remove('pet-scenery');
+      view.style.removeProperty('--recanto-pet-scenery');
+    }
+  }
+  function updatePetBackgrounds(){document.querySelectorAll('.pet-visual[data-pet-species-id]').forEach(applyPetBackground);}
+  async function loadPetBackgrounds(force=false){
+    if(petBackgroundsRequest)return petBackgroundsRequest;
+    if(petBackgroundsLoaded&&!force)return petBackgrounds;
+    const task=API('/api/pets/backgrounds').then(data=>{
+      petBackgrounds={global_url:data.global_url||'',species:data.species||{}};
+      petBackgroundsLoaded=true;
+      updatePetBackgrounds();
+      return petBackgrounds;
+    }).finally(()=>{petBackgroundsRequest=null;});
+    petBackgroundsRequest=task;
+    return task;
+  }
+
   function petVisual(species,large=false){
     const wrap=h('div','pet-visual'+(large?' pet-visual-large':''));
     const model=String(species.model_url||'').trim();
+    const speciesId=species.species_id??species.id;
+    if(speciesId!=null)wrap.dataset.petSpeciesId=String(speciesId);
+    if(model){
+      wrap.classList.add('pet-has-3d');
+      applyPetBackground(wrap);
+      if(!petBackgroundsLoaded)loadPetBackgrounds().catch(()=>{});
+    }
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     // Capa 2D somente quando não há modelo 3D cadastrado. Quando existe GLB/Khada,
     // mostrar carregamento neutro — nunca a capa substituindo o modelo temporariamente.
@@ -1989,6 +2028,77 @@
         const animations=Object.fromEntries(Object.entries(animInputs).map(([key,inp])=>[key,inp.value]));
         return API('/api/admin/pets',{name:pni.value,emoji:pei.value,image_url,model_url,...animations});
       },'Pet cadastrado!')));pane.append(pet);
+    // Cenários atrás dos Pets 3D: opção global + sobrescrita por espécie.
+    // Ausência de imagem remove a configuração e ativa o fallback neutro.
+    const petScenery=block('Fundos dos Pets 3D','A imagem fica atrás do modelo 3D (não substitui a capa do Pet). Prioridade: espécie → global → fundo neutro. PNG, JPG, WebP e GIF, inclusive animados.');
+    petScenery.classList.add('admin-pet-scenery-editor');
+    const [globalBackgroundRow,globalBackgroundUrl]=adminField('Fundo global · URL HTTPS ou /uploads/...','');
+    const globalBackgroundFile=h('input','text-input');globalBackgroundFile.type='file';globalBackgroundFile.accept='image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif';
+    const globalBackgroundPreview=h('div','pet-scenery-preview');
+    const [speciesBackgroundRow,speciesBackgroundUrl]=adminField('Fundo da espécie · URL HTTPS ou /uploads/...','');
+    const speciesBackgroundFile=h('input','text-input');speciesBackgroundFile.type='file';speciesBackgroundFile.accept=globalBackgroundFile.accept;
+    const speciesBackgroundPreview=h('div','pet-scenery-preview');
+    const speciesBackgroundChoice=h('select','select-input');
+    speciesBackgroundChoice.setAttribute('aria-label','Espécie que terá um fundo exclusivo');
+    speciesBackgroundChoice.append(h('option','','Carregando espécies…'));
+    let currentPetScenery={global_url:'',species:{}};
+    const sceneryPreview=(el,url)=>{
+      el.replaceChildren();
+      if(!url){el.append(h('span','pet-scenery-empty','Sem fundo personalizado.'));return;}
+      const img=h('img');img.src=url;img.alt='Prévia do cenário 3D';
+      img.onerror=()=>{el.replaceChildren(h('small','','Não foi possível carregar a imagem. Confira o link HTTPS.'));};
+      el.append(img);
+    };
+    const showScenery=()=>{
+      globalBackgroundUrl.value=currentPetScenery.global_url||'';
+      sceneryPreview(globalBackgroundPreview,currentPetScenery.global_url);
+      const specific=currentPetScenery.species?.[speciesBackgroundChoice.value]||'';
+      speciesBackgroundUrl.value=specific;
+      sceneryPreview(speciesBackgroundPreview,specific||currentPetScenery.global_url||'');
+    };
+    const reloadScenery=async()=>{
+      currentPetScenery=await loadPetBackgrounds(true);
+      showScenery();
+    };
+    existingCatalog.then(({pets})=>{
+      speciesBackgroundChoice.replaceChildren();
+      for(const item of pets||[]){const option=h('option','',item.name+(item.active?'':' (arquivado)'));option.value=String(item.id);speciesBackgroundChoice.append(option);}
+      if(!speciesBackgroundChoice.options.length){const option=h('option','','Cadastre uma espécie primeiro');option.value='';speciesBackgroundChoice.append(option);}
+      speciesBackgroundChoice.addEventListener('change',()=>{
+        speciesBackgroundFile.value='';
+        showScenery();
+      });
+      showScenery();
+    }).catch(()=>{speciesBackgroundChoice.replaceChildren(h('option','','Não foi possível carregar as espécies'));});
+    reloadScenery().catch(()=>{globalBackgroundPreview.replaceChildren(h('small','','Não foi possível carregar os fundos atuais.'));});
+    const saveScenery=async(type,clear=false)=>{
+      const id=type==='global'?null:Number(speciesBackgroundChoice.value);
+      if(type!=='global'&&(!Number.isInteger(id)||id<1))throw Error('Selecione uma espécie válida.');
+      const input=type==='global'?globalBackgroundUrl:speciesBackgroundUrl;
+      const file=type==='global'?globalBackgroundFile:speciesBackgroundFile;
+      const image_url=clear?'':(file.files[0]?await uploadArtwork(file.files[0]):input.value.trim());
+      await API('/api/admin/pets/backgrounds',{species_id:id,image_url});
+      file.value='';
+      await reloadScenery();
+      return {ok:true};
+    };
+    const globalSceneryActions=h('div','admin-action-row');
+    globalSceneryActions.append(
+      button('Salvar fundo global',()=>safeRun(()=>saveScenery('global'),'Fundo global atualizado!')),
+      button('Remover fundo global',()=>safeRun(()=>saveScenery('global',true),'Fundo global removido.'),'soft-action'));
+    const speciesSceneryActions=h('div','admin-action-row');
+    speciesSceneryActions.append(
+      button('Salvar fundo da espécie',()=>safeRun(()=>saveScenery('species'),'Fundo da espécie atualizado!')),
+      button('Remover fundo da espécie',()=>safeRun(()=>saveScenery('species',true),'Fundo específico removido.'),'soft-action'));
+    globalBackgroundUrl.addEventListener('change',()=>sceneryPreview(globalBackgroundPreview,globalBackgroundUrl.value.trim()));
+    speciesBackgroundUrl.addEventListener('change',()=>sceneryPreview(speciesBackgroundPreview,speciesBackgroundUrl.value.trim()));
+    petScenery.append(h('h4','','Fundo global'),globalBackgroundRow,
+      h('label','','Ou envie uma imagem (até 4 MB)'),globalBackgroundFile,globalBackgroundPreview,globalSceneryActions,
+      h('h4','','Fundo exclusivo por espécie'),h('label','','Escolha a espécie'),speciesBackgroundChoice,speciesBackgroundRow,
+      h('label','','Ou envie uma imagem (até 4 MB)'),speciesBackgroundFile,speciesBackgroundPreview,speciesSceneryActions,
+      h('small','','GLB com transparência: o cenário aparece atrás do modelo. Visualizadores incorporados do Khada podem ter fundo próprio opaco, que impede mostrar esse cenário.'));
+    pane.append(petScenery);
+
     // 0.1.21 — Colecionáveis estáticos e resultados das expedições.
     const collectibleBlock=block('Gerenciar Colecionáveis','Itens colecionáveis estáticos que podem ser encontrados nas expedições. Arquivar preserva o inventário existente.');
     const currentCollectibles=(await API('/api/admin/collectibles')).items||[];
@@ -2268,7 +2378,7 @@
       if(x.includes('valores configuráveis'))return 'Economia';
       if(x.includes('cadastrar card')||x.includes('gerenciar cards')||x.includes('coleção'))return 'Cards';
       if(x.includes('gerenciar itens')||x.includes('capa'))return 'Loja';
-      if(x.includes('cadastrar poro')||x.includes('gerenciar poros')||x.includes('colecionáveis')||x.includes('expedições'))return 'Pets';
+      if(x.includes('cadastrar poro')||x.includes('gerenciar poros')||x.includes('cadastrar pet')||x.includes('gerenciar pets')||x.includes('fundos dos pets')||x.includes('colecionáveis')||x.includes('expedições'))return 'Pets';
       if(x.includes('missões do recanto'))return 'Missões';
       if(x.includes('selo'))return 'Selos';
       if(x.includes('assets'))return 'Assets';

@@ -1303,6 +1303,43 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                                'mode':a.mode, 'image_url':a.image_url}
                               for a in db.scalars(select(UIAsset)).all()]}
 
+    # 0.2.17 — cenários dos Pets guardados em UIAsset (sem migração de banco).
+    # Não são seletores CSS; o frontend aplica por espécie ao próprio visualizador 3D.
+    @app.get('/api/pets/backgrounds')
+    def pet_backgrounds(request: Request):
+        me(request)
+        with SessionLocal() as db:
+            records=db.scalars(select(UIAsset).where(UIAsset.key.like('petbg-%'))).all()
+            global_url=''
+            species={}
+            for row in records:
+                if row.key=='petbg-global':
+                    global_url=row.image_url
+                elif re.fullmatch(r'petbg-[1-9][0-9]*',row.key):
+                    species[row.key[6:]]=row.image_url
+            return {'global_url':global_url,'species':species}
+
+    @app.post('/api/admin/pets/backgrounds')
+    async def save_pet_background(request: Request):
+        only_admin(request)
+        payload=json_body(await request.json(),('species_id','image_url'))
+        species_id=payload['species_id']
+        if species_id is not None and (type(species_id) is not int or species_id < 1):
+            raise HTTPException(422,detail='Selecione uma espécie válida')
+        url=safe_artwork(payload['image_url'])
+        key='petbg-global' if species_id is None else f'petbg-{species_id}'
+        with writing() as db:
+            if species_id is not None and db.get(PetSpecies,species_id) is None:
+                raise HTTPException(404,detail='Espécie não encontrada')
+            entry=db.get(UIAsset,key)
+            if not url:
+                if entry: db.delete(entry)
+            elif entry:
+                entry.image_url=url
+            else:
+                db.add(UIAsset(key=key,selector='',mode='background',image_url=url))
+        return {'ok':True,'species_id':species_id,'image_url':url}
+
     @app.post('/api/admin/assets')
     async def update_ui_asset(request: Request):
         only_admin(request)
