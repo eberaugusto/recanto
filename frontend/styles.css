@@ -2789,3 +2789,22 @@ body.dark-mode .content-page .content-head h1>.section-title-icon{
 body.dark-mode .content-page .content-head h1>.section-title-icon>.ui-asset-icon{
   filter:brightness(0) invert(1);
 }
+
+
+/* RECANTO 0.2.15 — Pets 3D na adoção, perfil e perfis visitados.
+   A capa 2D fica exclusiva para Pets sem modelo e prévias do Feed. */
+.pet-visual.pet-has-3d .pet-3d-loading{
+  display:flex; flex-direction:column;align-items:center;justify-content:center;
+  gap:8px; padding:18px; text-align:center;
+  background:linear-gradient(145deg,#f2f4ff,#e7ebff);color:#50639b;
+  font-size:12px;font-weight:600;line-height:1.4;
+}
+.pet-visual.pet-has-3d .pet-3d-loading-icon{
+  font-size:30px;line-height:1;animation:recanto-3d-loader 1.6s ease-in-out infinite;
+}
+.pet-visual.pet-has-3d.pet-3d-failed .pet-3d-loading-icon{animation:none;opacity:.35;}
+body.dark-mode .pet-visual.pet-has-3d .pet-3d-loading{
+  background:linear-gradient(145deg,#253656,#1b2947);color:#d4dfff;
+}
+@keyframes recanto-3d-loader{0%,100%{opacity:.35;transform:scale(.85)}50%{opacity:.9;transform:scale(1.12)}}
+@media(prefers-reduced-motion:reduce){.pet-visual.pet-has-3d .pet-3d-loading-icon{animation:none;}}

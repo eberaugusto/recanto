@@ -530,8 +530,8 @@
     }else begin();
   }
   // O colecionável acompanha o retrato, não o avatar do usuário. É visível para visitantes.
-  function petPortrait(species,large=false,thumbnail=false){
-    const view=petVisual(species,large,thumbnail);
+  function petPortrait(species,large=false){
+    const view=petVisual(species,large);
     const equipped=species?.equipped_collectible;
     if(equipped){
       const chip=h('button','poro-equipped-chip');chip.type='button';
@@ -1102,30 +1102,39 @@
     const rx=action==='feed'?/(?:feed|eat|eating|snack|treat|aliment|comer|munch|bite)/i:/(?:petting|pet_|_pet|pat|happy|affection|caress|carinho|purr)/i;
     return names.find(name=>rx.test(name) && !/idle|stand/i.test(name))||null;
   }
-  function petVisual(species,large=false,thumbnail=false){
+  function petVisual(species,large=false){
     const wrap=h('div','pet-visual'+(large?' pet-visual-large':''));
-    const fallback=mediaCover(species.image_url,species.emoji||'🐾',poroSpeciesName(species.name),'pet-fallback');
-    wrap.append(fallback);
     const model=String(species.model_url||'').trim();
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-    // Muitos modelos simultaneos na lista de adocao esgotam WebGL em celulares.
-    if(!model || thumbnail){
-      if(!model && !reduced)wrap.classList.add('pet-preview-moving');
-      if(!model && !thumbnail){
-        const note=h('span','pet-model-hint','Modelo 3D não configurado');
-        note.title='Abra Gestão do Recanto → Pets e associe um ID Khada TFT real ou uma URL pública de arquivo .glb.';
-        wrap.append(note);
-      }
+    // Capa 2D somente quando não há modelo 3D cadastrado. Quando existe GLB/Khada,
+    // mostrar carregamento neutro — nunca a capa substituindo o modelo temporariamente.
+    const fallback=model
+      ? h('div','pet-fallback pet-3d-loading')
+      : mediaCover(species.image_url,species.emoji||'🐾',poroSpeciesName(species.name),'pet-fallback');
+    if(model){
+      fallback.append(h('span','pet-3d-loading-icon','◌'),h('span','pet-3d-loading-label','Carregando Pet 3D…'));
+      wrap.classList.add('pet-has-3d');
+    }
+    wrap.append(fallback);
+    if(!model){
+      if(!reduced)wrap.classList.add('pet-preview-moving');
       return wrap;
     }
+    const showModelError=()=>{
+      const label=fallback.querySelector('.pet-3d-loading-label');
+      if(label)label.textContent='Modelo 3D indisponível';
+      wrap.classList.add('pet-3d-failed');
+    };
     const khada=khadaEmbedUrl(model);
     if(!khada && !/^(https:\/\/|\/models\/)/i.test(model)){
       wrap.dataset.modelError='invalid-url';
+      showModelError();
       wrap.append(h('span','pet-model-hint pet-model-hint-error','URL 3D inválida: use ID do Khada ou arquivo .glb por HTTPS.'));
       return wrap;
     }
     if(!khada && !/\.glb(?:[?#]|$)/i.test(model)){
       wrap.dataset.modelError='not-glb';
+      showModelError();
       wrap.append(h('span','pet-model-hint pet-model-hint-error','O endereço salvo não é um arquivo .glb direto.'));
       return wrap;
     }
@@ -1183,6 +1192,7 @@
         iframe.addEventListener('error',()=>{
           fallback.classList.remove('fallback-hidden');
           wrap.dataset.modelError='khada-iframe';
+          showModelError();
         });
         wrap.append(iframe);
         const link=h('a','pet-model-check','Testar modelo no Khada ↗');
@@ -1228,7 +1238,7 @@
       });
       view.addEventListener('error',()=>{
         loaded=false;view.classList.remove('model-loaded');fallback.classList.remove('fallback-hidden');
-        if(!reduced)wrap.classList.add('pet-preview-moving');
+        showModelError();
         if(!wrap.querySelector('.model-error'))wrap.append(h('small','model-error','Falha no GLB: confirme URL pública, extensão .glb e permissão CORS.'));
       });
       view.addEventListener('finished',()=>{
@@ -1330,7 +1340,8 @@
       }
       pane.append(notice);
       const grid=h('div','pet-grid');data.species.forEach(s=>{
-        const row=block(poroSpeciesName(s.name),'Pet disponível para adoção');row.prepend(petVisual(s,false,true));
+        // Até na seleção de adoção, priorizar GLB/Khada. A capa só aparece sem modelo.
+        const row=block(poroSpeciesName(s.name),'Pet disponível para adoção');row.prepend(petVisual(s,false));
         const nameRow=h('label','poro-nickname-label','Nome do seu Pet');
         const nickname=h('input','text-input poro-nickname');nickname.type='text';nickname.maxLength=40;
         nickname.placeholder='Como seu Pet vai se chamar?';nickname.autocomplete='off';
