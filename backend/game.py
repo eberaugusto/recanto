@@ -50,9 +50,9 @@ MISSIONS = [
     ('daily_card', 'Resgate um card', 1, 12),
     ('daily_coins', 'Resgate suas moedas diárias', 1, 8),
     ('trade', 'Conclua uma troca', 1, 30),
-    ('pet', 'Acaricie seu Poro', 1, 8),
-    ('feed', 'Alimente seu Poro', 1, 12),
-    ('adopt', 'Adote um Poro', 1, 20),
+    ('pet', 'Acaricie seu Pet', 1, 8),
+    ('feed', 'Alimente seu Pet', 1, 12),
+    ('adopt', 'Adote um Pet', 1, 20),
     ('pack', 'Abra um pacote do Inventário', 1, 15),
 ]
 # Preços mínimos de ofertas e valores de venda de cópias EXTRAS (sem gerar mais cards).
@@ -71,8 +71,71 @@ GAMES = [
     ('overwatch','Overwatch 2','🛡️'),('rocket','Rocket League','🚗'),('dota','Dota 2','🗡️'),
     ('apex','Apex Legends','🏹'),('gta','GTA V','🚘'),('terraria','Terraria','🌳'),
     ('deadby','Dead by Daylight','🔦'),('warframe','Warframe','🤖'),('rust','Rust','🪓'),
-    ('ffxiv','Final Fantasy XIV','🐉'),('honkai','Honkai: Star Rail','🚂'),
+    ('ffxiv','Final Fantasy XIV','🐉'),    ('honkai','Honkai: Star Rail','🚂'),
+    ('aniimo','Aniimo','🐾'),('mk1','Mortal Kombat 1','🥊'),
+    ('elden-ring','Elden Ring','⚔️'),('tft','Teamfight Tactics','♟️'),
+    ('pokemon','Pokémon','⚡'),('pubg','PUBG: Battlegrounds','🎯'),
+    ('fc26','EA Sports FC','⚽'),('sims4','The Sims 4','💎'),
+    ('hollow-knight','Hollow Knight','🗡️'),('silksong','Hollow Knight: Silksong','🦋'),
+    ('hades','Hades','🔥'),('monster-hunter','Monster Hunter Wilds','🐲'),
+    ('baldurs-gate','Baldur’s Gate 3','🎲'),('cyberpunk','Cyberpunk 2077','🌆'),
+    ('destiny2','Destiny 2','🌌'),('among-us','Among Us','🚀'),
+    ('clash-royale','Clash Royale','👑'),('brawl-stars','Brawl Stars','⭐'),
+    ('fall-guys','Fall Guys','🏃'),('rainbow6','Rainbow Six Siege','🛡️'),
+    ('cod-warzone','Call of Duty: Warzone','🎖️'),('diablo4','Diablo IV','👹'),
+    ('sea-of-thieves','Sea of Thieves','🏴‍☠️'),('palworld','Palworld','🐣'),
+    ('wuthering','Wuthering Waves','🌊'),('zenless','Zenless Zone Zero','🌀'),
+    ('red-dead','Red Dead Redemption 2','🤠'),('ark','ARK: Survival Ascended','🦖'),
+    ('street-fighter','Street Fighter 6','🥋'),('super-smash','Super Smash Bros. Ultimate','⭐'),
 ]
+# Campeões conhecidos de League of Legends. A arte pode ser substituída na Central de Assets.
+# Data Dragon fornece a miniatura padrão; URLs personalizadas têm prioridade.
+CHAMPIONS = [
+    ('Aatrox','Aatrox'),('Ahri','Ahri'),('Akali','Akali'),('Akshan','Akshan'),
+    ('Alistar','Alistar'),('Ambessa','Ambessa'),('Amumu','Amumu'),('Anivia','Anivia'),
+    ('Annie','Annie'),('Aphelios','Aphelios'),('Ashe','Ashe'),('Aurelion Sol','AurelionSol'),
+    ('Aurora','Aurora'),('Azir','Azir'),('Bard','Bard'),('Bel’Veth','Belveth'),
+    ('Blitzcrank','Blitzcrank'),('Brand','Brand'),('Braum','Braum'),('Briar','Briar'),
+    ('Caitlyn','Caitlyn'),('Camille','Camille'),('Cassiopeia','Cassiopeia'),('Cho’Gath','Chogath'),
+    ('Corki','Corki'),('Darius','Darius'),('Diana','Diana'),('Dr. Mundo','DrMundo'),
+    ('Draven','Draven'),('Ekko','Ekko'),('Elise','Elise'),('Evelynn','Evelynn'),
+    ('Ezreal','Ezreal'),('Fiddlesticks','Fiddlesticks'),('Fiora','Fiora'),('Fizz','Fizz'),
+    ('Galio','Galio'),('Gangplank','Gangplank'),('Garen','Garen'),('Gnar','Gnar'),
+    ('Gragas','Gragas'),('Graves','Graves'),('Gwen','Gwen'),('Hecarim','Hecarim'),
+    ('Heimerdinger','Heimerdinger'),('Hwei','Hwei'),('Illaoi','Illaoi'),('Irelia','Irelia'),
+    ('Ivern','Ivern'),('Janna','Janna'),('Jarvan IV','JarvanIV'),('Jax','Jax'),
+    ('Jayce','Jayce'),('Jhin','Jhin'),('Jinx','Jinx'),('K’Sante','KSante'),
+    ('Kai’Sa','Kaisa'),('Kalista','Kalista'),('Karma','Karma'),('Karthus','Karthus'),
+    ('Kassadin','Kassadin'),('Katarina','Katarina'),('Kayle','Kayle'),('Kayn','Kayn'),
+    ('Kennen','Kennen'),('Kha’Zix','Khazix'),('Kindred','Kindred'),('Kled','Kled'),
+    ('Kog’Maw','KogMaw'),('LeBlanc','Leblanc'),('Lee Sin','LeeSin'),('Leona','Leona'),
+    ('Lillia','Lillia'),('Lissandra','Lissandra'),('Lucian','Lucian'),('Lulu','Lulu'),
+    ('Lux','Lux'),('Malphite','Malphite'),('Malzahar','Malzahar'),('Maokai','Maokai'),
+    ('Master Yi','MasterYi'),('Milio','Milio'),('Miss Fortune','MissFortune'),('Mordekaiser','Mordekaiser'),
+    ('Morgana','Morgana'),('Naafiri','Naafiri'),('Nami','Nami'),('Nasus','Nasus'),
+    ('Nautilus','Nautilus'),('Neeko','Neeko'),('Nidalee','Nidalee'),('Nilah','Nilah'),
+    ('Nocturne','Nocturne'),('Nunu e Willump','Nunu'),('Olaf','Olaf'),('Orianna','Orianna'),
+    ('Ornn','Ornn'),('Pantheon','Pantheon'),('Poppy','Poppy'),('Pyke','Pyke'),
+    ('Qiyana','Qiyana'),('Quinn','Quinn'),('Rakan','Rakan'),('Rammus','Rammus'),
+    ('Rek’Sai','RekSai'),('Rell','Rell'),('Renata Glasc','Renata'),('Renekton','Renekton'),
+    ('Rengar','Rengar'),('Riven','Riven'),('Rumble','Rumble'),('Ryze','Ryze'),
+    ('Samira','Samira'),('Sejuani','Sejuani'),('Senna','Senna'),('Seraphine','Seraphine'),
+    ('Sett','Sett'),('Shaco','Shaco'),('Shen','Shen'),('Shyvana','Shyvana'),
+    ('Singed','Singed'),('Sion','Sion'),('Sivir','Sivir'),('Skarner','Skarner'),
+    ('Smolder','Smolder'),('Sona','Sona'),('Soraka','Soraka'),('Swain','Swain'),
+    ('Sylas','Sylas'),('Syndra','Syndra'),('Tahm Kench','TahmKench'),('Taliyah','Taliyah'),
+    ('Talon','Talon'),('Taric','Taric'),('Teemo','Teemo'),('Thresh','Thresh'),
+    ('Tristana','Tristana'),('Trundle','Trundle'),('Tryndamere','Tryndamere'),('Twisted Fate','TwistedFate'),
+    ('Twitch','Twitch'),('Udyr','Udyr'),('Urgot','Urgot'),('Varus','Varus'),
+    ('Vayne','Vayne'),('Veigar','Veigar'),('Vel’Koz','Velkoz'),('Vex','Vex'),
+    ('Vi','Vi'),('Viego','Viego'),('Viktor','Viktor'),('Vladimir','Vladimir'),
+    ('Volibear','Volibear'),('Warwick','Warwick'),('Wukong','MonkeyKing'),('Xayah','Xayah'),
+    ('Xerath','Xerath'),('Xin Zhao','XinZhao'),('Yasuo','Yasuo'),('Yone','Yone'),
+    ('Yorick','Yorick'),('Yuumi','Yuumi'),('Zac','Zac'),('Zed','Zed'),
+    ('Zeri','Zeri'),('Ziggs','Ziggs'),('Zilean','Zilean'),('Zoe','Zoe'),('Zyra','Zyra'),
+    ('Locke','Locke'),('Mel','Mel'),('Yunara','Yunara'),('Zaahen','Zaahen'),
+]
+
 SEED_CARDS = {
     'comum': ['Folha do Recanto', 'Brilho do Bosque', 'Lagoa Serena', 'Raposa Curiosa',
               'Céu de Outono', 'Cogumelo Azul', 'Pequeno Guardião', 'Concha de Sol',
@@ -88,7 +151,7 @@ SEED_CARDS = {
                    'Portal Arco-Íris', 'A Última Constelação'],
 }
 # Espaços reservados: artes/modelos de Pequenas Lendas devem ser fornecidos pelo administrador.
-SEED_PETS = [('Poro — exemplo 1', '🐾'), ('Poro — exemplo 2', '✨')]
+SEED_PETS = [('Pet — exemplo 1', '🐾'), ('Pet — exemplo 2', '✨')]
 SHOP_EMOJI = {'pack3':'🃏','pack5':'🎴','treat3':'🍪','fruit':'🍓','feast':'🍖','vaccine':'💉'}
 TREAT_TYPES = {'biscoito':{'name':'Biscoito','food':15,'emoji':'🍪'},
                'fruta':{'name':'Frutinha','food':30,'emoji':'🍓'},
@@ -99,8 +162,8 @@ MISSION_EMOJI = {'daily_card':'🃏','daily_coins':'🪙','trade':'🔄','pet':'
 SEED_BADGES = [
     ('Primeira Troca', 'Troque seu primeiro card com outro membro.', '🤝', 'trade', 1),
     ('Colecionador', 'Receba 10 cards em sua coleção.', '🃏', 'card', 10),
-    ('Companheiro', 'Adote seu primeiro Poro.', '🐾', 'adopt', 1),
-    ('Carinho de Ouro', 'Acaricie seu Poro 10 vezes.', '💞', 'pet', 10),
+    ('Companheiro', 'Adote seu primeiro Pet.', '🐾', 'adopt', 1),
+    ('Carinho de Ouro', 'Acaricie seu Pet 10 vezes.', '💞', 'pet', 10),
     ('Rotina de Ouro', 'Resgate 10 recompensas de missões.', '🏅', 'mission', 10),
     ('Voz da Comunidade', 'Permaneça 600 minutos em canais de voz do Discord.', '🎙️', 'voice_minutes', 600),
 ]
@@ -176,6 +239,12 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         __tablename__ = 'favorite_games'
         user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
         game_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+        position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    class FavoriteChampion(Base):
+        __tablename__ = 'favorite_champions'
+        user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
+        champion_id: Mapped[str] = mapped_column(String(40), primary_key=True)
         position: Mapped[int] = mapped_column(Integer, nullable=False)
 
     class FeaturedCollection(Base):
@@ -389,7 +458,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             for field in ('model_url', 'idle_animation', 'pet_animation', 'feed_animation', 'vet_animation'):
                 if field not in present:
                     connection.execute(text(f'ALTER TABLE pet_species ADD COLUMN {field} VARCHAR(512)' if field == 'model_url' else f'ALTER TABLE pet_species ADD COLUMN {field} VARCHAR(80)'))
-    # 0.1.21: migracoes aditivas, sem perder Poros, expedicoes ou colecoes antigas.
+    # 0.1.21: migracoes aditivas, sem perder Pets, expedicoes ou colecoes antigas.
     for table, fields in {
         'user_pets': {'nickname': 'VARCHAR(40)', 'equipped_collectible_id': 'INTEGER',
                       'death_at': 'TIMESTAMP', 'death_penalty_applied': 'BOOLEAN NOT NULL DEFAULT FALSE',
@@ -410,7 +479,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 if table == 'user_pets' and 'death_penalty_applied' not in existing:
                     connection.execute(text("UPDATE user_pets SET death_penalty_applied = TRUE WHERE status = 'morto'"))
     Base.metadata.create_all(engine)
-    # Atualizacao unica dos Poros ja adotados. Nenhuma visita pode rerrolar a Sorte.
+    # Atualizacao unica dos Pets ja adotados. Nenhuma visita pode rerrolar a Sorte.
     with SessionLocal.begin() as migration_db:
         old_pets=migration_db.scalars(select(UserPet).where(UserPet.luck.is_(None))).all()
         for old_pet in old_pets:
@@ -462,7 +531,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                                  (TradeReward, 'user_id'), (MissionProgress, 'user_id'),
                                  (Claim, 'user_id'), (UserAchievement, 'user_id'),
                                  (AchievementProgress, 'user_id'), (UserPet, 'user_id'),
-                                 (OwnedCard, 'user_id'), (CardCooldown, 'user_id'), (FavoriteGame,'user_id'), (InventoryCollectible,'user_id'),
+                                 (OwnedCard, 'user_id'), (CardCooldown, 'user_id'), (FavoriteGame,'user_id'), (FavoriteChampion,'user_id'), (InventoryCollectible,'user_id'),
                                  (CoinOffer,'buyer_id'), (CoinOffer,'seller_id'), (PetExpedition,'user_id')):
                     if cls is ReservedCard:
                         packids = db.scalars(select(InventoryPack.id).where(InventoryPack.user_id == uid)).all()
@@ -553,6 +622,19 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         entries=sorted(db.scalars(select(FavoriteGame).where(FavoriteGame.user_id==uid)).all(),key=lambda x:x.position)
         options={g[0]:g for g in GAMES}
         return [game_entry(db,options[g.game_id]) for g in entries if g.game_id in options]
+
+    def champion_entry(db, row, artwork=None):
+        name, slug = row
+        image = artwork if artwork is not None else db.get(UIAsset, 'champion:'+slug)
+        image_url = image if isinstance(image,str) else (image.image_url if image else None)
+        return {'id':slug, 'name':name, 'icon':'⚔️',
+                'image_url': image_url or
+                    'https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/'+slug+'_0.jpg'}
+
+    def user_champions(db, uid):
+        entries=sorted(db.scalars(select(FavoriteChampion).where(FavoriteChampion.user_id==uid)).all(),key=lambda x:x.position)
+        options={slug:row for row in CHAMPIONS for slug in [row[1]]}
+        return [champion_entry(db,options[item.champion_id]) for item in entries if item.champion_id in options]
 
     def wallet(db, uid):
         obj = db.get(Wallet, uid)
@@ -772,7 +854,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if hours:
                 obj.food = max(0, obj.food - hours * 4)
                 obj.happiness = max(0, obj.happiness - hours * 3)
-                # Saude piora se o Poro passa horas em fome extrema ou tristeza severa.
+                # Saude piora se o Pet passa horas em fome extrema ou tristeza severa.
                 if obj.food == 0 or obj.happiness == 0:
                     obj.health = max(0, (obj.health if obj.health is not None else 100) - hours * 2)
                 obj.last_tick_at = then + timedelta(hours=hours)
@@ -1228,10 +1310,12 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         key=str(data['key']).strip()
         selector=str(data['selector']).strip()
         mode=str(data['mode']).strip()
-        if not re.fullmatch(r'(?:game:[a-z0-9_-]{1,40}|[a-z0-9][a-z0-9_-]{0,62})',key):
+        if not re.fullmatch(r'(?:game:[a-z0-9_-]{1,40}|champion:[a-zA-Z0-9_-]{1,40}|[a-z0-9][a-z0-9_-]{0,62})',key):
             raise HTTPException(422,detail='Chave do asset invalida')
         if key.startswith('game:') and key[5:] not in {g[0] for g in GAMES}:
             raise HTTPException(422,detail='Jogo nao encontrado')
+        if key.startswith('champion:') and key[9:] not in {champ[1] for champ in CHAMPIONS}:
+            raise HTTPException(422,detail='Campeao nao encontrado')
         # Seletores sao apenas alvos visuais; rejeita caracteres CSS usados em
         # valores/scripts ou em combinacoes de pseudo-classes perigosas.
         if (len(selector)>180 or '\n' in selector or '\r' in selector or
@@ -1239,7 +1323,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             raise HTTPException(422,detail='Seletor CSS nao permitido')
         if mode not in ('image','icon','background'):
             raise HTTPException(422,detail='Modo desconhecido')
-        if key.startswith('game:'):
+        if key.startswith(('game:', 'champion:')):
             selector=''
             mode='icon'
         elif key=='favicon':
@@ -1263,17 +1347,41 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
     @app.get('/api/games/preferences')
     def game_preferences(request:Request):
         uid=me(request)
-        with SessionLocal() as db:return {'catalog':[game_entry(db,row) for row in GAMES], 'selected':user_games(db,uid),'max':5}
+        with SessionLocal() as db:return {'catalog':[game_entry(db,row) for row in GAMES], 'selected':user_games(db,uid),'max':6}
 
     @app.post('/api/games/preferences')
     async def save_game_preferences(request:Request):
         uid=me(request);data=json_body(await request.json(),('games',))
         chosen=data['games'];options={k for k,_,_ in GAMES}
-        if not isinstance(chosen,list) or len(chosen)>5 or len(set(map(str,chosen)))!=len(chosen) or any(x not in options for x in chosen):
-            raise HTTPException(422,detail='Selecione até 5 jogos diferentes da lista')
+        if not isinstance(chosen,list) or len(chosen)>6 or len(set(map(str,chosen)))!=len(chosen) or any(not isinstance(x,str) or x not in options for x in chosen):
+            raise HTTPException(422,detail='Selecione até 6 jogos diferentes da lista')
         with writing() as db:
             db.execute(delete(FavoriteGame).where(FavoriteGame.user_id==uid))
             for order,game in enumerate(chosen):db.add(FavoriteGame(user_id=uid,game_id=game,position=order))
+        return {'ok':True}
+
+    @app.get('/api/champions/preferences')
+    def champion_preferences(request: Request):
+        uid=me(request)
+        with SessionLocal() as db:
+            arts={art.key[9:]:art.image_url for art in db.scalars(select(UIAsset).where(UIAsset.key.like('champion:%')))}
+            return {'catalog':[champion_entry(db,row,arts.get(row[1]) or '') for row in CHAMPIONS],
+                    'selected':user_champions(db,uid), 'max':6}
+
+    @app.post('/api/champions/preferences')
+    async def save_champion_preferences(request: Request):
+        uid=me(request)
+        data=json_body(await request.json(),('champions',))
+        chosen=data['champions']
+        allowed={slug for _,slug in CHAMPIONS}
+        if (not isinstance(chosen,list) or len(chosen)>6 or
+            len(set(map(str,chosen)))!=len(chosen) or
+            any(not isinstance(item,str) or item not in allowed for item in chosen)):
+            raise HTTPException(422,detail='Selecione até 6 campeões diferentes da lista')
+        with writing() as db:
+            db.execute(delete(FavoriteChampion).where(FavoriteChampion.user_id==uid))
+            for order,champion_id in enumerate(chosen):
+                db.add(FavoriteChampion(user_id=uid,champion_id=champion_id,position=order))
         return {'ok':True}
 
     @app.get('/api/shop')
@@ -1289,7 +1397,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                  'amount': 3, 'kind': 'treats','food':15,'treat_sku':'biscoito'},
                 {'sku': 'fruit', 'name': 'Frutinha', 'price':setting(db,'treat_fruit_cost'), 'amount':1,'kind':'treats','food':30,'treat_sku':'fruta'},
                 {'sku': 'feast', 'name':'Banquete', 'price':setting(db,'treat_feast_cost'), 'amount':1,'kind':'treats','food':55,'treat_sku':'banquete'},
-                {'sku': 'vaccine', 'name':'Vacina para Poro', 'price':setting(db,'vaccine_cost'), 'amount':1,'kind':'treats','food':0,'treat_sku':'vacina'},
+                {'sku': 'vaccine', 'name':'Vacina para Pet', 'price':setting(db,'vaccine_cost'), 'amount':1,'kind':'treats','food':0,'treat_sku':'vacina'},
             ]
             covers = {c.sku:c.image_url for c in db.scalars(select(ProductCover)).all()}
             controls = {c.sku:c for c in db.scalars(select(ShopItemControl)).all()}
@@ -1452,6 +1560,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     'badges':[{'title':x[0],'icon':x[1],'image_url':x[2]} for x in badges],
                     'favorite':favorite_info(db,member_id),
                     'pet':pet_dict(db,obj), 'favorite_games':user_games(db,member_id),
+                    'favorite_champions':user_champions(db,member_id),
                     'collectibles':owned_collectibles(db,member_id)}
 
     @app.post('/api/pets/visit/{owner_id}')
@@ -1461,14 +1570,14 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         action=str(payload['action'])
         sku=str(payload.get('treat_sku','biscoito'))
         if action not in ('pet','feed'): raise HTTPException(422,detail='Interação inválida')
-        if owner_id==visitor: raise HTTPException(422,detail='Use sua própria aba Poros')
+        if owner_id==visitor: raise HTTPException(422,detail='Use sua própria aba Pets')
         with writing() as db:
             if not db.get(User,owner_id): raise HTTPException(404,detail='Membro não encontrado')
             obj=db.get(UserPet,owner_id)
             pet_tick(db,obj)
-            if obj is None or obj.status!='ativo': raise HTTPException(409,detail='Este Poro não está disponível')
+            if obj is None or obj.status!='ativo': raise HTTPException(409,detail='Este Pet não está disponível')
             key=(visitor,owner_id,local_day(),action)
-            if db.get(VisitorCare,key): raise HTTPException(409,detail='Você já realizou essa interação hoje com este Poro')
+            if db.get(VisitorCare,key): raise HTTPException(409,detail='Você já realizou essa interação hoje com este Pet')
             if action=='feed':
                 consume_treat(db,visitor,sku)
                 obj.food=min(100,obj.food+TREAT_TYPES[sku]['food'])
@@ -1527,10 +1636,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         base=EXPEDITIONS[key]
         with writing() as db:
             obj=db.get(UserPet,uid)
-            if not obj:raise HTTPException(409,detail='Adote um Poro antes')
+            if not obj:raise HTTPException(409,detail='Adote um Pet antes')
             pet_tick(db,obj)
-            if obj.status!='ativo':raise HTTPException(409,detail='Seu Poro está indisponível')
-            if obj.food<base['food']+15:raise HTTPException(409,detail='Alimente o Poro antes de enviá-lo à expedição')
+            if obj.status!='ativo':raise HTTPException(409,detail='Seu Pet está indisponível')
+            if obj.food<base['food']+15:raise HTTPException(409,detail='Alimente o Pet antes de enviá-lo à expedição')
             if db.get(PetExpedition,uid):raise HTTPException(409,detail='Já existe uma expedição pendente')
             info=expedition_settings(db,key)
             now=utcnow();obj.status='missao';obj.last_tick_at=now;obj.last_action_at=now
@@ -1551,7 +1660,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         with writing() as db:
             row=db.get(PetExpedition,uid);obj=db.get(UserPet,uid)
             if not row or not obj or obj.status!='missao':raise HTTPException(409,detail='Nenhuma expedição em andamento')
-            if utcnow()<naive_to_utc(row.ends_at):raise HTTPException(409,detail='Seu Poro ainda está em expedição')
+            if utcnow()<naive_to_utc(row.ends_at):raise HTTPException(409,detail='Seu Pet ainda está em expedição')
             info=EXPEDITIONS[row.mission]
             obj.food=max(0,obj.food-info['food']);obj.happiness=max(0,obj.happiness-6)
             obj.status='ativo';obj.last_tick_at=utcnow();obj.last_action_at=utcnow()
@@ -1597,20 +1706,20 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         sid = integer(data['species_id'])
         nickname=str(data.get('nickname') or '').strip()
         if not 2<=len(nickname)<=40 or any(ord(ch)<32 for ch in nickname):
-            raise HTTPException(422,detail='Escolha um nome para o Poro, entre 2 e 40 caracteres')
+            raise HTTPException(422,detail='Escolha um nome para o Pet, entre 2 e 40 caracteres')
         with writing() as db:
             specie = db.get(PetSpecies, sid)
             if not specie or not specie.active:
-                raise HTTPException(404, detail='Poro indisponível para adoção')
+                raise HTTPException(404, detail='Pet indisponível para adoção')
             pet = db.get(UserPet, uid)
             if pet:
                 pet_tick(db, pet)
                 if pet.status != 'morto':
-                    raise HTTPException(409, detail='Cada jogador pode ter apenas um Poro')
+                    raise HTTPException(409, detail='Cada jogador pode ter apenas um Pet')
                 death_at=naive_to_utc(pet.death_at) if pet.death_at else utcnow()
                 if utcnow() < death_at + timedelta(hours=24):
                     until=(death_at+timedelta(hours=24)).isoformat()
-                    raise HTTPException(409, detail='Após o falecimento, espere 24 horas para adotar outro Poro. Disponível em: '+until)
+                    raise HTTPException(409, detail='Após o falecimento, espere 24 horas para adotar outro Pet. Disponível em: '+until)
                 db.delete(pet)
                 db.flush()
             db.add(UserPet(user_id=uid, species_id=sid, nickname=nickname, status='ativo',
@@ -1627,21 +1736,21 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         sid=integer(data['species_id'])
         nickname=str(data['nickname'] or '').strip()
         if not 2<=len(nickname)<=40 or any(ord(ch)<32 or ord(ch)==127 for ch in nickname):
-            raise HTTPException(422,detail='Nome do novo Poro: entre 2 e 40 caracteres')
+            raise HTTPException(422,detail='Nome do novo Pet: entre 2 e 40 caracteres')
         with writing() as db:
             obj=db.get(UserPet,uid)
-            if obj is None:raise HTTPException(409,detail='Você ainda não tem um Poro')
+            if obj is None:raise HTTPException(409,detail='Você ainda não tem um Pet')
             pet_tick(db,obj)
             if obj.status!='ativo':
-                raise HTTPException(409,detail='Só é possível trocar um Poro em casa, fora de expedições e do veterinário')
+                raise HTTPException(409,detail='Só é possível trocar um Pet em casa, fora de expedições e do veterinário')
             if db.get(PetExpedition,uid):
-                raise HTTPException(409,detail='Conclua a expedição antes de trocar de Poro')
+                raise HTTPException(409,detail='Conclua a expedição antes de trocar de Pet')
             specie=db.get(PetSpecies,sid)
-            if not specie or not specie.active:raise HTTPException(404,detail='Poro indisponível para adoção')
+            if not specie or not specie.active:raise HTTPException(404,detail='Pet indisponível para adoção')
             now=utcnow()
             ready_at=naive_to_utc(obj.adopted_at)+timedelta(hours=48)
             if now<ready_at:
-                raise HTTPException(409,detail='A troca de Poro fica disponível 48 horas após a última adoção ou troca. Disponível em: '+ready_at.isoformat())
+                raise HTTPException(409,detail='A troca de Pet fica disponível 48 horas após a última adoção ou troca. Disponível em: '+ready_at.isoformat())
             obj.species_id=sid;obj.nickname=nickname;obj.status='ativo'
             obj.food=85;obj.happiness=85;obj.health=100;obj.luck=RANDOM.randint(1,10);obj.adopted_at=now
             obj.last_tick_at=now;obj.last_action_at=now
@@ -1657,11 +1766,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         data=json_body(await request.json(), ('nickname',))
         nickname=str(data['nickname'] or '').strip()
         if not 2 <= len(nickname) <= 40 or any(ord(ch) < 32 or ord(ch) == 127 for ch in nickname):
-            raise HTTPException(422, detail='Nome do Poro deve ter de 2 a 40 caracteres, sem caracteres de controle')
+            raise HTTPException(422, detail='Nome do Pet deve ter de 2 a 40 caracteres, sem caracteres de controle')
         with writing() as db:
             pet=db.get(UserPet,uid)
             if pet is None or pet.status=='morto':
-                raise HTTPException(409, detail='Adote um Poro antes de mudar o nome')
+                raise HTTPException(409, detail='Adote um Pet antes de mudar o nome')
             pet.nickname=nickname
         return {'ok':True,'nickname':nickname}
 
@@ -1676,7 +1785,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         with writing() as db:
             pet=db.get(UserPet,uid)
             if pet is None or pet.status=='morto':
-                raise HTTPException(409, detail='Você precisa de um Poro para equipar itens')
+                raise HTTPException(409, detail='Você precisa de um Pet para equipar itens')
             item=None
             if item_id is not None:
                 owned=db.get(InventoryCollectible,(uid,item_id))
@@ -1696,10 +1805,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         with writing() as db:
             obj = db.get(UserPet, uid)
             if not obj:
-                raise HTTPException(409, detail='Adote um Poro primeiro')
+                raise HTTPException(409, detail='Adote um Pet primeiro')
             pet_tick(db, obj)
             if obj.status != 'ativo':
-                raise HTTPException(409, detail='Seu Poro não está disponível para cuidados')
+                raise HTTPException(409, detail='Seu Pet não está disponível para cuidados')
             now = utcnow()
             if action == 'feed':
                 if obj.last_feed_at and now < naive_to_utc(obj.last_feed_at) + timedelta(minutes=15):
@@ -1730,9 +1839,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         uid=me(request)
         with writing() as db:
             obj=db.get(UserPet,uid)
-            if not obj:raise HTTPException(404,detail='Poro não encontrado')
+            if not obj:raise HTTPException(404,detail='Pet não encontrado')
             pet_tick(db,obj)
-            if obj.status!='vet':raise HTTPException(409,detail='Vacina disponível quando o Poro está no veterinário')
+            if obj.status!='vet':raise HTTPException(409,detail='Vacina disponível quando o Pet está no veterinário')
             consume_treat(db,uid,'vacina')
             obj.status='ativo';obj.vet_since=None
             obj.food=max(obj.food,75);obj.happiness=max(obj.happiness,75);obj.health=max(obj.health or 0,70)
@@ -1745,10 +1854,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         with writing() as db:
             obj = db.get(UserPet, uid)
             if not obj:
-                raise HTTPException(409, detail='Nenhum Poro encontrado')
+                raise HTTPException(409, detail='Nenhum Pet encontrado')
             pet_tick(db, obj)
             if obj.status != 'vet':
-                raise HTTPException(409, detail='Este Poro não está aguardando resgate no veterinário')
+                raise HTTPException(409, detail='Este Pet não está aguardando resgate no veterinário')
             price = setting(db, 'vet_cost')
             require_coins(db, uid, price).coins -= price
             obj.status = 'ativo'
@@ -1911,7 +2020,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             animations[key] = value or None
         with writing() as db:
             if db.scalar(select(PetSpecies.id).where(PetSpecies.name == name)):
-                raise HTTPException(409, detail='Este Poro já existe')
+                raise HTTPException(409, detail='Este Pet já existe')
             obj = PetSpecies(name=name, emoji=emo or '🐾', image_url=picture,
                              model_url=model, **animations)
             db.add(obj)
@@ -2167,7 +2276,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             controls = {x.sku:x for x in db.scalars(select(ShopItemControl)).all()}
             covers = {x.sku:x.image_url for x in db.scalars(select(ProductCover)).all()}
             items=[]
-            labels={'pack3':'Pacote com 3 cards','pack5':'Pacote com 5 cards','treat3':'3 Biscoitos','fruit':'Frutinha','feast':'Banquete','vaccine':'Vacina para Poro'}
+            labels={'pack3':'Pacote com 3 cards','pack5':'Pacote com 5 cards','treat3':'3 Biscoitos','fruit':'Frutinha','feast':'Banquete','vaccine':'Vacina para Pet'}
             price_keys={'pack3':'pack3_cost','pack5':'pack5_cost','treat3':'treat_bundle_cost','fruit':'treat_fruit_cost','feast':'treat_feast_cost','vaccine':'vaccine_cost'}
             for sku,name in labels.items():
                 ctrl=controls.get(sku)
@@ -2352,7 +2461,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     name=str(payload.get('name','')).strip()
                     if not 2<=len(name)<=100:raise HTTPException(422,detail='Nome inválido')
                     if db.scalar(select(PetSpecies.id).where(PetSpecies.name==name,PetSpecies.id!=item_id)):
-                        raise HTTPException(409,detail='Outro Poro já usa este nome')
+                        raise HTTPException(409,detail='Outro Pet já usa este nome')
                     obj.name=name;obj.emoji=str(payload.get('emoji') or '🐾')[:30]
                     obj.image_url=safe_artwork(payload.get('image_url'))
                     model=safe_artwork(payload.get('model_url'),allow_model=True)
@@ -2572,7 +2681,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         with writing() as db:
             for table in (VisitorCare, FavoriteCard, ReservedCard, InventoryPack,
                           InventoryTreat, InventoryCollectible, CoinOffer, CardCooldown, PetExpedition,
-                          FavoriteGame, TradeReward, Trade, MissionProgress, Claim,
+                          FavoriteGame, FavoriteChampion, TradeReward, Trade, MissionProgress, Claim,
                           UserAchievement, AchievementProgress, UserPet, OwnedCard):
                 db.execute(delete(table))
             for name in ('recanto_mission_counters', 'recanto_mission_claims',
@@ -2609,15 +2718,15 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         with writing() as db:
             obj = db.get(UserPet, uid)
             if not obj:
-                raise HTTPException(409, detail='Primeiro adote um Poro')
+                raise HTTPException(409, detail='Primeiro adote um Pet')
             if stage == 'vet':
                 if obj.status != 'ativo':
-                    raise HTTPException(409, detail='Poro não está ativo')
+                    raise HTTPException(409, detail='Pet não está ativo')
                 obj.last_action_at = utcnow() - timedelta(hours=setting(db, 'neglect_hours') + 1)
                 obj.last_tick_at = obj.last_action_at
             if stage == 'death':
                 if obj.status != 'vet':
-                    raise HTTPException(409, detail='Primeiro envie o Poro ao veterinário')
+                    raise HTTPException(409, detail='Primeiro envie o Pet ao veterinário')
                 obj.vet_since = utcnow() - timedelta(days=setting(db, 'vet_dead_days') + 1)
             pet_tick(db, obj)
             state = obj.status
@@ -2645,7 +2754,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             raise HTTPException(422, detail='Confirme digitando LIMPAR TUDO')
         with writing() as db:
             for table in (VisitorCare, FavoriteCard, ReservedCard, InventoryPack, InventoryTreat, InventoryCollectible,
-                          CoinOffer, CardCooldown, PetExpedition, FavoriteGame, TradeReward, Trade, MissionProgress, Claim, UserAchievement,
+                          CoinOffer, CardCooldown, PetExpedition, FavoriteGame, FavoriteChampion, TradeReward, Trade, MissionProgress, Claim, UserAchievement,
                           AchievementProgress, UserPet, OwnedCard):
                 db.execute(delete(table))
             # Progresso e deduplicação da v1.2 também devem ser reiniciados

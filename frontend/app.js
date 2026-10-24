@@ -5,7 +5,7 @@
   const tabLoadedAt={};
   const TAB_SOFT_TTL=20000;
   const getCache=new Map();
-  const cacheable=url=>/^(\/api\/(game\/config|achievements|games\/preferences|shop|daily\/status|catalog|cards|inventory|pets|missions|collections\/featured|collections\/card-styles|assets|community\/profiles))(\?|$|\/)/.test(url);
+  const cacheable=url=>/^(\/api\/(game\/config|achievements|games\/preferences|champions\/preferences|shop|daily\/status|catalog|cards|inventory|pets|missions|collections\/featured|collections\/card-styles|assets|community\/profiles))(\?|$|\/)/.test(url);
   function resetCachedData(){getCache.clear();for(const k of Object.keys(tabLoadedAt))delete tabLoadedAt[k];if(typeof state!=='undefined')state.petPreviewLoaded=false;}
   const API = async (url, data) => {
     if(data===undefined && cacheable(url)){
@@ -48,9 +48,9 @@
 
   const h = (tag, className='', content='') => {const el=document.createElement(tag);if(className)el.className=className;if(content!==undefined&&content!==null)el.textContent=String(content);return el;};
   const money = n=>Number(n||0).toLocaleString('pt-BR');
-  const poroLegacyText = value => String(value ?? '').replace(/Pequenas Lendas/gi,'Poros').replace(/Pequena Lenda/gi,'Poro').replace(/\bpets\b/gi,'Poros').replace(/\bpet\b/gi,'Poro');
-  const poroSpeciesName = value => /^Pequena Lenda — exemplo (\d+)$/i.test(String(value || '')) ? String(value).replace(/Pequena Lenda/i,'Poro') : value;
-  const labels={feed:'Feed',perfil:'Perfil',cards:'Cards',inventario:'Inventário',pet:'Poros',loja:'Loja',missoes:'Missões'};
+  const poroLegacyText = value => String(value ?? '').replace(/Pequenas Lendas/gi,'Pets').replace(/Pequena Lenda/gi,'Pet').replace(/Poros/gi,'Pets').replace(/Poro/gi,'Pet');
+  const poroSpeciesName = value => poroLegacyText(value);
+  const labels={feed:'Feed',perfil:'Perfil',cards:'Cards',inventario:'Inventário',pet:'Pets',loja:'Loja',missoes:'Missões'};
   const tierLabels={comum:'Comum',raro:'Raro',lendário:'Lendário',prismático:'Prismático'};
   const state={dailyReward:0,dailyClaimInFlight:false,assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:8,cardPage:1,cardPageSize:12,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:matchMedia('(min-width:768px)').matches?'raridade':'padrao',missing:false,newOnly:false},detailClosing:false};
   // RECANTO 0.2.5 — molduras prontas por raridade/coleção, sem emblema separado.
@@ -281,12 +281,12 @@
       }
       if(item.available===false)pane.append(h('p','profile-info-note','Disponível em uma integração futura com o Discord.'));
     }else if(isCollectible){
-      pane.append(h('p','profile-info-status','Colecionável do Poro'));
+      pane.append(h('p','profile-info-status','Colecionável do Pet'));
       if(item.description)pane.append(h('p','profile-info-description',poroLegacyText(item.description)));
       if(item.acquired_at){const d=new Date(item.acquired_at);if(!Number.isNaN(d.getTime()))pane.append(h('p','profile-info-note','Adquirido em: '+d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})));}
       if(item.quantity!=null)pane.append(h('p','profile-info-note',`Quantidade na coleção: ${item.quantity}`));
     }else{
-      pane.append(h('p','profile-info-status','Jogo favorito'));
+      pane.append(h('p','profile-info-status',kind==='champion'?'Campeão favorito':'Jogo favorito'));
       if(item.description)pane.append(h('p','profile-info-description',poroLegacyText(item.description)));
     }
     modal.hidden=false;
@@ -303,7 +303,7 @@
   }
 
   async function loadProfileExtras(){
-    const [ach,game,prefs]=await Promise.all([API('/api/achievements'),API('/api/game/config'),API('/api/games/preferences')]);state.game=game;
+    const [ach,game,prefs,champions]=await Promise.all([API('/api/achievements'),API('/api/game/config'),API('/api/games/preferences'),API('/api/champions/preferences')]);state.game=game;
     if(!$('badgesSection')){const b=h('section','profile-badges');b.id='badgesSection';$('desktopLeftColumn').append(b);}
     const b=$('badgesSection');b.replaceChildren();
     const heading=h('div','badge-title');heading.append(h('strong','','🏅 Selos'),h('small','',`${ach.unlocked}/${ach.total} desbloqueados`));b.append(heading);
@@ -321,11 +321,20 @@
     }
     // Gestão fica exclusivamente em Configurações; o servidor valida o acesso.
     $('settingsAdmin').hidden=!game.admin;
-    let gamesSection=$('gamesSection');if(!gamesSection){gamesSection=h('section','profile-games');gamesSection.id='gamesSection';b.after(gamesSection);}
+    let championSection=$('championsSection');
+    if(!championSection){championSection=h('section','profile-games profile-champions');championSection.id='championsSection';b.after(championSection);}
+    championSection.replaceChildren();
+    const championHeading=h('div','badge-title');championHeading.append(h('strong','','⚔️ Campeões favoritos'),button('Editar',()=>editFavoriteChampions(champions),'game-edit'));
+    championSection.append(championHeading);
+    const championIcons=h('div','game-icons');
+    if(!champions.selected.length)championIcons.append(h('p','','Escolha até seis campeões do LoL para o seu perfil.'));
+    for(const champ of champions.selected){const chip=h('button','game-icon');chip.append(gameIcon(champ));makeProfileItemInteractive(chip,champ,'champion');championIcons.append(chip);}
+    championSection.append(championIcons);
+    let gamesSection=$('gamesSection');if(!gamesSection){gamesSection=h('section','profile-games');gamesSection.id='gamesSection';championSection.after(gamesSection);}
     gamesSection.replaceChildren();
     const head=h('div','badge-title');head.append(h('strong','','🎮 Jogos favoritos'),button('Editar',()=>editFavoriteGames(prefs),'game-edit'));gamesSection.append(head);
     const lineGames=h('div','game-icons');
-    if(!prefs.selected.length)lineGames.append(h('p','', 'Escolha até cinco jogos para exibir no seu perfil.'));
+    if(!prefs.selected.length)lineGames.append(h('p','', 'Escolha até seis jogos para exibir no seu perfil.'));
     for(const g of prefs.selected){const chip=h('button','game-icon');chip.append(gameIcon(g));makeProfileItemInteractive(chip,g,'game');lineGames.append(chip);}
     gamesSection.append(lineGames);applyUiAssets();
     if(!state.discordWidgetStarted)startDiscordWidget();
@@ -350,7 +359,7 @@
     if(item.kind==='expedition_start'){add(' enviou ');pet(d.pet);add(' para uma Expedição.');}
     else if(item.kind==='daily_card'){add(' conseguiu ');card(d.card);add(' no Resgate Diário.');}
     else if(item.kind==='pack_card'){add(' conseguiu ');card(d.card);add(' no Pack de '+(Number(d.pack_size)||'?')+' Cards.');}
-    else if(item.kind==='expedition_card'){add(' teve seu Poro ');pet(d.pet);add(' retornando da Expedição com ');card(d.card);add('.');}
+    else if(item.kind==='expedition_card'){add(' teve seu Pet ');pet(d.pet);add(' retornando da Expedição com ');card(d.card);add('.');}
     else if(item.kind==='trade_cards'){add(' trocou ');card(d.card_a);add(' por ');card(d.card_b);add(' com '+(d.other||'outro membro')+'.');}
     else if(item.kind==='trade_coins'){add(' trocou ');card(d.card);add(' por '+(Number(d.coins)||0)+' moedas com '+(d.other||'outro membro')+'.');}
     else if(item.kind==='badge'){add(' conquistou o selo ');if(d.badge?.icon)add(d.badge.icon+' ');feedImageText(row,{name:d.badge?.name,image_url:d.badge?.image_url},'pet');add('!');}
@@ -520,7 +529,7 @@
     if(equipped){
       const chip=h('button','poro-equipped-chip');chip.type='button';
       chip.title='Ver item equipado: '+equipped.name;
-      chip.setAttribute('aria-label','Ver item equipado no Poro: '+equipped.name);
+      chip.setAttribute('aria-label','Ver item equipado no Pet: '+equipped.name);
       chip.append(iconArtwork(equipped.image_url,equipped.emoji||'🏆'));
       chip.addEventListener('click',event=>{event.stopPropagation();showProfileItemDetail(equipped,'collectible');});
       view.append(chip);
@@ -545,11 +554,11 @@
       const meter=h('div','poro-stat-track');const fill=h('span','poro-stat-fill');fill.style.width=String(100*value/max)+'%';meter.append(fill);
       box.append(header,meter);grid.append(box);
     }
-    const tip=h('p','poro-luck-hint',`🍀 Sorte: +${(Number(pet?.luck||1)*0.5).toLocaleString('pt-BR')} p.p. para raridades acima de Comum nas expedições.`);
+    const tip=h('p','poro-luck-hint',`🍀 Sorte ${pet?.luck||1}/10: se encontrar um Card em uma expedição, terá +${(Number(pet?.luck||1)*0.5).toLocaleString('pt-BR')} pontos percentuais de chance de ele ser Raro, Lendário ou Prismático. Não aumenta a chance de encontrar um Card.`);
     grid.append(tip);
     return grid;
   }
-  function updatePoroStats(container,pet){
+  function updatePetStats(container,pet){
     if(!container||!pet)return;
     for(const [key,max] of [['health',100],['food',100],['happiness',100],['luck',10]]){
       const box=container.querySelector('.poro-stat[data-stat="'+key+'"]');if(!box)continue;
@@ -558,7 +567,7 @@
       const meter=box.querySelector('.poro-stat-fill');if(meter)meter.style.width=(100*value/max)+'%';
     }
     const tip=container.querySelector('.poro-luck-hint');
-    if(tip)tip.textContent=`🍀 Sorte: +${(Number(pet.luck||1)*0.5).toLocaleString('pt-BR')} p.p. para raridades acima de Comum nas expedições.`;
+    if(tip)tip.textContent=`🍀 Sorte ${pet.luck||1}/10: se encontrar um Card em uma expedição, terá +${(Number(pet.luck||1)*0.5).toLocaleString('pt-BR')} pontos percentuais de chance de ele ser Raro, Lendário ou Prismático. Não aumenta a chance de encontrar um Card.`;
   }
   async function loadPetPreview(){
     // Opcional e paralelo: a página inicial não fica bloqueada aguardando o pet.
@@ -569,7 +578,7 @@
       const data=await API('/api/pets');
       const pet=data.pet;content.replaceChildren();
       const mobile=$('mobilePetPreview');if(mobile)mobile.replaceChildren();
-      if(!pet){content.append(h('p','', 'Você ainda não adotou um Poro.'));if(mobile)mobile.closest('.mobile-pet-widget').hidden=true;state.petPreviewLoaded=true;return;}
+      if(!pet){content.append(h('p','', 'Você ainda não adotou um Pet.'));if(mobile)mobile.closest('.mobile-pet-widget').hidden=true;state.petPreviewLoaded=true;return;}
       // Uma prévia 3D para cada layout; o observador só inicia a que está visível.
       content.append(petPortrait(pet,true),poroNameAndStatus(pet),poroStats(pet));
       if(mobile){
@@ -577,19 +586,49 @@
         mobile.append(petPortrait(pet,true),poroNameAndStatus(pet),poroStats(pet));
       }
       state.petPreviewLoaded=true;
-    }catch(_){content.replaceChildren(h('p','', 'Poro temporariamente indisponível. Abra a aba Poros para tentar novamente.'));}
+    }catch(_){content.replaceChildren(h('p','', 'Pet temporariamente indisponível. Abra a aba Pets para tentar novamente.'));}
     finally{state.petPreviewLoading=false;}
   }
 
   async function editFavoriteGames(prefs){
-    const pane=$('profilesPane');$('profilesModal').hidden=false;pane.replaceChildren(h('h3','','Meus jogos favoritos'),h('p','','Selecione até 5 jogos.'));
+    const pane=$('profilesPane');$('profilesModal').hidden=false;pane.replaceChildren(h('h3','','Meus jogos favoritos'),h('p','','Selecione até 6 jogos.'));
     const selected=new Set(prefs.selected.map(g=>g.id));const grid=h('div','game-choices');
-    for(const game of prefs.catalog){const btn=button('',()=>{if(selected.has(game.id))selected.delete(game.id);else if(selected.size<5)selected.add(game.id);else{toast('Escolha no máximo 5 jogos.');return;}btn.classList.toggle('selected',selected.has(game.id));},'game-choice'+(selected.has(game.id)?' selected':''));
+    for(const game of prefs.catalog){const btn=button('',()=>{if(selected.has(game.id))selected.delete(game.id);else if(selected.size<6)selected.add(game.id);else{toast('Escolha no máximo 6 jogos.');return;}btn.classList.toggle('selected',selected.has(game.id));},'game-choice'+(selected.has(game.id)?' selected':''));
       const icon=h('span','game-choice-icon');icon.append(gameIcon(game));btn.append(icon,h('span','',game.name));grid.append(btn);}
     const actions=h('div','game-choice-actions');
     actions.append(button('Salvar jogos',async()=>{const result=await safeRun(()=>API('/api/games/preferences',{games:[...selected]}),'Jogos favoritos atualizados!');if(result){$('profilesModal').hidden=true;await loadProfileExtras();}}),button('Voltar',()=>{$('profilesModal').hidden=true;},'soft-action'));
     pane.append(grid,actions);
   }
+  async function editFavoriteChampions(prefs){
+    const pane=$('profilesPane');$('profilesModal').hidden=false;
+    pane.replaceChildren(h('h3','','Meus campeões favoritos'),h('p','','Selecione até 6 campeões de League of Legends.'));
+    const selected=new Set(prefs.selected.map(c=>c.id));
+    const search=h('input','text-input');search.type='search';search.placeholder='Buscar campeão pelo nome…';search.setAttribute('aria-label','Buscar campeão');
+    const grid=h('div','game-choices champion-choices');
+    const render=()=>{
+      grid.replaceChildren();
+      const query=search.value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+      for(const champ of prefs.catalog){
+        if(query&&!champ.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(query))continue;
+        const btn=button('',()=>{
+          if(selected.has(champ.id))selected.delete(champ.id);
+          else if(selected.size<6)selected.add(champ.id);
+          else{toast('Escolha no máximo 6 campeões.');return;}
+          btn.classList.toggle('selected',selected.has(champ.id));
+        },'game-choice'+(selected.has(champ.id)?' selected':''));
+        const icon=h('span','game-choice-icon');icon.append(gameIcon(champ));btn.append(icon,h('span','',champ.name));grid.append(btn);
+      }
+      if(!grid.children.length)grid.append(h('p','','Nenhum campeão encontrado.'));
+    };
+    search.addEventListener('input',render);render();
+    const actions=h('div','game-choice-actions');
+    actions.append(button('Salvar campeões',async()=>{
+      const result=await safeRun(()=>API('/api/champions/preferences',{champions:[...selected]}),'Campeões favoritos atualizados!');
+      if(result){$('profilesModal').hidden=true;await loadProfileExtras();}
+    }),button('Voltar',()=>{$('profilesModal').hidden=true;},'soft-action'));
+    pane.append(search,grid,actions);
+  }
+
     function cardTile(item,onClick){
     const tile=h('div','card-tile tier-'+item.rarity);tile.setAttribute('role','button');tile.tabIndex=0;
     const art=frameCardArt(item,'card-art');
@@ -771,10 +810,10 @@
         row.append(info,button('Abrir',()=>openPack(pack.id)));pane.append(row);}
       pane.append(button('Ver pacotes na Loja →',()=>chooseTab('loja','pack3'),'soft-action'));
     }else if(tab==='petiscos'){
-      if(!d.treats?.length)pane.append(block('Sem itens para Poros','Compre alimentos e vacinas na Loja.'));
+      if(!d.treats?.length)pane.append(block('Sem itens para Pets','Compre alimentos e vacinas na Loja.'));
       for(const t of d.treats||[]){const row=h('div','inventory-row');row.append(mediaCover(t.image_url,t.emoji,t.name,'item-cover'));
         const info=h('div','inventory-meta');info.append(h('strong','',t.name),h('p','',`${t.quantity} disponível(is)${t.food?' • +'+t.food+' fome':''}`));row.append(info);
-        if(t.sku==='vacina')row.append(button('Usar vacina',()=>safeRun(()=>API('/api/pets/vaccinate',{}),'Poro recuperado no veterinário!'),'soft-action'));
+        if(t.sku==='vacina')row.append(button('Usar vacina',()=>safeRun(()=>API('/api/pets/vaccinate',{}),'Pet recuperado no veterinário!'),'soft-action'));
         else row.append(button('Presentear',()=>giftDialog(t),'soft-action'));
         pane.append(row);}
       pane.append(button('Ver itens na Loja →',()=>chooseTab('loja','treat3'),'soft-action'));
@@ -785,7 +824,7 @@
         if(item.description)tile.append(h('p','',item.description));
         const controls=h('div','collectible-actions');
         controls.append(button('Ver detalhes',()=>showProfileItemDetail(item,'collectible'),'soft-action'));
-        controls.append(button('Equipar no Poro',()=>safeRun(()=>API('/api/pets/equip-collectible',{collectible_id:item.id}),'Item equipado no seu Poro!')));
+        controls.append(button('Equipar no Pet',()=>safeRun(()=>API('/api/pets/equip-collectible',{collectible_id:item.id}),'Item equipado no seu Pet!')));
         tile.append(controls);grid.append(tile);}
       pane.append(grid);
     }
@@ -852,7 +891,7 @@
     }catch(err){toast(err.message);}}
     let seq=0;input.addEventListener('input',()=>{const n=++seq;setTimeout(()=>{if(n===seq)search();},250);});await search();
   }
-  // Todos os exemplares do perfil visitado ficam abaixo do Poro.
+  // Todos os exemplares do perfil visitado ficam abaixo do Pet.
   // Reutilizamos a visualização dos Cards, sem qualquer ação sobre itens alheios.
   function publicMemberCardsSection(profile){
     const cards=Array.isArray(profile.collection_cards)?profile.collection_cards:[];
@@ -891,13 +930,18 @@
         const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section');const line=h('div','public-badges');
         (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip');badge.append(iconArtwork(b.image_url,b.icon||'🏅'));makeProfileItemInteractive(badge,b,'badge');line.append(badge);});
         if(!d.badges?.length)line.append(h('p','','Nenhum selo por enquanto.'));badges.append(line);pane.append(badges);
+        const publicChampions=block('⚔️ Campeões favoritos');publicChampions.classList.add('public-section','public-champions');
+        const championList=h('div','game-icons');
+        if(!d.favorite_champions?.length)championList.append(h('p','','Nenhum campeão selecionado.'));
+        for(const champ of d.favorite_champions||[]){const chip=h('span','game-icon');chip.append(gameIcon(champ));makeProfileItemInteractive(chip,champ,'champion');championList.append(chip);}
+        publicChampions.append(championList);pane.append(publicChampions);
         const favorites=block('🎮 Jogos favoritos');favorites.classList.add('public-section');
         const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
         for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));makeProfileItemInteractive(chip,game,'game');gameIcons.append(chip);}
         favorites.append(gameIcons);pane.append(favorites);
         if(d.collectibles?.length){const found=block('🏆 Colecionáveis');found.classList.add('public-section','public-collectibles');const grid=h('div','collectible-grid');
           for(const item of d.collectibles){const tile=h('article','collectible-item');tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'));tile.append(h('strong','',item.name),h('small','',`×${item.quantity}`));if(item.description)tile.title=item.description;grid.append(tile);}found.append(grid);pane.append(found);}
-        pane.append(publicPoroCard(d,items));
+        pane.append(publicPetCard(d,items));
         pane.append(publicMemberCardsSection(d));
         return;
       }
@@ -913,22 +957,27 @@
       const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section','public-badges');const line=h('div','public-badges-row');
       (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip');badge.append(iconArtwork(b.image_url,b.icon||'🏅'));makeProfileItemInteractive(badge,b,'badge');line.append(badge);});
       if(!d.badges?.length)line.append(h('p','','Nenhum selo por enquanto.'));badges.append(line);main.append(badges);
+      const publicChampions=block('⚔️ Campeões favoritos');publicChampions.classList.add('public-section','public-champions');
+      const championList=h('div','game-icons');
+      if(!d.favorite_champions?.length)championList.append(h('p','','Nenhum campeão selecionado.'));
+      for(const champ of d.favorite_champions||[]){const chip=h('span','game-icon');chip.append(gameIcon(champ));makeProfileItemInteractive(chip,champ,'champion');championList.append(chip);}
+      publicChampions.append(championList);main.append(publicChampions);
       const favorites=block('🎮 Jogos favoritos');favorites.classList.add('public-section','public-games');
       const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
       for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));makeProfileItemInteractive(chip,game,'game');gameIcons.append(chip);}
       favorites.append(gameIcons);main.append(favorites);
       if(d.collectibles?.length){const found=block('🏆 Colecionáveis');found.classList.add('public-section','public-collectibles');const grid=h('div','collectible-grid');
         for(const item of d.collectibles){const tile=h('article','collectible-item');tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'));tile.append(h('strong','',item.name),h('small','',`×${item.quantity}`));if(item.description)tile.title=item.description;grid.append(tile);}found.append(grid);main.append(found);}
-      aside.append(publicPoroCard(d,items));
+      aside.append(publicPetCard(d,items));
       aside.append(publicMemberCardsSection(d));
       layout.append(main,aside);pane.append(layout);
     }catch(err){toast(err.message);}
   }
-  function publicPoroCard(profile,inventory){
-    if(!profile.pet){const empty=block('Sem Poro','Este membro ainda não adotou um Poro.');empty.classList.add('public-section','public-pet');return empty;}
+  function publicPetCard(profile,inventory){
+    if(!profile.pet){const empty=block('Sem Pet','Este membro ainda não adotou um Pet.');empty.classList.add('public-section','public-pet');return empty;}
     const pet=profile.pet;
     const label=pet.nickname||poroSpeciesName(pet.name);
-    const panel=block('🐾 Poro: '+label);
+    const panel=block('🐾 Pet: '+label);
     panel.classList.add('public-section','public-pet');panel.dataset.ownerId=profile.key;
     panel.append(petPortrait(pet,true),poroNameAndStatus(pet),poroStats(pet));
     if(pet.status==='ativo'){
@@ -936,7 +985,7 @@
       const caress=button('💗 Acariciar',()=>visitPet(profile.key,'pet',null,panel),'main-action public-pet-pat');
       actions.append(caress);
       const available=(inventory.treats||[]).filter(t=>t.sku!=='vacina' && Number(t.quantity||0)>0);
-      const select=h('select','select-input');select.setAttribute('aria-label','Petisco para alimentar este Poro');
+      const select=h('select','select-input');select.setAttribute('aria-label','Petisco para alimentar este Pet');
       for(const item of available){const option=h('option','',`${item.name} (×${item.quantity})`);option.value=item.sku;select.append(option);}
       if(available.length)actions.append(select);
       const feed=button('🍪 Alimentar',()=>visitPet(profile.key,'feed',select.value,panel),'soft-action public-pet-feed');
@@ -945,7 +994,7 @@
       if(!available.length)actions.append(button('Comprar petiscos →',()=>{$('publicProfilePage').hidden=true;chooseTab('loja','treat3');},'soft-action public-pet-buy'));
       panel.append(actions);
     }else{
-      panel.append(h('p','public-pet-closed','Os cuidados de visitantes ficam indisponíveis enquanto este Poro estiver no veterinário, em expedição ou ausente.'));
+      panel.append(h('p','public-pet-closed','Os cuidados de visitantes ficam indisponíveis enquanto este Pet estiver no veterinário, em expedição ou ausente.'));
     }
     return panel;
   }
@@ -965,7 +1014,7 @@
       const response=await API('/api/pets/visit/'+encodeURIComponent(owner),{action,treat_sku:sku||'biscoito'});
       resetCachedData();
       if(response.pet){
-        updatePoroStats(card,response.pet);
+        updatePetStats(card,response.pet);
       }
       applyConfirmedCoins({coins_balance:response.visitor_balance,coins_gained:response.visitor_coins});
       if(action==='feed' && response.visitor_treats!==undefined){
@@ -985,7 +1034,7 @@
       // Reconciliar apenas contadores, sem chamar openPublicProfile e recarregar seu modelo.
       refreshProfile().catch(()=>{});
       return response;
-    }catch(err){toast('⚠ '+(err?.message||'Não foi possível cuidar deste Poro.'));return null;}
+    }catch(err){toast('⚠ '+(err?.message||'Não foi possível cuidar deste Pet.'));return null;}
     finally{
       delete card.dataset.carePending;
       controls.forEach(b=>{if(!b.dataset.completed && !b.classList.contains('public-pet-buy'))b.disabled=b.classList.contains('public-pet-feed') && !card.querySelector('.public-pet-actions .select-input')?.options.length;});
@@ -1057,7 +1106,7 @@
       if(!model && !reduced)wrap.classList.add('pet-preview-moving');
       if(!model && !thumbnail){
         const note=h('span','pet-model-hint','Modelo 3D não configurado');
-        note.title='Abra Gestão do Recanto → Poros e associe um ID Khada TFT real ou uma URL pública de arquivo .glb.';
+        note.title='Abra Gestão do Recanto → Pets e associe um ID Khada TFT real ou uma URL pública de arquivo .glb.';
         wrap.append(note);
       }
       return wrap;
@@ -1114,7 +1163,7 @@
     function startViewer(){
       if(khada){
         const iframe=h('iframe','pet-khada-embed');
-        iframe.title='Poro animado em repouso: '+poroSpeciesName(species.name);
+        iframe.title='Pet animado em repouso: '+poroSpeciesName(species.name);
         iframe.loading='lazy';iframe.referrerPolicy='strict-origin-when-cross-origin';
         iframe.setAttribute('allow','autoplay; fullscreen');
         iframe.src=khada;
@@ -1143,8 +1192,8 @@
       view.setAttribute('interaction-prompt','none');
       view.setAttribute('loading','eager');view.setAttribute('reveal','auto');
       if(large){
-        // Aproxima o Poro dentro do seu painel sem alterar escala do card.
-        // Enquadramento mais próximo: ocupa o quadro com o Poro, sem distorcer a malha.
+        // Aproxima o Pet dentro do seu painel sem alterar escala do card.
+        // Enquadramento mais próximo: ocupa o quadro com o Pet, sem distorcer a malha.
         view.setAttribute('camera-orbit','0deg 75deg 65%');
         view.setAttribute('min-camera-orbit','auto auto 48%');
       }
@@ -1219,7 +1268,7 @@
       if(result?.pet){
         state.activePet=result.pet;
         if(Number.isFinite(Number(result.treats)))state.activePetTreats=Number(result.treats);
-        updatePoroStats($('petPane').querySelector('.poro-status-card'),result.pet);
+        updatePetStats($('petPane').querySelector('.poro-status-card'),result.pet);
       }
       if(action==='feed'){
         const remaining=Number(result?.treats);
@@ -1238,11 +1287,11 @@
           if(!choose.options.length){choose.disabled=true;const btn=$('petPane').querySelector('.poro-care-actions-card .pet-actions button');if(btn){btn.disabled=true;btn.textContent='Sem petiscos';}}
         }
       }
-      toast(action==='feed'?'Poro alimentado!':'Seu Poro recebeu carinho!');
-      // Não chamar refreshActive nem refreshProfile aqui: ambos poderiam recriar o Poro.
+      toast(action==='feed'?'Pet alimentado!':'Seu Pet recebeu carinho!');
+      // Não chamar refreshActive nem refreshProfile aqui: ambos poderiam recriar o Pet.
       return result;
     }catch(err){
-      toast('⚠ '+(err?.message||'Não foi possível cuidar do Poro.'));
+      toast('⚠ '+(err?.message||'Não foi possível cuidar do Pet.'));
       // Uma interação recusada não aumenta fome/felicidade nem desconta petiscos.
       return null;
     }finally{state.petCareBusy=false;}
@@ -1254,14 +1303,14 @@
        && Number(data.coins_balance)!==Number(state.account.coins)){
       applyConfirmedCoins({coins_balance:data.coins_balance});
     }
-    $('petStatus').textContent=pet?({ativo:'Em casa','vet':'No veterinário','morto':'Falecido','missao':'Em missão'}[pet.status]):'Sem Poro';
+    $('petStatus').textContent=pet?({ativo:'Em casa','vet':'No veterinário','morto':'Falecido','missao':'Em missão'}[pet.status]):'Sem Pet';
     if(!pet||pet.status==='morto'){
       const deceased=pet?.status==='morto';
       const waiting=deceased && pet.adoption_available_at && new Date(pet.adoption_available_at).getTime()>Date.now();
       const message=deceased
-        ?`Seu Poro faleceu. Penalidade aplicada: ${pet.death_penalty||150} moedas. ${waiting?'Você poderá adotar outro em '+countdown(pet.adoption_available_at)+'.':'Já pode adotar um novo Poro.'}`
-        :'Você pode adotar apenas um Poro por vez. Cuide dele diariamente.';
-      const notice=block(deceased?'Seu Poro faleceu':'Escolha seu Poro',message);
+        ?`Seu Pet faleceu. Penalidade aplicada: ${pet.death_penalty||150} moedas. ${waiting?'Você poderá adotar outro em '+countdown(pet.adoption_available_at)+'.':'Já pode adotar um novo Pet.'}`
+        :'Você pode adotar apenas um Pet por vez. Cuide dele diariamente.';
+      const notice=block(deceased?'Seu Pet faleceu':'Escolha seu Pet',message);
       if(waiting){
         const until=h('p','poro-death-countdown');until.dataset.readyAt=pet.adoption_available_at;
         const update=()=>{if(until.isConnected){until.textContent='Próxima adoção em: '+countdown(pet.adoption_available_at);}};
@@ -1271,18 +1320,18 @@
       }
       pane.append(notice);
       const grid=h('div','pet-grid');data.species.forEach(s=>{
-        const row=block(poroSpeciesName(s.name),'Poro disponível para adoção');row.prepend(petVisual(s,false,true));
-        const nameRow=h('label','poro-nickname-label','Nome do seu Poro');
+        const row=block(poroSpeciesName(s.name),'Pet disponível para adoção');row.prepend(petVisual(s,false,true));
+        const nameRow=h('label','poro-nickname-label','Nome do seu Pet');
         const nickname=h('input','text-input poro-nickname');nickname.type='text';nickname.maxLength=40;
-        nickname.placeholder='Como seu Poro vai se chamar?';nickname.autocomplete='off';
+        nickname.placeholder='Como seu Pet vai se chamar?';nickname.autocomplete='off';
         nameRow.append(nickname);
         const adoptButton=button('Adotar',async()=>{
           const name=nickname.value.trim();
-          if(name.length<2||name.length>40){toast('Escolha um nome de 2 a 40 caracteres para seu Poro.');nickname.focus();return;}
+          if(name.length<2||name.length>40){toast('Escolha um nome de 2 a 40 caracteres para seu Pet.');nickname.focus();return;}
           const created=await safeRun(()=>API('/api/pets/adopt',{species_id:s.id,nickname:name}),name+' foi adotado!');
           if(created){resetCachedData();await loadPet();}
         });
-        if(waiting){adoptButton.disabled=true;adoptButton.title='Aguarde 24 horas após o falecimento do Poro';}
+        if(waiting){adoptButton.disabled=true;adoptButton.title='Aguarde 24 horas após o falecimento do Pet';}
         row.append(nameRow,adoptButton);grid.append(row);
       });pane.append(grid);return;
     }
@@ -1296,29 +1345,29 @@
     show.append(nameBar,petPortrait(pet,true));
     care.append(show);
 
-    const statusCard=block('Status do Poro');
+    const statusCard=block('Status do Pet');
     statusCard.classList.add('poro-status-card');
     statusCard.append(poroStats(pet));
     if(pet.status==='vet')statusCard.append(h('p','poro-status-note',`🏥 Resgate: ${money(pet.rescue_cost)} moedas • Prazo: ${pet.vet_deadline?new Date(pet.vet_deadline).toLocaleString('pt-BR'):'—'}`));
     care.append(statusCard);
 
-    const rename=block('Nome do Poro');rename.classList.add('poro-config-card');
+    const rename=block('Nome do Pet');rename.classList.add('poro-config-card');
     const renameRow=h('div','poro-inline-control');const nickname=h('input','text-input');nickname.type='text';nickname.maxLength=40;
-    nickname.value=petName;nickname.setAttribute('aria-label','Novo nome do Poro');
+    nickname.value=petName;nickname.setAttribute('aria-label','Novo nome do Pet');
     const saveName=async()=>{
       const name=nickname.value.trim();if(name.length<2||name.length>40){toast('Digite um nome entre 2 e 40 caracteres.');return;}
-      await safeRun(()=>API('/api/pets/rename',{nickname:name}),'Nome do Poro atualizado!');
+      await safeRun(()=>API('/api/pets/rename',{nickname:name}),'Nome do Pet atualizado!');
     };
     nickname.addEventListener('keydown',e=>{if(e.key==='Enter')saveName();});
     renameRow.append(nickname,button('Renomear',saveName,'soft-action'));rename.append(renameRow);adventures.append(rename);
 
-    const equip=block('🏆 Item colecionável',pet.equipped_collectible?'Equipado: '+pet.equipped_collectible.name:'Escolha um item do inventário para equipar no retrato do Poro.');
+    const equip=block('🏆 Item colecionável',pet.equipped_collectible?'Equipado: '+pet.equipped_collectible.name:'Escolha um item do inventário para equipar no retrato do Pet.');
     equip.classList.add('poro-config-card');
     const inv=await API('/api/inventory');
     const collectibles=inv.collectibles||[];
     const equipmentRow=h('div','poro-equipment-control');
     if(collectibles.length){
-      const selector=h('select','select-input');selector.setAttribute('aria-label','Selecionar colecionável para o Poro');
+      const selector=h('select','select-input');selector.setAttribute('aria-label','Selecionar colecionável para o Pet');
       const none=h('option','','Nenhum item');none.value='';selector.append(none);
       for(const item of collectibles){const op=h('option','',item.name+' (×'+item.quantity+')');op.value=String(item.id);selector.append(op);}
       selector.value=pet.equipped_collectible?String(pet.equipped_collectible.id):'';
@@ -1331,11 +1380,11 @@
     if(pet.status==='ativo'){
       const changeReady=pet.change_available_at ? new Date(pet.change_available_at).getTime() : 0;
       const canChange=!changeReady || Date.now()>=changeReady;
-      const change=block('Trocar de Poro',canChange
-        ?'Escolha outro Poro. A troca substitui o atual e conserva seus colecionáveis no Inventário.'
+      const change=block('Trocar de Pet',canChange
+        ?'Escolha outro Pet. A troca substitui o atual e conserva seus colecionáveis no Inventário.'
         :'Para preservar seu companheiro, a troca só é permitida a cada 48 horas.');
       change.classList.add('poro-change-card');
-      const toggle=button('Escolher outro Poro',()=>{choices.hidden=!choices.hidden;toggle.setAttribute('aria-expanded',String(!choices.hidden));},'soft-action');
+      const toggle=button('Escolher outro Pet',()=>{choices.hidden=!choices.hidden;toggle.setAttribute('aria-expanded',String(!choices.hidden));},'soft-action');
       toggle.setAttribute('aria-expanded','false');
       if(!canChange){
         toggle.disabled=true;
@@ -1343,20 +1392,20 @@
         change.append(notice);
       }
       const choices=h('div','poro-change-options');choices.hidden=true;
-      const speciesSelect=h('select','select-input');speciesSelect.setAttribute('aria-label','Escolha a espécie do novo Poro');
+      const speciesSelect=h('select','select-input');speciesSelect.setAttribute('aria-label','Escolha a espécie do novo Pet');
       for(const specie of data.species||[]){
         const opt=h('option','',poroSpeciesName(specie.name));opt.value=String(specie.id);speciesSelect.append(opt);
       }
-      const newName=h('input','text-input');newName.placeholder='Nome do novo Poro';newName.maxLength=40;
-      newName.setAttribute('aria-label','Nome do novo Poro');
+      const newName=h('input','text-input');newName.placeholder='Nome do novo Pet';newName.maxLength=40;
+      newName.setAttribute('aria-label','Nome do novo Pet');
       const confirmChange=button('Confirmar troca',async()=>{
         const name=newName.value.trim();
         if(name.length<2 || name.length>40){toast('Digite um nome de 2 a 40 caracteres.');newName.focus();return;}
-        if(!window.confirm(`Trocar ${petName} por ${name}? O progresso do Poro atual será substituído.`))return;
+        if(!window.confirm(`Trocar ${petName} por ${name}? O progresso do Pet atual será substituído.`))return;
         try{
           const updated=await API('/api/pets/change',{species_id:Number(speciesSelect.value),nickname:name});
-          if(updated?.ok){resetCachedData();toast('Seu novo Poro chegou!');await loadPet();}
-        }catch(error){toast('⚠ '+(error?.message||'Não foi possível trocar o Poro.'));}
+          if(updated?.ok){resetCachedData();toast('Seu novo Pet chegou!');await loadPet();}
+        }catch(error){toast('⚠ '+(error?.message||'Não foi possível trocar o Pet.'));}
       });
       choices.append(speciesSelect,newName,confirmChange);
       change.append(toggle,choices);adventures.append(change);
@@ -1364,37 +1413,41 @@
 
     if(pet.status==='missao'){
       const expedition=data.expedition;
-      const mission=block('🗺️ Em missão',`Seu Poro está em ${expedition?.name||'uma aventura'} e não pode receber carinho nem comida.`);
+      const mission=block('🗺️ Em missão',`Seu Pet está em ${expedition?.name||'uma aventura'} e não pode receber carinho nem comida.`);
       adventures.append(mission);
-      const when=h('p','expedition-time',expedition?.ready?'Seu Poro voltou!':'Volta em: '+countdown(expedition?.ends_at));adventures.append(when);
+      const when=h('p','expedition-time',expedition?.ready?'Seu Pet voltou!':'Volta em: '+countdown(expedition?.ends_at));adventures.append(when);
       if(expedition?.ready)adventures.append(button('Receber recompensas',async()=>{
         const result=await safeRun(()=>API('/api/pets/expedition/collect',{}),r=>`+${r.coins_gained} moedas${r.converted_coins?' (+'+r.converted_coins+' por card repetido)':''}${r.collectible?' e '+r.collectible.name:''}${r.card?' e um card!':''}`);
-        if(result?.card)showCard(result.card,'Card encontrado pelo Poro!');
+        if(result?.card)showCard(result.card,'Card encontrado pelo Pet!');
       }));
       return;
     }
     if(pet.status==='vet'){
-      const rescueCard=block('🏥 Veterinário','Resgate seu Poro para ele voltar a receber cuidados e sair em novas expedições.');
+      const rescueCard=block('🏥 Veterinário','Resgate seu Pet para ele voltar a receber cuidados e sair em novas expedições.');
       rescueCard.classList.add('poro-rescue-card');
-      rescueCard.append(button('Resgatar Poro',()=>safeRun(()=>API('/api/pets/rescue',{}),'Companheiro resgatado!')));
+      rescueCard.append(button('Resgatar Pet',()=>safeRun(()=>API('/api/pets/rescue',{}),'Companheiro resgatado!')));
       care.append(rescueCard);
-      adventures.append(block('🗺️ Expedições','Resgate seu Poro no veterinário para voltar a explorar.'));
+      adventures.append(block('🗺️ Expedições','Resgate seu Pet no veterinário para voltar a explorar.'));
       return;
     }
 
-    const careCard=block('Cuidados','Alimente seu Poro com um petisco do inventário ou faça carinho nele.');
+    const careCard=block('Cuidados','Alimente seu Pet com um petisco do inventário ou faça carinho nele.');
     careCard.classList.add('poro-care-actions-card');
     const actions=h('div','pet-actions');
     if(inv.treats.length){const choose=h('select','select-input');inv.treats.forEach(t=>{const opt=h('option','',t.name+' (+'+t.food+' fome) · '+t.quantity);opt.value=t.sku;choose.append(opt);});careCard.append(choose);
       actions.append(button('🍪 Alimentar',()=>petCare('feed',choose.value)));}
     else actions.append(button('Petiscos na Loja →',()=>chooseTab('loja','treat3')));
     actions.append(button('💗 Acariciar',()=>petCare('pet'),'soft-action'));careCard.append(actions);care.append(careCard);
-    const ex=block('🗺️ Expedições dos Poros','Envie seu Poro em uma aventura. Ele não poderá receber cuidados durante a missão e voltará com fome.');
+    const ex=block('🗺️ Expedições dos Pets','Envie seu Pet em uma aventura. Ele não poderá receber cuidados durante a missão e voltará com fome.');
     for(const option of data.expedition_options||[]){
       const row=h('div','expedition-choice');
-      if(option.image_url)row.append(mediaCover(option.image_url,'🗺️',option.name,'expedition-cover'));
-      row.append(h('strong','',option.name),h('small','',`${option.minutes/60}h • -${option.food} fome • ${option.coins[0]}–${option.coins[1]} moedas • ${option.card_chance}% chance de card${option.collectible_chance?' • '+option.collectible_chance+'% colecionável':''}`));
-      row.append(button('Enviar',()=>safeRun(()=>API('/api/pets/expedition/start',{mission:option.id}),'Seu Poro iniciou a missão!'),'soft-action'));ex.append(row);
+      const expInfo=h('div','expedition-info');
+      expInfo.append(h('strong','',option.name),h('small','',`${option.minutes/60}h • -${option.food} fome • ${option.coins[0]}–${option.coins[1]} moedas • ${option.card_chance}% chance de Card${option.collectible_chance?' • '+option.collectible_chance+'% colecionável':''}`));
+      expInfo.append(button('Enviar',()=>safeRun(()=>API('/api/pets/expedition/start',{mission:option.id}),'Seu Pet iniciou a missão!'),'soft-action'));
+      row.append(expInfo);
+      const expeditionEmoji={passeio:'🌲',exploracao:'🏛️',jornada:'🧭'}[option.id]||'🗺️';
+      row.append(mediaCover(option.image_url,expeditionEmoji,option.name,'expedition-cover'));
+      ex.append(row);
     }adventures.append(ex);
   }
   // Exibe sempre a arte cadastrada. O emoji e usado apenas se nao houver
@@ -1412,6 +1465,20 @@
   async function loadUiAssets(){
     try{const result=await API('/api/assets');state.assets=result.items||[];applyUiAssets();}
     catch(_){/* assets opcionais; UI padrao continua funcionando */}
+  }
+  function builtInAssetSelector(asset){
+    // Compatibilidade com imagens enviadas antes da 0.2.11: a chave é estável,
+    // mas os novos lugares de exibição também devem receber o mesmo ícone.
+    if(asset.key.startsWith('nav-')){
+      const tab=asset.key.slice(4);
+      if(labels[tab])return `[data-tab="${tab}"] .nav-circle, .desktop-side-link[data-tab="${tab}"], .section-title-icon[data-title-icon="${tab}"]`;
+    }
+    const selectors={
+      'moedas-perfil':'.stats-list .stat:nth-child(1) .stat-icon, .desktop-wallet-summary .desktop-coins',
+      'cards-perfil':'.stats-list .stat:nth-child(2) .stat-icon, .desktop-wallet-summary .desktop-resource:nth-child(2)',
+      'petiscos-perfil':'.stats-list .stat:nth-child(3) .stat-icon, .desktop-wallet-summary .desktop-resource:nth-child(3)'
+    };
+    return selectors[asset.key]||asset.selector;
   }
   function applyUiAssets(){
     // O favicon faz parte das artes configuraveis, sem afetar os icones do PWA.
@@ -1432,10 +1499,12 @@
       el.style.backgroundImage='';el.classList.remove('asset-image-background');
     }
     // Conteudos dinamicos sao recriados a cada mudanca de aba.
-    for(const a of state.assets||[]){
-      if(!a.selector||!a.image_url)continue;
+    const iconAssets=[...(state.assets||[])].sort((a,b)=>Number(a.key.startsWith('topbar-'))-Number(b.key.startsWith('topbar-')));
+    for(const a of iconAssets){
+      const selector=builtInAssetSelector(a);
+      if(!selector||!a.image_url)continue;
       let targets=[];
-      try{targets=[...document.querySelectorAll(a.selector)].slice(0,80);}catch(_){continue;}
+      try{targets=[...document.querySelectorAll(selector)].slice(0,80);}catch(_){continue;}
       for(const el of targets){
         if(a.mode==='image'&&el.tagName==='IMG'){
           if(el.getAttribute('src')!==a.image_url)el.src=a.image_url;
@@ -1456,7 +1525,7 @@
     const wrapper=h('div',cls);if(src){const img=h('img');img.src=src;img.alt=title;img.loading='lazy';img.onerror=()=>{img.remove();wrapper.textContent=emoji;};wrapper.append(img);}else wrapper.textContent=emoji;
     return wrapper;
   }
-  async function loadShop(){const [shop,me,daily]=await Promise.all([API('/api/shop'),API('/api/me'),API('/api/daily/status')]);$('shopWallet').textContent=`🪙 ${money(me.coins)}`;state.reset=daily.next_reset;state.dailyReward=Number(daily.reward||0);$('dailyCoins').disabled=daily.coins_claimed||state.dailyClaimInFlight;$('dailyCoins').textContent=state.dailyClaimInFlight?'Confirmando resgate…':daily.coins_claimed?'✓ Resgatado':`Resgatar ${money(daily.reward)} moedas`;updateCountdowns();const pane=$('shopPane');pane.replaceChildren();for(const s of shop.products){const box=block(s.name,s.kind==='cards'?`${s.amount} cartas aleatórias · guarda no Inventário`:s.sku==='vaccine'?'1 vacina para Poros em recuperação':`${s.amount} petisco(s) · +${s.food||15} fome por unidade`);box.id='shop-'+s.sku;box.classList.add('product-card');box.prepend(mediaCover(s.image_url,s.emoji||'🎁',s.name,'product-cover'));if(s.rates)box.append(h('p','rates',Object.entries(s.rates).map(([k,v])=>`${tierLabels[k]} ${v}%`).join(' · ')));box.append(button(`Comprar · 🪙 ${money(s.price)}`,()=>safeRun(()=>API('/api/shop/purchase',{sku:s.sku}),result=>result.pack_id?`Pacote guardado no Inventário!`:`${result.treats_gained} item(ns) adicionado(s) ao Inventário!`)));pane.append(box);}if(state.focusShop){const selected=$('shop-'+state.focusShop);state.focusShop=null;if(selected){selected.classList.add('shop-focus');selected.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});setTimeout(()=>selected.classList.remove('shop-focus'),1800);}}}
+  async function loadShop(){const [shop,me,daily]=await Promise.all([API('/api/shop'),API('/api/me'),API('/api/daily/status')]);$('shopWallet').textContent=`🪙 ${money(me.coins)}`;state.reset=daily.next_reset;state.dailyReward=Number(daily.reward||0);$('dailyCoins').disabled=daily.coins_claimed||state.dailyClaimInFlight;$('dailyCoins').textContent=state.dailyClaimInFlight?'Confirmando resgate…':daily.coins_claimed?'✓ Resgatado':`Resgatar ${money(daily.reward)} moedas`;updateCountdowns();const pane=$('shopPane');pane.replaceChildren();for(const s of shop.products){const box=block(s.name,s.kind==='cards'?`${s.amount} cartas aleatórias · guarda no Inventário`:s.sku==='vaccine'?'1 vacina para Pets em recuperação':`${s.amount} petisco(s) · +${s.food||15} fome por unidade`);box.id='shop-'+s.sku;box.classList.add('product-card');box.prepend(mediaCover(s.image_url,s.emoji||'🎁',s.name,'product-cover'));if(s.rates)box.append(h('p','rates',Object.entries(s.rates).map(([k,v])=>`${tierLabels[k]} ${v}%`).join(' · ')));box.append(button(`Comprar · 🪙 ${money(s.price)}`,()=>safeRun(()=>API('/api/shop/purchase',{sku:s.sku}),result=>result.pack_id?`Pacote guardado no Inventário!`:`${result.treats_gained} item(ns) adicionado(s) ao Inventário!`)));pane.append(box);}if(state.focusShop){const selected=$('shop-'+state.focusShop);state.focusShop=null;if(selected){selected.classList.add('shop-focus');selected.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});setTimeout(()=>selected.classList.remove('shop-focus'),1800);}}}
   async function loadMissions(){
     const data=await API('/api/missions');state.missionReset=data.next_reset;
     const pane=$('missionPane');pane.replaceChildren();
@@ -1693,6 +1762,7 @@
       const missionsTask=API('/api/admin/missions');
       const catalogTask=API('/api/catalog');
       const gamesTask=API('/api/games/preferences');
+    const championsTask=API('/api/champions/preferences');
       const [opts,game]=await Promise.all([API('/api/admin/settings'),API('/api/game/config')]);
       pane.replaceChildren();
       pane.append(h('p','', 'Apenas IDs do Discord autorizados podem administrar os catálogos e as configurações.'));
@@ -1749,7 +1819,7 @@
       ['name','Nome do produto','text'],['price','Preço em moedas','number'],
       ['image_url','Imagem HTTPS ou /uploads/... (vazio remove)','text']
     ],existingCatalog));
-    pane.append(adminCatalogEditor('pets','Gerenciar Poros',[
+    pane.append(adminCatalogEditor('pets','Gerenciar Pets',[
       ['name','Nome','text'],['emoji','Emoji','text'],['image_url','Capa HTTPS (vazio remove)','text'],
       ['model_url','URL do modelo .glb OU embed Khada (vazio remove)','text'],
       ['idle_animation','Animação idle (opcional)','text'],['pet_animation','Animação de carinho (opcional)','text'],
@@ -1757,7 +1827,7 @@
     ],existingCatalog));
     pane.append(adminCatalogEditor('achievements','Gerenciar selos cadastrados',[
       ['title','Título','text'],['description','Descrição','text'],['icon','Emoji','text'],
-      ['event','Evento','select',[['trade','Trocas'],['card','Cards recebidos'],['adopt','Poros adotados'],['pet','Carinhos'],['feed','Alimentações'],['mission','Missões resgatadas'],['voice_minutes','Voz no Discord']]],
+      ['event','Evento','select',[['trade','Trocas'],['card','Cards recebidos'],['adopt','Pets adotados'],['pet','Carinhos'],['feed','Alimentações'],['mission','Missões resgatadas'],['voice_minutes','Voz no Discord']]],
       ['target','Meta','number'],['image_url','Imagem HTTPS (vazio remove)','text']
     ],existingCatalog));
     const featured=block('Coleção em destaque','Banner que aparece no Catálogo. Existem três coleções padrão: Celebridades, Personagens e Memes.');
@@ -1854,8 +1924,8 @@
       }));
     pane.append(styleBox);
 
-    const pet=block('Cadastrar Poro','Aceita imagem PNG/JPG/WEBP/GIF, modelo 3D GLB/GLTF e nomes de animações do arquivo.');
-    const [pn,pni]=adminField('Nome do Poro','');const [pe,pei]=adminField('Emoji para fallback','🐾');const [pu,pui]=adminField('Imagem de capa (HTTPS ou /uploads/...)','');
+    const pet=block('Cadastrar Pet','Aceita imagem PNG/JPG/WEBP/GIF, modelo 3D GLB/GLTF e nomes de animações do arquivo.');
+    const [pn,pni]=adminField('Nome do Pet','');const [pe,pei]=adminField('Emoji para fallback','🐾');const [pu,pui]=adminField('Imagem de capa (HTTPS ou /uploads/...)','');
     const petFile=h('input','text-input');petFile.type='file';petFile.accept='image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif';
     const [modelurl,mui]=adminField('URL do modelo .glb ou embed Khada (opcional)','');
     const [khadaRow,khadaId]=adminField('ID de modelo Khada TFT (opcional)','');khadaId.inputMode='numeric';khadaId.placeholder='ID do modelo encontrado em Khada → Tacticians';
@@ -1866,7 +1936,7 @@
     pet.append(pn,pe,pu,h('label','','Ou envie uma capa PNG/JPG/WEBP/GIF (até 4 MB)'),petFile,modelurl,
       khadaRow,h('small','','Para modelos TFT do Khada: encontre o ID em modelviewer.lol e cole acima. O embed gratuito conserva marca e barra do Khada.'),
       h('label','','Ou selecione .glb; para .gltf, selecione também .bin e texturas (até 40 MB no total)'),modelFile,...fields,
-      button('Cadastrar Poro',()=>safeRun(async()=>{
+      button('Cadastrar Pet',()=>safeRun(async()=>{
         const image_url=petFile.files.length?await uploadArtwork(petFile.files[0]):pui.value;
         const model_url=modelFile.files.length?await uploadModel(modelFile.files):(khadaId.value.trim()?khadaTftUrl(khadaId.value):mui.value);
         if(model_url && !khadaEmbedUrl(model_url) && !/\.glb(?:[?#]|$)/i.test(model_url)){
@@ -1874,7 +1944,7 @@
         }
         const animations=Object.fromEntries(Object.entries(animInputs).map(([key,inp])=>[key,inp.value]));
         return API('/api/admin/pets',{name:pni.value,emoji:pei.value,image_url,model_url,...animations});
-      },'Poro cadastrado!')));pane.append(pet);
+      },'Pet cadastrado!')));pane.append(pet);
     // 0.1.21 — Colecionáveis estáticos e resultados das expedições.
     const collectibleBlock=block('Gerenciar Colecionáveis','Itens colecionáveis estáticos que podem ser encontrados nas expedições. Arquivar preserva o inventário existente.');
     const currentCollectibles=(await API('/api/admin/collectibles')).items||[];
@@ -1897,7 +1967,7 @@
       return API('/api/admin/collectibles',payload);};
     collectibleBlock.append(h('label','','Editar existente ou criar novo'),collectiblesChoice,collectName,collectInfo,collectEmoji,collectCover,
       h('label','','Ou enviar imagem'),collectFile,h('label','admin-check','Ativo'),collectEnabled,
-      button('Salvar colecionável',async()=>{const result=await safeRun(saveCollectibles,'Colecionável salvo!');if(result){state.adminReady=false;state.adminGroup='Poros';await openAdmin(true);}}));
+      button('Salvar colecionável',async()=>{const result=await safeRun(saveCollectibles,'Colecionável salvo!');if(result){state.adminReady=false;state.adminGroup='Pets';await openAdmin(true);}}));
     pane.append(collectibleBlock);
 
     const expeditionBlock=block('Configurar Expedições','A chance de card e de colecionável são independentes. Em cada expedição, o resultado é definido no servidor.');
@@ -1928,7 +1998,7 @@
           rarity_weights:Object.fromEntries(Object.entries(weights).map(([tier,input])=>[tier,Number(input.value)])),
           featured_card_id:cardChoice.value?Number(cardChoice.value):null,collectible_id:collectibleChoice.value?Number(collectibleChoice.value):null};
         const result=await safeRun(()=>API('/api/admin/expeditions/'+encodeURIComponent(expChoice.value),payload),'Expedição atualizada!');
-        if(result){state.adminReady=false;state.adminGroup='Poros';await openAdmin(true);}
+        if(result){state.adminReady=false;state.adminGroup='Pets';await openAdmin(true);}
       }));
     pane.append(expeditionBlock);
     const covers=block('Capas da Loja e Missões','As capas são opcionais. Elas aparecem nos produtos e nas missões, sem alterar as regras.');
@@ -1941,7 +2011,7 @@
       const image_url=coverFile.files.length?await uploadArtwork(coverFile.files[0]):coverUrl.value;
       return API('/api/admin/covers',{kind:source.value,key:target.value,image_url});
     },'Capa atualizada!')));pane.append(covers);
-    const ach=block('Criar selo','A conquista pode ser automática ou depender de futura integração de voz.');const [an,ani]=adminField('Título','');const [ad,adi]=adminField('Descrição','');const [ai,aii]=adminField('Emoji','🏅');const [at,ati]=adminField('Meta numérica','1','number');const type=h('select','select-input');for(const [code,label] of Object.entries({trade:'Trocas',card:'Cards recebidos',adopt:'Poros adotados',pet:'Carinhos',feed:'Alimentações',mission:'Missões resgatadas',voice_minutes:'Minutos em voz (integração futura)'})){const o=h('option','',label);o.value=code;type.append(o);}ach.append(an,ad,ai,at,type,button('Criar selo',()=>safeRun(()=>API('/api/admin/achievements',{title:ani.value,description:adi.value,icon:aii.value,event:type.value,target:Number(ati.value)}),'Selo criado!')));pane.append(ach);
+    const ach=block('Criar selo','A conquista pode ser automática ou depender de futura integração de voz.');const [an,ani]=adminField('Título','');const [ad,adi]=adminField('Descrição','');const [ai,aii]=adminField('Emoji','🏅');const [at,ati]=adminField('Meta numérica','1','number');const type=h('select','select-input');for(const [code,label] of Object.entries({trade:'Trocas',card:'Cards recebidos',adopt:'Pets adotados',pet:'Carinhos',feed:'Alimentações',mission:'Missões resgatadas',voice_minutes:'Minutos em voz (integração futura)'})){const o=h('option','',label);o.value=code;type.append(o);}ach.append(an,ad,ai,at,type,button('Criar selo',()=>safeRun(()=>API('/api/admin/achievements',{title:ani.value,description:adi.value,icon:aii.value,event:type.value,target:Number(ati.value)}),'Selo criado!')));pane.append(ach);
     // Gerenciador de assets: aplica a arte a elementos sem alterar seus cliques ou regras.
     const assetPane=block('🖼️ Central de Assets','Personalize o favicon, menus de PC e celular, logos, jogos e fundos. Envie PNG/JPG/WEBP ou SVG seguro; as artes ficam salvas no servidor (Cloudinary em produção).');
     const existingAssets=(await API('/api/assets')).items;
@@ -1953,18 +2023,26 @@
       ['fundo-app','#homeScreen','background','Fundo geral do aplicativo'],
       ['barra-inferior','.bottom-nav','background','Barra inferior'],
       ['menu-config','.desktop-side-link#desktopSettings','icon','Ícone Configurações (PC)'],
+      ['topbar-busca','#desktopSearch','icon','Barra superior · Busca'],
+      ['topbar-moedas','.desktop-wallet-summary .desktop-coins','icon','Barra superior · Moedas'],
+      ['topbar-cards','.desktop-wallet-summary .desktop-resource:nth-child(2)','icon','Barra superior · Cards'],
+      ['topbar-petiscos','.desktop-wallet-summary .desktop-resource:nth-child(3)','icon','Barra superior · Petiscos'],
+      ['config-notificacoes','[data-setting-icon="notifications"]','icon','Configurações · Notificações'],
+      ['config-tema','[data-setting-icon="theme"]','icon','Configurações · Modo escuro'],
+      ['config-gestao','#settingsAdmin','icon','Configurações · Gestão'],
+      ['config-atualizacoes','#checkUpdates','icon','Configurações · Atualizações'],
       ['botao-config','#settings','icon','Icone de configuracoes'],
       ['botao-perfis','#searchUsers','icon','Icone da busca de perfis'],
-      ['nav-feed','[data-tab="feed"] .nav-circle, .desktop-side-link[data-tab="feed"]','icon','Ícone Feed'],
-      ['nav-perfil','[data-tab="perfil"] .nav-circle, .desktop-side-link[data-tab="perfil"]','icon','Icone Perfil'],
-      ['nav-cards','[data-tab="cards"] .nav-circle, .desktop-side-link[data-tab="cards"]','icon','Icone Cards'],
-      ['nav-inventario','[data-tab="inventario"] .nav-circle, .desktop-side-link[data-tab="inventario"]','icon','Icone Inventario'],
-      ['nav-pet','[data-tab="pet"] .nav-circle, .desktop-side-link[data-tab="pet"]','icon','Ícone dos Poros'],
-      ['nav-loja','[data-tab="loja"] .nav-circle, .desktop-side-link[data-tab="loja"]','icon','Icone Loja'],
-      ['nav-missoes','[data-tab="missoes"] .nav-circle, .desktop-side-link[data-tab="missoes"]','icon','Icone Missoes'],
-      ['moedas-perfil','.stats-list .stat:nth-child(1) .stat-icon','icon','Icone de moedas'],
-      ['cards-perfil','.stats-list .stat:nth-child(2) .stat-icon','icon','Icone de cards'],
-      ['petiscos-perfil','.stats-list .stat:nth-child(3) .stat-icon','icon','Icone de petiscos'],
+      ['nav-feed','[data-tab="feed"] .nav-circle, .desktop-side-link[data-tab="feed"], .section-title-icon[data-title-icon="feed"]','icon','Ícone Feed'],
+      ['nav-perfil','[data-tab="perfil"] .nav-circle, .desktop-side-link[data-tab="perfil"], .section-title-icon[data-title-icon="perfil"]','icon','Icone Perfil'],
+      ['nav-cards','[data-tab="cards"] .nav-circle, .desktop-side-link[data-tab="cards"], .section-title-icon[data-title-icon="cards"]','icon','Icone Cards'],
+      ['nav-inventario','[data-tab="inventario"] .nav-circle, .desktop-side-link[data-tab="inventario"], .section-title-icon[data-title-icon="inventario"]','icon','Icone Inventario'],
+      ['nav-pet','[data-tab="pet"] .nav-circle, .desktop-side-link[data-tab="pet"], .section-title-icon[data-title-icon="pet"]','icon','Ícone dos Pets'],
+      ['nav-loja','[data-tab="loja"] .nav-circle, .desktop-side-link[data-tab="loja"], .section-title-icon[data-title-icon="loja"]','icon','Icone Loja'],
+      ['nav-missoes','[data-tab="missoes"] .nav-circle, .desktop-side-link[data-tab="missoes"], .section-title-icon[data-title-icon="missoes"]','icon','Icone Missoes'],
+      ['moedas-perfil','.stats-list .stat:nth-child(1) .stat-icon, .desktop-wallet-summary .desktop-coins','icon','Icone de moedas'],
+      ['cards-perfil','.stats-list .stat:nth-child(2) .stat-icon, .desktop-wallet-summary .desktop-resource:nth-child(2)','icon','Icone de cards'],
+      ['petiscos-perfil','.stats-list .stat:nth-child(3) .stat-icon, .desktop-wallet-summary .desktop-resource:nth-child(3)','icon','Icone de petiscos'],
       ['card-diario','#dailyCardIcon','background','Fundo do card diario'],
       ['capa-pack-revelacao','.flip-back','background','Verso do card na abertura']
     ];
@@ -1972,6 +2050,7 @@
     const chooseSlot=h('select','select-input');
     for(const [key,sel,mode,name] of allSlots){const o=h('option','',name);o.value=key;chooseSlot.append(o);}
     gamesTask.then(gamesData=>{for(const g of gamesData.catalog){const entry=[`game:${g.id}`,'','icon',`Jogo · ${g.name}`];allSlots.push(entry);const o=h('option','',entry[3]);o.value=entry[0];chooseSlot.append(o);}}).catch(()=>{});
+    championsTask.then(champData=>{for(const champ of champData.catalog){const entry=[`champion:${champ.id}`,'','icon',`Campeão · ${champ.name}`];allSlots.push(entry);const o=h('option','',entry[3]);o.value=entry[0];chooseSlot.append(o);}}).catch(()=>{});
     const [customKeyRow,customKey]=adminField('Ou crie uma chave personalizada (opcional)','');
     const [customSelectorRow,customSelector]=adminField('Seletor CSS do elemento personalizado (opcional)','');
     const modeSelect=h('select','select-input');for(const [key,label] of [['background','Imagem de fundo'],['icon','Icone sobre o elemento'],['image','Imagem (tag img)']]){const op=h('option','',label);op.value=key;modeSelect.append(op);}
@@ -2009,7 +2088,7 @@
       mFields[key]=inp;missionBlock.append(wrap);
     }
     const missionType=h('select','select-input');for(const [v,t] of [['unica','Única'],['diaria','Diária'],['semanal','Semanal']]){const opt=h('option','',t);opt.value=v;missionType.append(opt);}
-    const missionEvent=h('select','select-input');for(const [v,t] of [['adopt','Adotar Poro'],['trade','Trocar card'],['daily_card','Resgatar card'],['daily_coins','Resgatar moedas'],['pet','Acariciar Poro'],['feed','Alimentar Poro'],['pack','Abrir pack'],['voice_minutes','Minutos em canal de voz'],['message_count','Mensagens de texto']]){const opt=h('option','',t);opt.value=v;missionEvent.append(opt);}
+    const missionEvent=h('select','select-input');for(const [v,t] of [['adopt','Adotar Pet'],['trade','Trocar card'],['daily_card','Resgatar card'],['daily_coins','Resgatar moedas'],['pet','Acariciar Pet'],['feed','Alimentar Pet'],['pack','Abrir pack'],['voice_minutes','Minutos em canal de voz'],['message_count','Mensagens de texto']]){const opt=h('option','',t);opt.value=v;missionEvent.append(opt);}
     const enabled=h('input');enabled.type='checkbox';enabled.checked=true;
     existing.onchange=()=>{const row=missionData.items.find(m=>m.code===existing.value);if(!row)return;
       for(const key of Object.keys(mFields))mFields[key].value=row[key]??'';
@@ -2069,7 +2148,7 @@
     if(game.local_development && ['localhost','127.0.0.1'].includes(location.hostname)){
       const dev=block('Ferramentas de teste local','Simulações exclusivas do ambiente local.');
       dev.append(button('Adicionar 5.000 moedas para minha conta',()=>safeRun(()=>API('/api/dev/grant-coins',{amount:5000}),'Moedas de teste adicionadas!')));
-      dev.append(button('Simular abandono → veterinário',()=>safeRun(()=>API('/api/dev/advance-pet',{stage:'vet'}),'Poro no veterinário!'),'soft-action'));
+      dev.append(button('Simular abandono → veterinário',()=>safeRun(()=>API('/api/dev/advance-pet',{stage:'vet'}),'Pet no veterinário!'),'soft-action'));
       dev.append(button('Simular prazo vencido → morte',()=>safeRun(()=>API('/api/dev/advance-pet',{stage:'death'}),'Prazo encerrado!'),'soft-action'));
       pane.append(dev);
     }
@@ -2100,7 +2179,7 @@
     coinTool.append(userIdRow,amountRow,coinActions,coinStatus);pane.append(coinTool);
     // Exclusivo dos administradores: zera apenas as publicações do Feed.
     const feedTool=block('Limpar Feed',
-      'Remove todas as publicações e curtidas da comunidade. Cards, Poros, moedas, missões, selos e o limite diário de recompensas permanecem intactos. Esta operação não pode ser desfeita.');
+      'Remove todas as publicações e curtidas da comunidade. Cards, Pets, moedas, missões, selos e o limite diário de recompensas permanecem intactos. Esta operação não pode ser desfeita.');
     const [feedConfirmField,feedConfirmInput]=adminField('Digite LIMPAR FEED para confirmar','');
     feedConfirmInput.autocomplete='off';
     feedConfirmInput.setAttribute('aria-label','Confirmação da limpeza do Feed');
@@ -2127,7 +2206,7 @@
     const feedResult=h('p','admin-entry-status','');
     feedTool.append(feedConfirmField,feedClearButton,feedResult);pane.append(feedTool);
 
-    const reset=block('Limpar progresso para testes','ATENÇÃO: apaga o progresso de TODOS os usuários (cards obtidos, moedas, Poros, trocas, selos e missões). As contas Discord e os catálogos permanecem. A operação não pode ser desfeita.');
+    const reset=block('Limpar progresso para testes','ATENÇÃO: apaga o progresso de TODOS os usuários (cards obtidos, moedas, Pets, trocas, selos e missões). As contas Discord e os catálogos permanecem. A operação não pode ser desfeita.');
     const [field,confirmation]=adminField('Digite LIMPAR TUDO para confirmar','');
     const resetButton=button('Apagar progresso de todos os usuários',async()=>{
       if(confirmation.value.trim()!=='LIMPAR TUDO'){toast('Digite LIMPAR TUDO para confirmar.');return;}
@@ -2138,14 +2217,14 @@
     resetButton.disabled=true;
     confirmation.addEventListener('input',()=>resetButton.disabled=confirmation.value.trim()!=='LIMPAR TUDO');
     reset.append(field,resetButton);pane.append(reset);
-    const groups=['Geral','Feed','Economia','Cards','Loja','Poros','Missões','Selos','Assets','Usuários','Integrações'];
+    const groups=['Geral','Feed','Economia','Cards','Loja','Pets','Missões','Selos','Assets','Usuários','Integrações'];
     const classify=(name)=>{
       const x=name.toLowerCase();
       if(x.includes('limpar feed'))return 'Feed';
       if(x.includes('valores configuráveis'))return 'Economia';
       if(x.includes('cadastrar card')||x.includes('gerenciar cards')||x.includes('coleção'))return 'Cards';
       if(x.includes('gerenciar itens')||x.includes('capa'))return 'Loja';
-      if(x.includes('cadastrar poro')||x.includes('gerenciar poros')||x.includes('colecionáveis')||x.includes('expedições'))return 'Poros';
+      if(x.includes('cadastrar poro')||x.includes('gerenciar poros')||x.includes('colecionáveis')||x.includes('expedições'))return 'Pets';
       if(x.includes('missões do recanto'))return 'Missões';
       if(x.includes('selo'))return 'Selos';
       if(x.includes('assets'))return 'Assets';
@@ -2179,7 +2258,6 @@
   };
   $('desktopSearch').onclick=()=>searchProfiles();
   $('desktopSettings').onclick=()=>$('settings').click();
-  $('desktopSettingsTop').onclick=()=>$('settings').click();
   $('desktopSeePet').onclick=()=>chooseTab('pet');
   $('mobileSeePet').onclick=()=>chooseTab('pet');
   $('refreshAdmin').onclick=()=>{resetCachedData();state.adminReady=false;openAdmin(true);};

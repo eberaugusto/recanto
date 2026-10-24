@@ -4,11 +4,11 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#5865f2">
   <title>Recanto</title>
-  <meta name="description" content="Recanto — coleção de cards, Poros e comunidade">
+  <meta name="description" content="Recanto — coleção de cards, Pets e comunidade">
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=0.2.10">
+  <link rel="stylesheet" href="/styles.css?v=0.2.11">
 </head>
 <body>
 <!-- Recanto 0.1.2 — layout responsivo e gestão com carregamento progressivo. -->
@@ -46,7 +46,7 @@
         <button type="button" class="desktop-side-link" data-tab="missoes"><svg><use href="#missions"/></svg><span>Missões</span></button>
         <button type="button" class="desktop-side-link" data-tab="inventario"><svg><use href="#inventory"/></svg><span>Inventário</span></button>
         <button type="button" class="desktop-side-link" data-tab="cards"><svg><use href="#cards"/></svg><span>Cards</span></button>
-        <button type="button" class="desktop-side-link" data-tab="pet"><svg><use href="#pet"/></svg><span>Poros</span></button>
+        <button type="button" class="desktop-side-link" data-tab="pet"><svg><use href="#pet"/></svg><span>Pets</span></button>
         <button type="button" class="desktop-side-link" data-tab="loja"><svg><use href="#shop"/></svg><span>Loja</span></button>
         <button type="button" class="desktop-side-link" id="desktopSettings"><svg><use href="#gear"/></svg><span>Configurações</span></button>
       </div>
@@ -55,7 +55,7 @@
       <button type="button" class="desktop-search" id="desktopSearch" aria-label="Buscar membros da comunidade"><svg aria-hidden="true"><use href="#person"/></svg><span>Buscar membros da comunidade...</span></button>
       <div class="desktop-topbar-actions">
         <div class="desktop-wallet-summary" aria-label="Saldos do perfil"><div class="desktop-coins"><svg><use href="#coin"/></svg><span><b id="desktopWallet">—</b><small>Moedas</small></span></div><div class="desktop-resource"><svg><use href="#cards"/></svg><span><b id="desktopCards">—</b><small>Cards</small></span></div><div class="desktop-resource"><svg><use href="#heart"/></svg><span><b id="desktopTreats">—</b><small>Petiscos</small></span></div></div>
-        <button type="button" class="desktop-settings" id="desktopSettingsTop" aria-label="Configurações"><svg><use href="#gear"/></svg></button>
+        
         <div class="desktop-user"><span class="desktop-user-avatar" id="desktopAvatar"></span><span id="desktopUserName">Meu Recanto</span></div>
       </div>
     </header>
@@ -80,18 +80,18 @@
       <div class="desktop-identity"><h2 id="desktopProfileName">Meu Recanto</h2><span class="desktop-online">● Online</span></div>
       </div>
       </div>
-      <section class="mobile-pet-widget" hidden aria-label="Meu Poro no perfil"><h2>🐾 Meu Poro</h2><div class="mobile-pet-content" id="mobilePetPreview"></div><button type="button" id="mobileSeePet" class="desktop-widget-action">Ver meu Poro →</button></section>
+      <section class="mobile-pet-widget" hidden aria-label="Meu Pet no perfil"><h2>🐾 Meu Pet</h2><div class="mobile-pet-content" id="mobilePetPreview"></div><button type="button" id="mobileSeePet" class="desktop-widget-action">Ver meu Pet →</button></section>
       <aside class="desktop-right-column">
-        <section class="desktop-pet-widget" aria-label="Meu Poro"><h2>🐾 Meu Poro</h2><div id="desktopPetPreview" class="desktop-pet-content"><p>Carregando companheiro...</p></div><button type="button" class="desktop-widget-action" id="desktopSeePet">Ver detalhes do Poro →</button></section>
+        <section class="desktop-pet-widget" aria-label="Meu Pet"><h2>🐾 Meu Pet</h2><div id="desktopPetPreview" class="desktop-pet-content"><p>Carregando companheiro...</p></div><button type="button" class="desktop-widget-action" id="desktopSeePet">Ver detalhes do Pet →</button></section>
         <section class="profile-discord-widget" id="discordWidgetSection"><h2><svg class="discord-mark"><use href="#discord"/></svg> Servidor do Discord</h2><div class="discord-widget-frame"><iframe id="discordServerFrame" title="Widget do servidor Recanto no Discord" loading="lazy" referrerpolicy="no-referrer" src="about:blank"></iframe></div><p class="discord-widget-help">Para ver membros e canais, habilite o Widget nas configurações do servidor Discord.</p><a class="desktop-widget-action" href="https://discord.com/channels/958567158479208458" target="_blank" rel="noopener noreferrer">Abrir servidor no Discord ↗</a></section>
       </aside>
     </div>
     <section class="content-page feed-screen" id="feedScreen" hidden>
-      <header class="content-head"><h1>✦ Feed</h1><span id="feedCount">Novidades da comunidade</span></header>
+      <header class="content-head"><h1><span class="section-title-icon" data-title-icon="feed"><svg aria-hidden="true"><use href="#heart"/></svg></span><span>Feed</span></h1><span id="feedCount">Novidades da comunidade</span></header>
       <div class="scroll-content feed-scroll"><div class="feed-info"><span>Atividades recentes da comunidade</span><span id="feedReward">Likes: até 20 moedas por dia</span></div><div id="feedList" aria-live="polite"></div></div>
     </section>
     <section class="content-page" id="cardsScreen" hidden>
-      <header class="content-head"><h1>✦ Cards</h1><span id="cardsCount">Coleção</span></header>
+      <header class="content-head"><h1><span class="section-title-icon" data-title-icon="cards"><svg aria-hidden="true"><use href="#cards"/></svg></span><span>Cards</span></h1><span id="cardsCount">Coleção</span></header>
       <div class="scroll-content">
         <div class="daily-card-box"><div class="daily-card-info"><div class="daily-icon" id="dailyCardIcon" aria-hidden="true">🃏</div><div><strong>Resgate de cards · 5h</strong><p id="cardCountdown">Carregando...</p></div></div><button class="main-action" id="dailyCard">Resgatar card</button></div>
         <div class="mini-tabs"><button class="mini-active" data-card-tab="colecao">Minha coleção</button><button data-card-tab="catalogo">Catálogo</button><button data-card-tab="trocas">Trocas</button></div>
@@ -100,19 +100,19 @@
       </div>
     </section>
     <section class="content-page" id="inventoryScreen" hidden>
-      <header class="content-head"><h1>✦ Inventário</h1><span id="inventorySummary">Meus itens</span></header>
-      <div class="scroll-content"><div class="mini-tabs"><button class="mini-active" data-inventory-tab="packs">🎴 Pacotes</button><button data-inventory-tab="petiscos">🍪 Itens de Poro</button><button data-inventory-tab="colecionaveis">🏆 Colecionáveis</button></div><div id="inventoryPane"></div></div>
+      <header class="content-head"><h1><span class="section-title-icon" data-title-icon="inventario"><svg aria-hidden="true"><use href="#inventory"/></svg></span><span>Inventário</span></h1><span id="inventorySummary">Meus itens</span></header>
+      <div class="scroll-content"><div class="mini-tabs"><button class="mini-active" data-inventory-tab="packs">🎴 Pacotes</button><button data-inventory-tab="petiscos">🍪 Itens de Pet</button><button data-inventory-tab="colecionaveis">🏆 Colecionáveis</button></div><div id="inventoryPane"></div></div>
     </section>
     <section class="content-page" id="petScreen" hidden>
-      <header class="content-head"><h1>✦ Meus Poros</h1><span id="petStatus">Companheiro</span></header>
+      <header class="content-head"><h1><span class="section-title-icon" data-title-icon="pet"><svg aria-hidden="true"><use href="#pet"/></svg></span><span>Meus Pets</span></h1><span id="petStatus">Companheiro</span></header>
       <div class="scroll-content" id="petPane"></div>
     </section>
     <section class="content-page" id="shopScreen" hidden>
-      <header class="content-head"><h1>✦ Loja</h1><span id="shopWallet">🪙 —</span></header>
+      <header class="content-head"><h1><span class="section-title-icon" data-title-icon="loja"><svg aria-hidden="true"><use href="#shop"/></svg></span><span>Loja</span></h1><span id="shopWallet">🪙 —</span></header>
       <div class="scroll-content" id="shopContent"><div class="shop-daily-coins"><div class="shop-daily-text"><strong>🪙 Recompensa diária</strong><p id="coinCountdown">Disponível hoje!</p></div><button type="button" class="white-action" id="dailyCoins">Resgatar moedas</button></div><div id="shopPane"></div></div>
     </section>
     <section class="content-page" id="missionsScreen" hidden>
-      <header class="content-head"><h1>✦ Missões</h1><span id="missionCount">Diárias</span></header>
+      <header class="content-head"><h1><span class="section-title-icon" data-title-icon="missoes"><svg aria-hidden="true"><use href="#missions"/></svg></span><span>Missões</span></h1><span id="missionCount">Diárias</span></header>
       <div class="scroll-content"><p class="reset-note" id="missionTimer"></p><div id="missionPane"></div></div>
     </section>
     <nav class="bottom-nav" aria-label="Menu principal">
@@ -120,7 +120,7 @@
       <button type="button" class="nav-item" data-tab="missoes" aria-label="Missões"><span class="nav-circle"><svg><use href="#missions"/></svg></span></button>
       <button type="button" class="nav-item" data-tab="inventario" aria-label="Inventário"><span class="nav-circle"><svg><use href="#inventory"/></svg></span></button>
       <button type="button" class="nav-item" data-tab="cards" aria-label="Cards"><span class="nav-circle"><svg><use href="#cards"/></svg></span></button>
-      <button type="button" class="nav-item" data-tab="pet" aria-label="Poros"><span class="nav-circle"><svg><use href="#pet"/></svg></span></button>
+      <button type="button" class="nav-item" data-tab="pet" aria-label="Pets"><span class="nav-circle"><svg><use href="#pet"/></svg></span></button>
       <button type="button" class="nav-item" data-tab="loja" aria-label="Loja"><span class="nav-circle"><svg><use href="#shop"/></svg></span></button>
     </nav>
     <div class="modal-backdrop" id="profilesModal" hidden><section class="modal-panel profiles-dialog" role="dialog" aria-modal="true" aria-label="Perfis da comunidade"><header class="modal-header"><h2>Comunidade</h2><button class="modal-close" id="closeProfiles" aria-label="Fechar">✕</button></header><div id="profilesPane"></div></section></div>
@@ -130,14 +130,14 @@
     <section class="full-page admin-page" id="adminModal" hidden aria-label="Gestão do Recanto"><div class="admin-dialog"><header class="modal-header"><h2>Gestão do Recanto</h2><div class="admin-header-actions"><button class="admin-refresh" type="button" id="refreshAdmin" title="Atualizar dados da gestão">↻ Atualizar</button><button class="modal-close" id="closeAdmin" aria-label="Fechar gestão">✕</button></div></header><div class="admin-scroll" id="adminContent"></div></div></section>
     <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
     <div class="modal-backdrop" id="modal" hidden><section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title"><header class="modal-header"><h2 id="settings-title">Configurações</h2><button class="modal-close" type="button" id="closeSettings" aria-label="Fechar">✕</button></header>
-      <div class="setting-row"><div class="setting-label"><svg><use href="#bell"/></svg><div><strong>Habilitar notificações</strong><span>Ative para receber avisos de Poros, cards e novidades.</span></div></div><button class="switch" type="button" role="switch" aria-label="Habilitar notificações" aria-checked="false" id="notificationsToggle"><span></span></button></div>
-      <div class="setting-row"><div class="setting-label"><svg><use href="#inventory"/></svg><div><strong>Modo escuro</strong><span>Deixa o aplicativo com visual mais escuro</span></div></div><button class="switch" type="button" role="switch" aria-label="Ativar modo escuro" aria-checked="false" id="darkModeToggle"><span></span></button></div>
+      <div class="setting-row"><div class="setting-label" data-setting-icon="notifications"><svg><use href="#bell"/></svg><div><strong>Habilitar notificações</strong><span>Ative para receber avisos de Pets, cards e novidades.</span></div></div><button class="switch" type="button" role="switch" aria-label="Habilitar notificações" aria-checked="false" id="notificationsToggle"><span></span></button></div>
+      <div class="setting-row"><div class="setting-label" data-setting-icon="theme"><svg><use href="#inventory"/></svg><div><strong>Modo escuro</strong><span>Deixa o aplicativo com visual mais escuro</span></div></div><button class="switch" type="button" role="switch" aria-label="Ativar modo escuro" aria-checked="false" id="darkModeToggle"><span></span></button></div>
       <p class="notifications-status" id="notificationsStatus" role="status" aria-live="polite" hidden></p>
       <button type="button" class="soft-action settings-admin" id="settingsAdmin" hidden aria-label="Abrir Gestão do Recanto"><svg aria-hidden="true"><use href="#gear"/></svg><span>Gestão do Recanto</span></button>
-      <button type="button" class="soft-action settings-update-check" id="checkUpdates">↻ Verificar atualizações</button>
-      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.2.10</p></section></div>
+      <button type="button" class="soft-action settings-update-check" id="checkUpdates"><svg aria-hidden="true"><use href="#missions"/></svg><span>Verificar atualizações</span></button>
+      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.2.11</p></section></div>
   </main>
 </div>
-<script src="/app.js?v=0.2.10" defer></script>
+<script src="/app.js?v=0.2.11" defer></script>
 </body>
 </html>

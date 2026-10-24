@@ -2623,3 +2623,61 @@ body.dark-mode .poro-stat-header{color:#eaf0ff;}
     aspect-ratio:2 / 3!important;
   }
 }
+
+
+/* RECANTO 0.2.11 — ícones gerenciáveis, favoritos e expedições */
+.section-title-icon{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;width:1.12em;height:1.12em;flex:0 0 auto;color:inherit;}
+.content-head h1{display:flex;align-items:center;gap:12px;min-width:0;}
+.section-title-icon>svg{width:100%;height:100%;display:block;fill:none;}
+.section-title-icon.asset-icon-host>.ui-asset-icon{width:100%!important;height:100%!important;object-fit:contain;}
+.asset-icon-host>svg{display:none!important;}
+.asset-icon-host>.ui-asset-icon{display:block!important;object-fit:contain;}
+.desktop-topbar .desktop-coins.asset-icon-host>.ui-asset-icon,
+.desktop-topbar .desktop-resource.asset-icon-host>.ui-asset-icon{width:27px!important;height:27px!important;max-width:27px!important;flex:0 0 27px;}
+.desktop-topbar .desktop-search.asset-icon-host>.ui-asset-icon{width:22px!important;height:22px!important;flex:0 0 22px;}
+.setting-label.asset-icon-host>.ui-asset-icon{width:24px!important;height:24px!important;max-width:24px!important;flex:0 0 24px;}
+#settingsAdmin.asset-icon-host>.ui-asset-icon,#checkUpdates.asset-icon-host>.ui-asset-icon{width:21px!important;height:21px!important;flex:0 0 21px;}
+#checkUpdates{display:flex;align-items:center;justify-content:center;gap:9px;}
+#checkUpdates>svg{width:21px;height:21px;flex:none;}
+/* A seção de campeões compartilha a dimensão e a grade dos jogos favoritos. */
+#profileContent .profile-champions{margin-bottom:0;}
+#profileContent .profile-champions .game-icon{border-radius:50%;overflow:hidden;}
+#profileContent .profile-champions .game-icons{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;justify-items:center;align-items:center;}
+#profileContent .profile-champions .game-icon img,.public-champions .game-icon img{border-radius:50%;}
+#profileContent .profile-champions .game-icon{width:clamp(40px,10vw,62px);height:clamp(40px,10vw,62px);}
+@media(min-width:768px){
+  #profileContent .profile-champions .game-icon{width:clamp(48px,5vw,76px);height:clamp(48px,5vw,76px);}
+}
+.champion-choices{grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:8px;max-height:min(55dvh,460px);overflow-y:auto;}
+.champion-choices .game-choice{min-width:0;display:flex;flex-direction:column;gap:8px;align-items:center;text-align:center;}
+.champion-choices .game-choice-icon{width:58px;height:58px;display:grid;place-items:center;}
+.champion-choices .game-choice-icon img{height:100%;width:100%;object-fit:cover;border-radius:12px;}
+/* Grades de três caixas no PC; cada caixa preserva campos empilhados verticalmente. */
+@media(min-width:1130px){
+  .admin-page .admin-scroll{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:18px!important;align-content:start!important;}
+  .admin-page .admin-dialog{width:min(100%,1560px)!important;max-width:1560px!important;}
+  .admin-page .admin-scroll>.game-box{grid-column:auto;align-self:start;min-width:0;width:100%;}
+}
+@media(min-width:768px) and (max-width:1129px){
+  .admin-page .admin-scroll{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important;align-content:start!important;}
+}
+@media(max-width:767px){.admin-page .admin-scroll{display:flex!important;flex-direction:column!important;}}
+.admin-page .admin-scroll>.game-box{display:flex;flex-direction:column;align-items:stretch;gap:12px;min-width:0;}
+.admin-page .admin-scroll>.game-box>*{min-width:0;max-width:100%;}
+.admin-page .admin-scroll>.game-box input,
+.admin-page .admin-scroll>.game-box select,
+.admin-page .admin-scroll>.game-box textarea{width:100%;min-width:0;max-width:100%;box-sizing:border-box;}
+/* Foto da expedição à direita no PC, texto e botão na esquerda. */
+#petPane .expedition-choice{display:flex;flex-direction:column;gap:12px;padding:17px 0;}
+#petPane .expedition-info{display:flex;flex-direction:column;align-items:flex-start;gap:12px;min-width:0;}
+#petPane .expedition-info strong{font-size:clamp(18px,1.45vw,22px);font-weight:800;line-height:1.25;}
+#petPane .expedition-info small{font-size:clamp(14px,1.1vw,16px);line-height:1.5;}
+#petPane .expedition-info>.soft-action{align-self:flex-start;margin-top:4px;}
+#petPane .expedition-choice .expedition-cover{width:100%;height:clamp(155px,20vw,240px);object-fit:cover;}
+#petPane .expedition-choice .expedition-cover img{width:100%;height:100%;object-fit:cover;}
+@media(min-width:768px){
+  #petPane .expedition-choice{display:grid;grid-template-columns:minmax(0,1fr) minmax(160px,36%);align-items:center;column-gap:20px;}
+  #petPane .expedition-cover{height:clamp(150px,14vw,230px)!important;min-width:0;}
+}
+/* Ajuda para Sorte: frase completa e legível, inclusive em telas pequenas. */
+.poro-luck-hint{font-size:clamp(12px,1vw,14px)!important;line-height:1.6!important;opacity:.92!important;}
