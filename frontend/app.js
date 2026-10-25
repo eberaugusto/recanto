@@ -2476,14 +2476,17 @@
     );
     missionBlock.append(missionVisibility);
     pane.append(missionBlock);
-    const integrations=block('Integrações','Voz e mensagens: configure RECANTO_BOT_SECRET e DISCORD_GUILD_ID no Render. O bot original da Oracle é compatível e não precisa de módulo adicional. Não execute dois coletores. O segredo jamais vai no navegador. Consulte o guia da versão 0.2.23.');
+    const integrations=block('Integrações','Voz e mensagens: configure RECANTO_BOT_SECRET e DISCORD_GUILD_ID no Render. O bot original da Oracle é compatível e não precisa de módulo adicional. Não execute dois coletores. O segredo jamais vai no navegador. Consulte o guia da versão 0.2.24.');
     const discordState=h('p','admin-style-help','Verificando conexão com o bot...');
     const refreshDiscordState=async()=>{
       try{
         const result=await API('/api/admin/discord-activity/status');
         discordState.textContent=(result.configured&&result.guild_configured?'✓ Credenciais configuradas.':'⚠ Configure RECANTO_BOT_SECRET e DISCORD_GUILD_ID no Render.')+
           ' Último evento: '+(result.last_event_at?new Date(result.last_event_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}):'ainda nenhum')+
-          ' · Última hora: '+(result.counted_last_hour?.voice_minutes||0)+' minuto(s) de voz, '+(result.counted_last_hour?.message_count||0)+' mensagem(ns).';
+          ' · Última hora: '+(result.counted_last_hour?.voice_minutes||0)+' minuto(s) de voz, '+(result.counted_last_hour?.message_count||0)+' mensagem(ns).'+
+          (result.bridge_version?' · Integração v'+result.bridge_version+' (rota: '+(result.legacy_endpoint_handler||'indisponível')+')':'')+
+          (result.received_total!==undefined?' · Total recebido: '+result.received_total+' · Contabilizados: '+result.counted_total+' · Não contabilizados: '+result.uncounted_total:'')+
+          (result.legacy_endpoint_route_count>1?' · ⚠ Existem múltiplas rotas de eventos!':'');
       }catch(err){discordState.textContent='Não foi possível consultar integração: '+err.message;}
     };
     integrations.append(discordState,button('Atualizar status Discord',refreshDiscordState,'soft-action'));

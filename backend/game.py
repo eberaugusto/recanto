@@ -938,6 +938,24 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
     # Esse bot (discord.Client + bot-queue.db) ja coleta mensagens e minutos
     # completos em voz, e envia eventos idempotentes no protocolo legado.
     # Nao ativar simultaneamente a extensao discord.py em outro processo.
+    # v0.2.24: no aplicativo completo o backend principal pode registrar uma
+    # rota antiga para este mesmo POST *antes* de chamar register_game().
+    # FastAPI usa a primeira rota correspondente, deixando a implementacao
+    # compatível da 0.2.23 inacessível mesmo após um deploy bem-sucedido.
+    # Substituímos somente rotas POST exatas, preservando outros métodos e URLs.
+    legacy_discord_path = '/api/integrations/discord/event'
+    legacy_routes_removed = []
+    for route in list(app.router.routes):
+        if (getattr(route, 'path', None) == legacy_discord_path
+                and 'POST' in (getattr(route, 'methods', None) or set())):
+            app.router.routes.remove(route)
+            legacy_routes_removed.append(getattr(getattr(route, 'endpoint', None), '__name__', '(desconhecido)'))
+    if legacy_routes_removed:
+        app.openapi_schema = None
+        logging.getLogger('recanto.discord').warning(
+            'Integração Discord 0.2.24: substituída(s) %s rota(s) POST legada(s): %s',
+            len(legacy_routes_removed), ', '.join(legacy_routes_removed))
+
     @app.post('/api/integrations/discord/event')
     async def discord_oracle_legacy_event(request: Request):
         expected = os.getenv('RECANTO_BOT_SECRET', '').strip()
@@ -1069,10 +1087,26 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 DiscordActivityEvent.received_at >= cutoff,
                 DiscordActivityEvent.counted.is_(True)
             ).group_by(DiscordActivityEvent.kind)).all()
+            totals = db.execute(select(DiscordActivityEvent.kind,
+                DiscordActivityEvent.counted, func.count(DiscordActivityEvent.event_id)
+            ).group_by(DiscordActivityEvent.kind, DiscordActivityEvent.counted)).all()
+            route_owners = [getattr(getattr(route, 'endpoint', None), '__name__', '(sem nome)')
+                for route in app.router.routes
+                if getattr(route, 'path', None) == legacy_discord_path
+                and 'POST' in (getattr(route, 'methods', None) or set())]
             return {'configured': len(os.getenv('RECANTO_BOT_SECRET', '').strip()) >= 32,
                     'guild_configured': bool(os.getenv('DISCORD_GUILD_ID', '').strip()),
                     'last_event_at': naive_to_utc(last).isoformat() if last else None,
-                    'counted_last_hour': dict(recent)}
+                    'counted_last_hour': dict(recent),
+                    'bridge_version': '0.2.24',
+                    'legacy_endpoint_handler': route_owners[0] if route_owners else None,
+                    'legacy_endpoint_route_count': len(route_owners),
+                    'legacy_routes_replaced_at_startup': len(legacy_routes_removed),
+                    'received_total': sum(int(x[2]) for x in totals),
+                    'counted_total': sum(int(x[2]) for x in totals if x[1]),
+                    'uncounted_total': sum(int(x[2]) for x in totals if not x[1]),
+                    'counted_by_type': {kind: sum(int(n) for k, counted, n in totals if k == kind and counted)
+                                        for kind in ('voice_minutes', 'message_count')}}
 
     @app.get('/api/achievements')
     def achievements(request: Request):
