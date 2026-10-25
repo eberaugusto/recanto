@@ -3264,3 +3264,191 @@ body.dark-mode .recanto-level-track{background:#3e4d80;}
 /* Textos informativos abaixo de cartões devem quebrar naturalmente, não encostar nas bordas. */
 .profile-info-description,.profile-info-note,.community-search-hint{overflow-wrap:anywhere;}
 .community-search-results{max-height:min(55dvh,450px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;}
+
+
+/* ===============================================================
+   RECANTO 0.3.0 — O perfil visitado utiliza o mesmo resumo do perfil
+   próprio; barra de EXP mais curta e descrições centralizadas.
+   =============================================================== */
+/* As mensagens dos favoritos ocupam toda a grade, não uma das seis
+   colunas reservadas às imagens dos jogos no PC. */
+#profileContent .profile-games .game-icons > p,
+#publicProfilePage .public-games .game-icons > p,
+#publicProfilePage .public-champions .game-icons > p,
+#profileContent .profile-champions .game-icons > p {
+  box-sizing:border-box!important;display:block!important;
+  width:100%!important;max-width:100%!important;
+  flex:0 0 100%!important;grid-column:1 / -1!important;
+  justify-self:center!important;align-self:center!important;
+  text-align:center!important;margin:0 auto!important;
+  padding:6px 8px!important;line-height:1.5!important;
+  font-size:clamp(12px,1vw,15px)!important;
+  white-space:normal!important;overflow-wrap:normal!important;
+}
+/* Barra ligeiramente mais curta, afastando-a do Card Favorito. */
+@media(min-width:768px){
+  #profileContent .desktop-identity .profile-level-desktop{max-width:330px!important;}
+  #profileContent .desktop-identity .recanto-level{max-width:330px!important;}
+  #publicProfilePage .public-level-desktop{width:100%;max-width:310px!important;margin-top:19px;}
+  #publicProfilePage .public-level-desktop .recanto-level{width:100%;max-width:310px!important;margin-top:0;}
+  #profileContent .profile-games .game-icons > p,
+  #profileContent .profile-champions .game-icons > p,
+  #publicProfilePage .public-games .game-icons > p,
+  #publicProfilePage .public-champions .game-icons > p{
+    white-space:nowrap!important;overflow-wrap:normal!important;
+  }
+}
+@media(max-width:767px){
+  #profileContent .profile-games .game-icons > p,
+  #profileContent .profile-champions .game-icons > p,
+  #publicProfilePage .public-games .game-icons > p,
+  #publicProfilePage .public-champions .game-icons > p{
+    white-space:normal!important;overflow-wrap:anywhere!important;
+    max-width:100%!important;min-width:0!important;
+    font-size:13px!important;padding:6px 10px!important;
+  }
+}
+/* Elementos usados em ambas as apresentações do perfil visitado. */
+#publicProfilePage .public-profile-layout-v030{min-width:0;}
+#publicProfilePage .public-profile-hero-v030{background:#fff;color:#2b397c;box-sizing:border-box;min-width:0;overflow:visible;}
+#publicProfilePage .public-visited-avatar{box-sizing:border-box;border-radius:50%;overflow:hidden;
+  aspect-ratio:1;border:4px solid #ffc400;background:#bfc0c2;display:grid;place-items:center;}
+#publicProfilePage .public-visited-avatar>img{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;}
+#publicProfilePage .public-profile-thumb{color:#fff;font-size:48px;}
+#publicProfilePage .public-online{display:inline-flex;align-items:center;width:max-content;
+  color:#16865b;background:#dcf8e6;border-radius:999px;font-size:13px;padding:7px 13px;}
+#publicProfilePage .public-identity-info{min-width:0;}
+#publicProfilePage .public-identity-info h3{font-weight:800;color:#293a80;margin:0 0 15px;line-height:1.18;overflow-wrap:anywhere;}
+#publicProfilePage .public-hero-favorite{display:flex;flex-direction:column;align-items:center;gap:9px;
+  justify-content:center;min-width:0;text-align:center;cursor:default;}
+#publicProfilePage .public-favorite-art{width:100%;min-width:0;min-height:0;flex:1 1 auto;display:flex;overflow:hidden;}
+#publicProfilePage .public-favorite-art .item-cover,
+#publicProfilePage .public-empty-favorite{height:100%!important;max-height:none!important;width:100%!important;
+  border-radius:12px;object-fit:cover;background:#5865f2;display:grid;place-items:center;
+  color:#fff;font-size:24px;cursor:zoom-in;}
+#publicProfilePage .public-empty-favorite{cursor:default;}
+#publicProfilePage .public-favorite-label{font-size:14px;font-weight:800;color:#5865f2;white-space:nowrap;}
+#publicProfilePage .public-level-mobile,#publicProfilePage .public-visited-greeting,#publicProfilePage .public-visited-stats{display:none;}
+#publicProfilePage .public-profile-layout-v030 .public-section{background:#fff;border-radius:22px;min-width:0;}
+#publicProfilePage .public-profile-layout-v030 .public-section .game-icons{min-width:0;}
+#publicProfilePage .public-profile-layout-v030 .public-games .game-icons,
+#publicProfilePage .public-profile-layout-v030 .public-champions .game-icons{display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));justify-items:center;gap:12px;}
+#publicProfilePage .public-profile-layout-v030 .public-games .game-icon,
+#publicProfilePage .public-profile-layout-v030 .public-champions .game-icon{width:clamp(45px,5vw,70px);height:clamp(45px,5vw,70px);
+  border-radius:50%;background:#eef0ff;overflow:hidden;padding:0;}
+#publicProfilePage .public-profile-layout-v030 .public-games .game-icon img,
+#publicProfilePage .public-profile-layout-v030 .public-champions .game-icon img{border-radius:50%;}
+@media(min-width:768px){
+  #publicProfilePage .public-profile-layout-v030{grid-template-columns:minmax(0,1.65fr) minmax(280px,.94fr);gap:var(--recanto-card-gap);}
+  #publicProfilePage .public-profile-hero-v030{
+    display:grid!important;position:relative;grid-template-columns:clamp(125px,13vw,220px) minmax(0,1fr) clamp(110px,12vw,188px);
+    gap:clamp(14px,2vw,30px);align-items:center;
+    min-height:358px!important;height:358px!important;padding:20px clamp(20px,2vw,36px);
+  }
+  #publicProfilePage .public-visited-avatar{width:100%;max-width:220px;align-self:center;}
+  #publicProfilePage .public-identity-info{align-self:center;}
+  #publicProfilePage .public-identity-info h3{font-size:clamp(21px,2.2vw,34px)!important;}
+  #publicProfilePage .public-hero-favorite{order:initial!important;margin:0!important;width:100%!important;
+    height:304px;align-self:center;gap:8px;}
+  #publicProfilePage .public-favorite-art{width:100%;max-height:264px;}
+  #publicProfilePage .public-visited-stats,#publicProfilePage .public-level-mobile,#publicProfilePage .public-visited-greeting{display:none!important;}
+  #publicProfilePage .public-identity-info .public-level-desktop{margin-top:17px!important;}
+  #publicProfilePage .public-identity-info .recanto-level-icon{width:39px;height:39px;flex-basis:39px;font-size:27px;}
+  #publicProfilePage .public-identity-info .recanto-level-heading strong{font-size:13px;}
+  #publicProfilePage .public-identity-info .recanto-level-heading small{font-size:10px;}
+  #publicProfilePage .public-profile-layout-v030 .public-profile-main{min-width:0;}
+  #publicProfilePage .public-profile-layout-v030 .public-profile-aside{min-width:0;}
+}
+@media(min-width:768px) and (max-width:1080px){
+  #publicProfilePage .public-profile-layout-v030{grid-template-columns:1fr!important;}
+  #publicProfilePage .public-profile-hero-v030{grid-template-columns:clamp(118px,17vw,170px) minmax(0,1fr) clamp(105px,15vw,160px);}
+}
+@media(max-width:767px){
+  /* Mesmo visual azul do perfil próprio, sem afetar as outras telas. */
+  #publicProfilePage.public-profile-page{background:#5865f2!important;color:#fff;padding:0 0 0!important;}
+  #publicProfilePage .full-page-header{display:flex;align-items:center;justify-content:center;flex:none;
+    padding:calc(12px + env(safe-area-inset-top,0px)) 6% 4px;min-height:54px;margin:0;max-width:none;color:#fff;}
+  #publicProfilePage .full-page-header h2{display:none;}
+  #publicProfilePage .public-back-actions{display:flex;flex-wrap:wrap;gap:8px;width:100%;justify-content:space-between;}
+  #publicProfilePage .public-back-actions .soft-action{color:#263f9b;background:#fff;font-size:12px;}
+  #publicProfilePage .public-profile-scroll{padding:0 6% calc(110px + env(safe-area-inset-bottom,0px));max-width:none;
+    overflow-x:hidden;width:100%;flex:1;box-sizing:border-box;}
+  #publicProfilePage .public-profile-scroll>.public-back-search{display:none;}
+  #publicProfilePage .public-visited-greeting{display:flex!important;align-items:center;gap:13px;
+    font-size:clamp(18px,5vw,27px);font-weight:700;line-height:1.25;padding:22px 0 0;
+    width:100%;min-width:0;overflow-wrap:anywhere;color:#fff;}
+  #publicProfilePage .public-visited-discord{font-size:22px;color:#fff;}
+  #publicProfilePage .public-profile-layout-v030{display:flex;flex-direction:column;gap:16px;margin-top:clamp(108px,13dvh,152px);}
+  #publicProfilePage .public-profile-layout-v030 .public-profile-main,
+  #publicProfilePage .public-profile-layout-v030 .public-profile-aside{display:flex;flex-direction:column;gap:16px;min-width:0;}
+  #publicProfilePage .public-profile-hero-v030{display:grid!important;position:relative;overflow:visible;
+    grid-template-columns:minmax(0,1fr) 1px minmax(0,.88fr);gap:6%;align-items:end;
+    width:100%;min-height:300px;height:clamp(290px,36dvh,385px);padding:clamp(120px,14dvh,155px) 7% 35px;
+    border-radius:25px;box-sizing:border-box;}
+  #publicProfilePage .public-visited-avatar{position:absolute;top:clamp(-96px,-11dvh,-70px);left:50%;
+    transform:translateX(-50%);width:clamp(155px,39vw,205px);height:auto;z-index:3;}
+  #publicProfilePage .public-identity-info{display:none!important;}
+  #publicProfilePage .public-visited-stats{display:flex!important;grid-column:1;align-self:stretch;
+    flex-direction:column;justify-content:center;gap:clamp(10px,1.7dvh,17px);position:relative;min-width:0;}
+  #publicProfilePage .public-visited-stats::after{content:'';position:absolute;right:-6%;top:10%;bottom:10%;width:1px;background:#d6d6d6;}
+  #publicProfilePage .public-visited-stat{display:flex;align-items:center;gap:8px;min-width:0;
+    color:#5865f2;white-space:nowrap;font-size:clamp(12px,3.2vw,17px);}
+  #publicProfilePage .public-stat-symbol{font-size:clamp(18px,5.5vw,27px);flex:none;}
+  #publicProfilePage .public-stat-count{color:#efbf28;font-weight:600;}
+  #publicProfilePage .public-stat-name{font-weight:700;overflow:hidden;text-overflow:ellipsis;}
+  #publicProfilePage .public-hero-favorite{grid-column:3;align-self:stretch;gap:10px;
+    justify-content:flex-end;width:100%!important;height:auto;margin:0!important;min-width:0;}
+  #publicProfilePage .public-favorite-art{max-height:230px;min-height:130px;}
+  #publicProfilePage .public-favorite-label{font-size:clamp(12px,3.5vw,17px);}
+  #publicProfilePage .public-level-mobile{display:flex!important;align-items:center;
+    min-height:82px;width:100%;padding:17px 20px;background:#fff;
+    color:#283b83;border-radius:20px;box-shadow:0 6px 22px #2128791a;}
+  #publicProfilePage .public-level-mobile .recanto-level{width:100%;gap:14px;}
+  #publicProfilePage .public-profile-layout-v030 .public-section{margin:0!important;padding:18px 20px!important;}
+  #publicProfilePage .public-profile-layout-v030 .public-games .game-icons,
+  #publicProfilePage .public-profile-layout-v030 .public-champions .game-icons{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+  #publicProfilePage .public-profile-layout-v030 .public-games .game-icon,
+  #publicProfilePage .public-profile-layout-v030 .public-champions .game-icon{width:clamp(52px,16vw,72px);height:clamp(52px,16vw,72px);}
+  #publicProfilePage .public-profile-layout-v030 .public-badges-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;}
+  #publicProfilePage .public-profile-layout-v030 .public-section .game-icons > p{grid-column:1/-1!important;}
+  #publicProfilePage .public-profile-layout-v030 .public-section h3{font-size:17px;}
+  #publicProfilePage .public-profile-layout-v030 .public-section .public-empty-description{text-align:center!important;}
+}
+body.dark-mode #publicProfilePage .public-profile-hero-v030,
+body.dark-mode #publicProfilePage .public-level-mobile,
+body.dark-mode #publicProfilePage .public-profile-layout-v030 .public-section{background:#1b2949!important;color:#f3f6ff!important;}
+body.dark-mode #publicProfilePage .public-identity-info h3{color:#f3f6ff!important;}
+body.dark-mode #publicProfilePage .public-level-mobile .recanto-level{color:#f3f6ff!important;}
+@media(max-width:767px){
+  body.dark-mode #publicProfilePage.public-profile-page{background:#111a33!important;}
+  body.dark-mode #publicProfilePage .public-visited-greeting{color:#f3f6ff!important;}
+}
+/* v0.3.0 — O Card Favorito do perfil visitado fica integralmente dentro
+   da caixa branca no Mobile; não invade a faixa do nível. */
+@media(max-width:767px){
+  #publicProfilePage .public-profile-hero-v030{
+    height:clamp(340px,42dvh,425px)!important;
+    min-height:340px!important;
+    padding-top:clamp(118px,14dvh,145px)!important;
+    padding-bottom:31px!important;
+    grid-template-rows:minmax(0,1fr)!important;
+  }
+  #publicProfilePage .public-visited-stats{
+    height:185px!important;max-height:100%!important;
+    align-self:end!important;min-height:0!important;
+  }
+  #publicProfilePage .public-hero-favorite{
+    height:185px!important;max-height:100%!important;
+    align-self:end!important;min-height:0!important;
+    justify-content:flex-end!important;
+  }
+  #publicProfilePage .public-favorite-art{
+    flex:1 1 auto!important;height:155px!important;
+    min-height:0!important;max-height:155px!important;
+  }
+  #publicProfilePage .public-favorite-art .item-cover,
+  #publicProfilePage .public-empty-favorite{
+    height:100%!important;max-height:100%!important;
+  }
+}

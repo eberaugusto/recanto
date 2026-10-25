@@ -1167,63 +1167,86 @@
     section.append(grid);
     return section;
   }
+  // v0.3.0 — Um único layout para os perfis visitados, com os mesmos elementos
+  // do resumo do perfil próprio no desktop e no mobile.
+  function publicProfileHero(profile){
+    const hero=h('section','public-profile-hero public-profile-hero-v030');
+    hero.setAttribute('aria-label','Resumo do perfil de '+profile.name);
+    const portrait=h('div','public-visited-avatar');
+    if(profile.avatar_url){const img=h('img');img.src=profile.avatar_url;img.alt='Foto de '+profile.name;img.loading='lazy';portrait.append(img);}
+    else portrait.append(h('span','public-profile-thumb','◉'));
+    const meta=h('div','public-identity-info');
+    meta.append(h('h3','',profile.name),h('span','public-online','● Membro do Recanto'));
+    if(profile.level_info){const wrap=h('div','public-level-desktop');wrap.append(levelBadge(profile.level_info));meta.append(wrap);}
+    const favorite=h('div','public-hero-favorite');
+    const art=h('div','public-favorite-art');
+    if(profile.favorite){
+      const cover=mediaCover(profile.favorite.image_url,'?',profile.favorite.name,'item-cover');
+      cover.setAttribute('role','button');cover.tabIndex=0;
+      cover.setAttribute('aria-label','Ampliar card favorito de '+profile.name);
+      const show=()=>showCard(profile.favorite,'Card favorito de '+profile.name,true);
+      cover.addEventListener('click',show);
+      cover.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();show();}});
+      art.append(cover);
+    }else{
+      art.append(h('div','public-empty-favorite','?'));
+    }
+    favorite.append(art,h('span','public-favorite-label','Card Favorito'));
+    const stats=h('div','public-visited-stats');
+    for(const [symbol,value,label] of [
+      ['🪙',profile.coins ?? 0,'Moedas'],
+      ['🃏',profile.cards ?? 0,'Cards'],
+      ['🍪',profile.treats ?? 0,'Petiscos']]){
+      const row=h('div','public-visited-stat');
+      row.append(h('span','public-stat-symbol',symbol),h('strong','public-stat-count',String(Math.max(0,Number(value)||0))),h('span','public-stat-name',label));
+      stats.append(row);
+    }
+    hero.append(portrait,meta,stats,favorite);
+    return hero;
+  }
   async function openPublicProfile(uid){
     try{
       const [d,items]=await Promise.all([API('/api/community/profiles/'+encodeURIComponent(uid)),API('/api/inventory')]);
       $('profilesModal').hidden=true;$('publicProfilePage').hidden=false;
       const pane=$('publicProfileContent');pane.replaceChildren();
-      // No celular, preservar a composição 0.1.4 já aprovada; o dashboard vale apenas para PC.
-      if(!matchMedia('(min-width:768px)').matches){
-        pane.append(button('← Voltar à busca',()=>{$('publicProfilePage').hidden=true;searchProfiles();},'soft-action'));
-        const title=h('div','public-identity');
-        if(d.avatar_url){const img=h('img');img.src=d.avatar_url;img.alt=d.name;title.append(img);}else title.append(h('div','profile-thumb','◉'));
-        const meta=h('div');meta.append(h('h3','',d.name),h('p','',d.cards+' cards na coleção'));if(d.level_info)meta.append(levelBadge(d.level_info));title.append(meta);pane.append(title);
-        if(d.favorite){const fav=block('★ Card favorito',d.favorite.name);fav.classList.add('public-section','public-favorite');
-          const art=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');art.setAttribute('role','button');art.tabIndex=0;art.addEventListener('click',()=>showCard(d.favorite,'Card favorito',true));art.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showCard(d.favorite,'Card favorito',true);}});fav.prepend(art);pane.append(fav);}
-        const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section');const line=h('div','public-badges');
-        (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip');badge.append(iconArtwork(b.image_url,b.icon||'🏅'));makeProfileItemInteractive(badge,b,'badge');line.append(badge);});
-        if(!d.badges?.length)line.append(h('p','','Nenhum selo por enquanto.'));badges.append(line);pane.append(badges);
-        const publicChampions=block('⚔️ Campeões favoritos');publicChampions.classList.add('public-section','public-champions');
-        const championList=h('div','game-icons');
-        if(!d.favorite_champions?.length)championList.append(h('p','','Nenhum campeão selecionado.'));
-        for(const champ of d.favorite_champions||[]){const chip=h('span','game-icon');chip.append(gameIcon(champ));makeProfileItemInteractive(chip,champ,'champion');championList.append(chip);}
-        publicChampions.append(championList);pane.append(publicChampions);
-        const favorites=block('🎮 Jogos favoritos');favorites.classList.add('public-section');
-        const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
-        for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));makeProfileItemInteractive(chip,game,'game');gameIcons.append(chip);}
-        favorites.append(gameIcons);pane.append(favorites);
-        if(d.collectibles?.length){const found=block('🏆 Colecionáveis');found.classList.add('public-section','public-collectibles');const grid=h('div','collectible-grid');
-          for(const item of d.collectibles){const tile=h('article','collectible-item');tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'));tile.append(h('strong','',item.name),h('small','',`×${item.quantity}`));if(item.description)tile.title=item.description;grid.append(tile);}found.append(grid);pane.append(found);}
-        pane.append(publicPetCard(d,items));
-        pane.append(publicMemberCardsSection(d));
-        return;
-      }
+      // As duas visualizações compartilham os mesmos elementos; apenas a
+      // disposição muda via CSS, sem reconstruir o DOM ao girar a tela.
       const back=button('← Voltar à busca',()=>{$('publicProfilePage').hidden=true;searchProfiles();},'soft-action public-back-search');
       pane.append(back);
-      const layout=h('div','public-profile-layout');const main=h('div','public-profile-main');const aside=h('div','public-profile-aside');
-      const hero=h('section','public-profile-hero');
-      const title=h('div','public-identity');
-      if(d.avatar_url){const img=h('img');img.src=d.avatar_url;img.alt=d.name;title.append(img);}else title.append(h('div','profile-thumb','◉'));
-      const meta=h('div','public-identity-info');meta.append(h('h3','',d.name),h('span','public-online','● Perfil da comunidade'),h('p','public-card-count',`${d.cards} card(s) na coleção`));if(d.level_info)meta.append(levelBadge(d.level_info));title.append(meta);hero.append(title);
-      if(d.favorite){const recent=h('div','public-hero-favorite');const cover=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');cover.tabIndex=0;cover.setAttribute('role','button');cover.setAttribute('aria-label','Ampliar card favorito de '+d.name);cover.addEventListener('click',()=>showCard(d.favorite,'Card favorito de '+d.name,true));cover.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showCard(d.favorite,'Card favorito de '+d.name,true);}});recent.append(cover,h('strong','','Card favorito: '+d.favorite.name));hero.prepend(recent);}
-      main.append(hero);
-      const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section','public-badges');const line=h('div','public-badges-row');
+      const greeting=h('div','public-visited-greeting');
+      greeting.append(h('span','public-visited-discord','◉'),h('span','',`Olá, ${d.name}`));
+      pane.append(greeting);
+      const layout=h('div','public-profile-layout public-profile-layout-v030');
+      const main=h('div','public-profile-main');const aside=h('div','public-profile-aside');
+      main.append(publicProfileHero(d));
+      if(d.level_info){
+        const mobileLevel=h('div','public-level-mobile');mobileLevel.append(levelBadge(d.level_info));
+        main.append(mobileLevel);
+      }
+      const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section','public-badges');
+      const line=h('div','public-badges-row');
       (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip');badge.append(iconArtwork(b.image_url,b.icon||'🏅'));makeProfileItemInteractive(badge,b,'badge');line.append(badge);});
-      if(!d.badges?.length)line.append(h('p','','Nenhum selo por enquanto.'));badges.append(line);main.append(badges);
-      const publicChampions=block('⚔️ Campeões favoritos');publicChampions.classList.add('public-section','public-champions');
+      if(!d.badges?.length)line.append(h('p','public-empty-description','Nenhum selo por enquanto.'));
+      badges.append(line);main.append(badges);
+      const champions=block('⚔️ Campeões favoritos');champions.classList.add('public-section','public-champions');
       const championList=h('div','game-icons');
-      if(!d.favorite_champions?.length)championList.append(h('p','','Nenhum campeão selecionado.'));
-      for(const champ of d.favorite_champions||[]){const chip=h('span','game-icon');chip.append(gameIcon(champ));makeProfileItemInteractive(chip,champ,'champion');championList.append(chip);}
-      publicChampions.append(championList);main.append(publicChampions);
-      const favorites=block('🎮 Jogos favoritos');favorites.classList.add('public-section','public-games');
-      const gameIcons=h('div','game-icons');if(!d.favorite_games?.length)gameIcons.append(h('p','','Nenhum jogo selecionado.'));
-      for(const game of d.favorite_games||[]){const chip=h('span','game-icon');chip.append(gameIcon(game));makeProfileItemInteractive(chip,game,'game');gameIcons.append(chip);}
-      favorites.append(gameIcons);main.append(favorites);
-      if(d.collectibles?.length){const found=block('🏆 Colecionáveis');found.classList.add('public-section','public-collectibles');const grid=h('div','collectible-grid');
-        for(const item of d.collectibles){const tile=h('article','collectible-item');tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'));tile.append(h('strong','',item.name),h('small','',`×${item.quantity}`));if(item.description)tile.title=item.description;grid.append(tile);}found.append(grid);main.append(found);}
-      aside.append(publicPetCard(d,items));
-      aside.append(publicMemberCardsSection(d));
+      if(!d.favorite_champions?.length)championList.append(h('p','public-empty-description','Nenhum campeão selecionado.'));
+      for(const champ of d.favorite_champions||[]){const chip=h('button','game-icon');chip.append(gameIcon(champ));makeProfileItemInteractive(chip,champ,'champion');championList.append(chip);}
+      champions.append(championList);main.append(champions);
+      const games=block('🎮 Jogos favoritos');games.classList.add('public-section','public-games');
+      const gameIcons=h('div','game-icons');
+      if(!d.favorite_games?.length)gameIcons.append(h('p','public-empty-description','Nenhum jogo selecionado.'));
+      for(const game of d.favorite_games||[]){const chip=h('button','game-icon');chip.append(gameIcon(game));makeProfileItemInteractive(chip,game,'game');gameIcons.append(chip);}
+      games.append(gameIcons);main.append(games);
+      if(d.collectibles?.length){
+        const found=block('🏆 Colecionáveis');found.classList.add('public-section','public-collectibles');
+        const grid=h('div','collectible-grid');
+        for(const item of d.collectibles){const tile=h('article','collectible-item');tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'));tile.append(h('strong','',item.name),h('small','',`×${item.quantity}`));if(item.description)tile.title=item.description;grid.append(tile);}
+        found.append(grid);main.append(found);
+      }
+      aside.append(publicPetCard(d,items),publicMemberCardsSection(d));
       layout.append(main,aside);pane.append(layout);
+      applyUiAssets();
     }catch(err){toast(err.message);}
   }
   function publicPetCard(profile,inventory){

@@ -2219,7 +2219,14 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             public_cards=[{'card_id':row[0], 'name':row[1], 'rarity':row[2],
                            'image_url':row[3], 'collection':row[4] or 'Recanto Original'}
                           for row in holdings]
+            # Totais públicos necessários para que o resumo do perfil visitado
+            # tenha a mesma composição de Moedas / Cards / Petiscos do perfil próprio.
+            # Não expor histórico da carteira, IDs de itens ou dados de transações.
+            public_wallet=db.get(Wallet,member_id)
+            public_coins=max(0,int(public_wallet.coins or 0)) if public_wallet else 0
+            public_treats=max(0,int(public_wallet.treats or 0)) if public_wallet else 0
             return {'key':user.id,'name':user.username,'avatar_url':user.avatar_url,
+                    'coins':public_coins,'treats':public_treats,
                     'cards':len(public_cards),'collection_cards':public_cards,
                     'badges':[{'title':x[0],'icon':x[1],'image_url':x[2]} for x in badges],
                     'favorite':favorite_info(db,member_id),
