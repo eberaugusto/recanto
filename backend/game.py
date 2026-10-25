@@ -934,6 +934,59 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 provided[7:].encode('utf-8'), expected.encode('utf-8')):
             raise HTTPException(401, detail='Chave do bot inválida')
 
+    # RECANTO v0.2.23 — Compatibilidade com o bot Oracle original.
+    # Esse bot (discord.Client + bot-queue.db) ja coleta mensagens e minutos
+    # completos em voz, e envia eventos idempotentes no protocolo legado.
+    # Nao ativar simultaneamente a extensao discord.py em outro processo.
+    @app.post('/api/integrations/discord/event')
+    async def discord_oracle_legacy_event(request: Request):
+        expected = os.getenv('RECANTO_BOT_SECRET', '').strip()
+        if len(expected) < 32:
+            raise HTTPException(503, detail='Integração Discord não configurada no Render')
+        supplied = request.headers.get('x-recanto-bot-secret', '').strip()
+        if not hmac.compare_digest(supplied.encode('utf-8'), expected.encode('utf-8')):
+            raise HTTPException(401, detail='Chave do bot inválida')
+        guild_id = os.getenv('DISCORD_GUILD_ID', '').strip()
+        if not (guild_id.isascii() and guild_id.isdigit()):
+            raise HTTPException(503, detail='DISCORD_GUILD_ID não configurado no Render')
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise HTTPException(422, detail='JSON inválido')
+        uid = str(data.get('discord_id', '')).strip()
+        raw_event_id = str(data.get('event_id', '')).strip()
+        kind = str(data.get('event', '')).strip()
+        amount = data.get('amount')
+        if not (uid.isascii() and uid.isdigit() and 15 <= len(uid) <= 22):
+            raise HTTPException(422, detail='ID do membro inválido')
+        if not raw_event_id or len(raw_event_id) > 128 or any(ord(c) < 33 for c in raw_event_id):
+            raise HTTPException(422, detail='Identificador do evento inválido')
+        if kind not in ('voice_minutes', 'message_count'):
+            raise HTTPException(422, detail='Tipo de evento inválido')
+        if type(amount) is not int or (kind == 'voice_minutes' and not 1 <= amount <= 15) or (kind == 'message_count' and amount != 1):
+            raise HTTPException(422, detail='Quantidade do evento inválida')
+        # IDs do bot Oracle pertencem ao espaço de nomes do bot legado, que
+        # nao se confunde com os IDs minuto/mensagem do bridge moderno.
+        receipt_id = 'oracle:' + guild_id + ':' + hashlib.sha256(
+            raw_event_id.encode('utf-8')).hexdigest()
+        now = utcnow()
+        with writing() as db:
+            prior = db.get(DiscordActivityEvent, receipt_id)
+            if prior:
+                return {'ok': True, 'duplicate': True, 'counted': bool(prior.counted)}
+            user = db.get(User, uid)
+            counted = user is not None
+            db.add(DiscordActivityEvent(event_id=receipt_id, guild_id=guild_id,
+                user_id=uid, kind=kind, occurred_at=now,
+                received_at=now, counted=counted))
+            if counted:
+                # O protocolo legado nao inclui o horario original do evento:
+                # a missao diaria recebe credito na data do recebimento.
+                progress(db, uid, kind, amount)
+                achievement_event(db, uid, kind, amount)
+            return {'ok': True, 'duplicate': False, 'counted': counted,
+                    'registered': counted, 'credited': amount if counted else 0,
+                    'reason': None if counted else 'membro ainda não entrou no Recanto'}
+
     @app.post('/api/integrations/discord/activity')
     async def discord_bridge_activity(request: Request):
         check_discord_bridge(request)
@@ -992,7 +1045,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             # 36h podem ser removidos sem permitir contagem duplicada.
             if kind == 'voice_minutes' and int(moment.timestamp() // 60) % 60 == 0:
                 db.execute(delete(DiscordActivityEvent).where(
-                    DiscordActivityEvent.received_at < utcnow() - timedelta(hours=36)))
+                    DiscordActivityEvent.received_at < utcnow() - timedelta(hours=36),
+                    DiscordActivityEvent.event_id.notlike('oracle:%')))
             if counted:
                 # Evento atrasado de ontem conta para o selo permanente, mas
                 # nunca ganha crédito indevido na missão diária de hoje.

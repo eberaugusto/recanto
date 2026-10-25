@@ -2476,7 +2476,7 @@
     );
     missionBlock.append(missionVisibility);
     pane.append(missionBlock);
-    const integrations=block('Integrações','Voz e mensagens: configure RECANTO_BOT_SECRET e DISCORD_GUILD_ID no Render e instale o módulo de eventos no bot. O segredo jamais vai no navegador. Consulte o guia da versão 0.2.22.');
+    const integrations=block('Integrações','Voz e mensagens: configure RECANTO_BOT_SECRET e DISCORD_GUILD_ID no Render. O bot original da Oracle é compatível e não precisa de módulo adicional. Não execute dois coletores. O segredo jamais vai no navegador. Consulte o guia da versão 0.2.23.');
     const discordState=h('p','admin-style-help','Verificando conexão com o bot...');
     const refreshDiscordState=async()=>{
       try{
