@@ -17,6 +17,7 @@ import time
 import httpx
 import random
 import secrets
+import hmac
 import json
 import re
 import uuid
@@ -158,8 +159,8 @@ TREAT_TYPES = {'biscoito':{'name':'Biscoito','food':15,'emoji':'🍪'},
                'fruta':{'name':'Frutinha','food':30,'emoji':'🍓'},
                'banquete':{'name':'Banquete','food':55,'emoji':'🍖'},
                'vacina':{'name':'Vacina','food':0,'emoji':'💉'}}
-MISSION_EMOJI = {'daily_card':'🃏','daily_coins':'🪙','trade':'🔄','pet':'💗','feed':'🍪','adopt':'🐾','pack':'🎁'}
-# O evento voice_minutes não é emitido pelo PWA: precisa de integração Gateway autorizada.
+MISSION_EMOJI = {'daily_card':'🃏','daily_coins':'🪙','trade':'🔄','pet':'💗','feed':'🍪','adopt':'🐾','pack':'🎁','voice_minutes':'🎙️','message_count':'💬'}
+# Eventos de voz e mensagens só são aceitos do bot autenticado, nunca do navegador.
 SEED_BADGES = [
     ('Primeira Troca', 'Troque seu primeiro card com outro membro.', '🤝', 'trade', 1),
     ('Colecionador', 'Receba 10 cards em sua coleção.', '🃏', 'card', 10),
@@ -351,6 +352,22 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         day: Mapped[str] = mapped_column(String(10), primary_key=True)
         count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    class DiscordActivityEvent(Base):
+        """Recibo idempotente; cada mensagem/minuto do Discord so conta uma vez."""
+        __tablename__ = 'recanto_discord_activity_events'
+        event_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+        guild_id: Mapped[str] = mapped_column(String(32), nullable=False)
+        user_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+        kind: Mapped[str] = mapped_column(String(24), nullable=False)
+        occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+        received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False, index=True)
+        counted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    class DiscordMessageRate(Base):
+        __tablename__ = 'recanto_discord_message_rate'
+        user_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+        last_counted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
     class UserAchievement(Base):
         __tablename__ = 'user_achievements'
         user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
@@ -540,7 +557,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                                  (FavoriteCard, 'user_id'), (Trade, 'sender_id'), (Trade, 'receiver_id'),
                                  (TradeReward, 'user_id'), (MissionProgress, 'user_id'),
                                  (Claim, 'user_id'), (UserAchievement, 'user_id'),
-                                 (AchievementProgress, 'user_id'), (UserPet, 'user_id'),
+                                 (AchievementProgress, 'user_id'), (DiscordActivityEvent, 'user_id'), (DiscordMessageRate, 'user_id'), (UserPet, 'user_id'),
                                  (OwnedCard, 'user_id'), (CardCooldown, 'user_id'), (FavoriteGame,'user_id'), (FavoriteChampion,'user_id'), (InventoryCollectible,'user_id'),
                                  (CoinOffer,'buyer_id'), (CoinOffer,'seller_id'), (PetExpedition,'user_id')):
                     if cls is ReservedCard:
@@ -621,7 +638,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
 
     def next_card_available(db, uid):
         row=db.get(CardCooldown,uid)
-        return naive_to_utc(row.last_claimed)+timedelta(hours=3) if row else None
+        return naive_to_utc(row.last_claimed)+timedelta(hours=5) if row else None
 
     def game_entry(db, row):
         key,name,emoji=row
@@ -892,9 +909,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             return {'ok':True,'liked':True,'coins_gained':gained,'reward_today':state.count,'coins_balance':wallet(db,uid).coins}
 
     def achievement_event(db, uid, event, amount=1):
-        # Nunca aceitar progresso arbitrário enviado pelo navegador.
-        if event == 'voice_minutes':
-            return
+        # Progresso vem de acoes internas e de eventos autenticados do bot.
         obj = db.get(AchievementProgress, (uid, event))
         if obj is None:
             obj = AchievementProgress(user_id=uid, event=event, counter=0)
@@ -906,6 +921,104 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if not db.get(UserAchievement, (uid, award.id)):
                 db.add(UserAchievement(user_id=uid, achievement_id=award.id, unlocked_at=utcnow()))
                 publish_feed(db,uid,'badge',badge={'name':award.title,'icon':award.icon,'image_url':award.image_url})
+
+    # RECANTO 0.2.22 — Eventos autenticados do bot. Nenhum POST do navegador
+    # pode alterar contador de voz/mensagens. A autenticacao usa HTTPS + chave
+    # compartilhada e os recibos no banco impedem creditos repetidos no retry.
+    def check_discord_bridge(request: Request):
+        expected = os.getenv('RECANTO_BOT_SECRET', '').strip()
+        if len(expected) < 32:
+            raise HTTPException(503, detail='Integração Discord não configurada no Render')
+        provided = request.headers.get('authorization', '')
+        if not provided.startswith('Bearer ') or not hmac.compare_digest(
+                provided[7:].encode('utf-8'), expected.encode('utf-8')):
+            raise HTTPException(401, detail='Chave do bot inválida')
+
+    @app.post('/api/integrations/discord/activity')
+    async def discord_bridge_activity(request: Request):
+        check_discord_bridge(request)
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise HTTPException(422, detail='JSON inválido')
+        gid = str(data.get('guild_id', '')).strip()
+        uid = str(data.get('discord_id', '')).strip()
+        kind = str(data.get('kind', '')).strip()
+        event_id = str(data.get('event_id', '')).strip()
+        guild_expected = os.getenv('DISCORD_GUILD_ID', '').strip()
+        if not guild_expected or gid != guild_expected:
+            raise HTTPException(403, detail='Servidor Discord não autorizado')
+        if not (uid.isascii() and uid.isdigit() and 15 <= len(uid) <= 22):
+            raise HTTPException(422, detail='ID do membro inválido')
+        if kind not in ('voice_minutes', 'message_count'):
+            raise HTTPException(422, detail='Tipo de evento inválido')
+        try:
+            stamp = str(data.get('occurred_at', '')).replace('Z', '+00:00')
+            moment = datetime.fromisoformat(stamp)
+            if moment.tzinfo is None: raise ValueError('Time zone missing')
+            moment = moment.astimezone(timezone.utc)
+        except (ValueError, TypeError):
+            raise HTTPException(422, detail='occurred_at deve ser ISO8601 com fuso UTC')
+        age = (utcnow() - moment).total_seconds()
+        if age < -300 or age > 86400:
+            raise HTTPException(422, detail='Evento muito antigo ou no futuro (máximo 24h)')
+        if kind == 'voice_minutes':
+            wanted = f'voice:{gid}:{uid}:{int(moment.timestamp() // 60)}'
+        else:
+            mid = str(data.get('message_id', '')).strip()
+            if not mid.isascii() or not mid.isdigit() or not 15 <= len(mid) <= 22:
+                raise HTTPException(422, detail='ID da mensagem inválido')
+            wanted = f'message:{gid}:{mid}'
+        if event_id != wanted:
+            raise HTTPException(422, detail='Identificador do evento inconsistente')
+        with writing() as db:
+            prior = db.get(DiscordActivityEvent, event_id)
+            if prior:
+                return {'ok': True, 'duplicate': True, 'counted': bool(prior.counted)}
+            user = db.get(User, uid)
+            counted = user is not None
+            reason = None
+            if counted and kind == 'message_count':
+                last = db.get(DiscordMessageRate, uid)
+                if last and (moment - naive_to_utc(last.last_counted_at)).total_seconds() < 10:
+                    counted = False
+                    reason = 'intervalo mínimo de 10 segundos entre mensagens'
+                elif last:
+                    last.last_counted_at = moment
+                else:
+                    db.add(DiscordMessageRate(user_id=uid, last_counted_at=moment))
+            db.add(DiscordActivityEvent(event_id=event_id, guild_id=gid, user_id=uid,
+                kind=kind, occurred_at=moment, received_at=utcnow(), counted=counted))
+            # Retenção: a API rejeita eventos acima de 24h; recibos de mais de
+            # 36h podem ser removidos sem permitir contagem duplicada.
+            if kind == 'voice_minutes' and int(moment.timestamp() // 60) % 60 == 0:
+                db.execute(delete(DiscordActivityEvent).where(
+                    DiscordActivityEvent.received_at < utcnow() - timedelta(hours=36)))
+            if counted:
+                # Evento atrasado de ontem conta para o selo permanente, mas
+                # nunca ganha crédito indevido na missão diária de hoje.
+                if moment.astimezone(GAME_TZ).date().isoformat() == local_day():
+                    progress(db, uid, kind, 1)
+                achievement_event(db, uid, kind, 1)
+            elif user is None:
+                reason = 'membro ainda não entrou no Recanto'
+            return {'ok': True, 'duplicate': False, 'counted': bool(counted),
+                    'registered': bool(user), 'reason': reason}
+
+    @app.get('/api/admin/discord-activity/status')
+    def discord_bridge_status(request: Request):
+        only_admin(request)
+        with SessionLocal() as db:
+            last = db.scalar(select(func.max(DiscordActivityEvent.received_at)))
+            cutoff = utcnow() - timedelta(hours=1)
+            recent = db.execute(select(DiscordActivityEvent.kind,
+                func.count(DiscordActivityEvent.event_id)).where(
+                DiscordActivityEvent.received_at >= cutoff,
+                DiscordActivityEvent.counted.is_(True)
+            ).group_by(DiscordActivityEvent.kind)).all()
+            return {'configured': len(os.getenv('RECANTO_BOT_SECRET', '').strip()) >= 32,
+                    'guild_configured': bool(os.getenv('DISCORD_GUILD_ID', '').strip()),
+                    'last_event_at': naive_to_utc(last).isoformat() if last else None,
+                    'counted_last_hour': dict(recent)}
 
     @app.get('/api/achievements')
     def achievements(request: Request):
@@ -920,7 +1033,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 {'id': g.id, 'title': g.title, 'description': g.description,
                  'icon': g.icon, 'image_url': g.image_url, 'event': g.event,
                  'target': g.target, 'progress': min(g.target, progresses.get(g.event, 0)),
-                 'locked': g.id not in unlocks, 'available': g.event != 'voice_minutes',
+                 'locked': g.id not in unlocks, 'available': g.event not in ('voice_minutes','message_count') or len(os.getenv('RECANTO_BOT_SECRET','')) >= 32,
                  'unlocked_at': unlocks[g.id].isoformat() if g.id in unlocks else None}
                 for g in goals]}
 
@@ -1148,7 +1261,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         with writing() as db:
             at=next_card_available(db,uid)
             if at and at>utcnow():
-                raise HTTPException(409, detail='Aguarde 3 horas entre resgates de cartas.')
+                raise HTTPException(409, detail='Aguarde 5 horas entre resgates de cartas.')
             chosen = random_card(stock(db), 'diario')
             result = grant_card(db, uid, chosen)
             reward=card_bonus(db, result['rarity'])
@@ -2508,7 +2621,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         image_url = str(data.get('image_url', '')).strip() or None
         if not 2 <= len(title) <= 100 or not 4 <= len(description) <= 255 or not 1 <= target <= 1000000:
             raise HTTPException(422, detail='Nome, descrição ou meta inválida')
-        if event not in {'trade', 'card', 'adopt', 'pet', 'feed', 'mission', 'voice_minutes'}:
+        if event not in {'trade', 'card', 'adopt', 'pet', 'feed', 'mission', 'voice_minutes', 'message_count'}:
             raise HTTPException(422, detail='Tipo de conquista inválido')
         if image_url and not (image_url.startswith('/uploads/') or image_url.startswith('https://')):
             raise HTTPException(422, detail='Imagem precisa usar HTTPS ou upload local')
@@ -2521,11 +2634,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             db.flush()
             new_id = item.id
             # Conquistas adicionadas depois contam progresso já acumulado.
-            if event != 'voice_minutes':
+            if event not in ('voice_minutes', 'message_count'):
                 for row in db.scalars(select(AchievementProgress).where(
                     AchievementProgress.event == event, AchievementProgress.counter >= target)).all():
                     db.add(UserAchievement(user_id=row.user_id, achievement_id=new_id, unlocked_at=utcnow()))
-        return {'ok': True, 'id': new_id, 'available': event != 'voice_minutes'}
+        return {'ok': True, 'id': new_id, 'available': event not in ('voice_minutes', 'message_count') or len(os.getenv('RECANTO_BOT_SECRET','')) >= 32}
 
     # 0.1.3: editor centralizado. Remover = arquivar (nao quebra referencias antigas).
     @app.get('/api/admin/catalog-management')
@@ -2742,7 +2855,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     target=integer(payload.get('target'))
                     if not 2<=len(title)<=100 or not 4<=len(description)<=255 or not 1<=target<=1000000:
                         raise HTTPException(422,detail='Nome, descrição ou meta inválidos')
-                    if event not in {'trade','card','adopt','pet','feed','mission','voice_minutes'}:
+                    if event not in {'trade','card','adopt','pet','feed','mission','voice_minutes','message_count'}:
                         raise HTTPException(422,detail='Evento inválido')
                     if db.scalar(select(Achievement.id).where(Achievement.title==title,Achievement.id!=item_id)):
                         raise HTTPException(409,detail='Outro selo já possui este título')
@@ -2945,7 +3058,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             for table in (VisitorCare, FavoriteCard, ReservedCard, InventoryPack,
                           InventoryTreat, InventoryCollectible, CoinOffer, CardCooldown, PetExpedition,
                           FavoriteGame, FavoriteChampion, TradeReward, Trade, MissionProgress, Claim,
-                          UserAchievement, AchievementProgress, UserPet, OwnedCard):
+                          UserAchievement, AchievementProgress, DiscordActivityEvent, DiscordMessageRate, UserPet, OwnedCard):
                 db.execute(delete(table))
             for name in ('recanto_mission_counters', 'recanto_mission_claims',
                          'recanto_discord_events', 'recanto_notification_sent'):

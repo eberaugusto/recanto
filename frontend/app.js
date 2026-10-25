@@ -155,7 +155,7 @@
     }catch(err){toast('⚠ '+(err?.message||'Não foi possível concluir.'));return null;}
   };
   function countdown(iso){if(!iso)return '—';const delta=new Date(iso).getTime()-Date.now();if(delta<=0)return 'Disponível agora';let s=Math.ceil(delta/1000);const d=Math.floor(s/86400);s%=86400;const hour=Math.floor(s/3600);s%=3600;const minute=Math.floor(s/60);const sec=s%60;return (d?`${d}d `:'')+`${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;}
-  function updateCountdowns(){if(state.reset){const t=countdown(state.reset);$('cardCountdown').textContent=$('dailyCard').disabled?'Novo card em '+countdown(state.cardReset):'Disponível agora (e a cada 3h)!';$('coinCountdown').textContent=$('dailyCoins').disabled?'Próximo resgate: '+t:'Resgate disponível!';}if(state.missionReset)$('missionTimer').textContent='Resetam em: '+countdown(state.missionReset);}
+  function updateCountdowns(){if(state.reset){const t=countdown(state.reset);$('cardCountdown').textContent=$('dailyCard').disabled?'Novo card em '+countdown(state.cardReset):'Disponível agora (a cada 5h)!';$('coinCountdown').textContent=$('dailyCoins').disabled?'Próximo resgate: '+t:'Resgate disponível!';}if(state.missionReset)$('missionTimer').textContent='Resetam em: '+countdown(state.missionReset);}
   function avatar(el,name,url){el.replaceChildren();if(url){const img=h('img');img.src=url;img.alt='Foto de '+name;img.onerror=()=>{img.remove();el.textContent='◉';};el.append(img);}else el.textContent='◉';}
 
   function applyTheme(mode){
@@ -282,7 +282,7 @@
       if(Number.isFinite(Number(item.target)) && Number(item.target)>0){
         pane.append(h('p','profile-info-progress',`Progresso: ${Math.min(Number(item.target),Number(item.progress)||0)} / ${item.target}`));
       }
-      if(item.available===false)pane.append(h('p','profile-info-note','Disponível em uma integração futura com o Discord.'));
+      if(item.available===false)pane.append(h('p','profile-info-note','A integração de voz/mensagens do Discord precisa ser ativada pelo administrador.'));
     }else if(isCollectible){
       pane.append(h('p','profile-info-status','Colecionável do Pet'));
       if(item.description)pane.append(h('p','profile-info-description',poroLegacyText(item.description)));
@@ -845,7 +845,7 @@
     }
     modal.hidden=true;state.detailClosing=false;
   }
-    async function loadCards(){const [daily,game]=await Promise.all([API('/api/daily/status'),API('/api/game/config')]);state.game=game;state.reset=daily.next_reset;state.cardReset=daily.card_next_at;$('dailyCard').disabled=daily.card_claimed;$('dailyCard').textContent=daily.card_claimed?'⏳ Aguardar 3h':'Resgatar card';$('dailyCardIcon').classList.toggle('card-icon-available',!daily.card_claimed);updateCountdowns();await cardPane(state.cardTab);}
+    async function loadCards(){const [daily,game]=await Promise.all([API('/api/daily/status'),API('/api/game/config')]);state.game=game;state.reset=daily.next_reset;state.cardReset=daily.card_next_at;$('dailyCard').disabled=daily.card_claimed;$('dailyCard').textContent=daily.card_claimed?'⏳ Aguardar 5h':'Resgatar card';$('dailyCardIcon').classList.toggle('card-icon-available',!daily.card_claimed);updateCountdowns();await cardPane(state.cardTab);}
   function renderCardFilters(items,ownedIds,tab,container){
     const host=$('cardFilters');host.replaceChildren();host.hidden=false;
     const filters=state.cardFilters;
@@ -2117,7 +2117,7 @@
     ],existingCatalog));
     pane.append(adminCatalogEditor('achievements','Gerenciar selos cadastrados',[
       ['title','Título','text'],['description','Descrição','text'],['icon','Emoji','text'],
-      ['event','Evento','select',[['trade','Trocas'],['card','Cards recebidos'],['adopt','Pets adotados'],['pet','Carinhos'],['feed','Alimentações'],['mission','Missões resgatadas'],['voice_minutes','Voz no Discord']]],
+      ['event','Evento','select',[['trade','Trocas'],['card','Cards recebidos'],['adopt','Pets adotados'],['pet','Carinhos'],['feed','Alimentações'],['mission','Missões resgatadas'],['voice_minutes','Voz no Discord'],['message_count','Mensagens no Discord']]],
       ['target','Meta','number'],['image_url','Imagem HTTPS (vazio remove)','text']
     ],existingCatalog));
     const featured=block('Coleção em destaque','Banner que aparece no Catálogo. Existem três coleções padrão: Celebridades, Personagens e Memes.');
@@ -2372,7 +2372,7 @@
       const image_url=coverFile.files.length?await uploadArtwork(coverFile.files[0]):coverUrl.value;
       return API('/api/admin/covers',{kind:source.value,key:target.value,image_url});
     },'Capa atualizada!')));pane.append(covers);
-    const ach=block('Criar selo','A conquista pode ser automática ou depender de futura integração de voz.');const [an,ani]=adminField('Título','');const [ad,adi]=adminField('Descrição','');const [ai,aii]=adminField('Emoji','🏅');const [at,ati]=adminField('Meta numérica','1','number');const type=h('select','select-input');for(const [code,label] of Object.entries({trade:'Trocas',card:'Cards recebidos',adopt:'Pets adotados',pet:'Carinhos',feed:'Alimentações',mission:'Missões resgatadas',voice_minutes:'Minutos em voz (integração futura)'})){const o=h('option','',label);o.value=code;type.append(o);}ach.append(an,ad,ai,at,type,button('Criar selo',()=>safeRun(()=>API('/api/admin/achievements',{title:ani.value,description:adi.value,icon:aii.value,event:type.value,target:Number(ati.value)}),'Selo criado!')));pane.append(ach);
+    const ach=block('Criar selo','Conquistas de voz e mensagens são atualizadas pelos eventos autenticados do bot Discord.');const [an,ani]=adminField('Título','');const [ad,adi]=adminField('Descrição','');const [ai,aii]=adminField('Emoji','🏅');const [at,ati]=adminField('Meta numérica','1','number');const type=h('select','select-input');for(const [code,label] of Object.entries({trade:'Trocas',card:'Cards recebidos',adopt:'Pets adotados',pet:'Carinhos',feed:'Alimentações',mission:'Missões resgatadas',voice_minutes:'Minutos em canal de voz',message_count:'Mensagens no Discord'})){const o=h('option','',label);o.value=code;type.append(o);}ach.append(an,ad,ai,at,type,button('Criar selo',()=>safeRun(()=>API('/api/admin/achievements',{title:ani.value,description:adi.value,icon:aii.value,event:type.value,target:Number(ati.value)}),'Selo criado!')));pane.append(ach);
     // Gerenciador de assets: aplica a arte a elementos sem alterar seus cliques ou regras.
     const assetPane=block('🖼️ Central de Assets','Personalize o favicon, menus de PC e celular, logos, jogos e fundos. Envie PNG/JPG/WEBP ou SVG seguro; as artes ficam salvas no servidor (Cloudinary em produção).');
     const existingAssets=(await API('/api/assets')).items;
@@ -2476,7 +2476,18 @@
     );
     missionBlock.append(missionVisibility);
     pane.append(missionBlock);
-    const integrations=block('Integrações','Missões de voz e mensagens requerem RECANTO_BOT_SECRET no Render e um pequeno envio de eventos pelo seu bot existente. Notificações exigem chaves VAPID e o job agendado; consulte o guia no ZIP.');
+    const integrations=block('Integrações','Voz e mensagens: configure RECANTO_BOT_SECRET e DISCORD_GUILD_ID no Render e instale o módulo de eventos no bot. O segredo jamais vai no navegador. Consulte o guia da versão 0.2.22.');
+    const discordState=h('p','admin-style-help','Verificando conexão com o bot...');
+    const refreshDiscordState=async()=>{
+      try{
+        const result=await API('/api/admin/discord-activity/status');
+        discordState.textContent=(result.configured&&result.guild_configured?'✓ Credenciais configuradas.':'⚠ Configure RECANTO_BOT_SECRET e DISCORD_GUILD_ID no Render.')+
+          ' Último evento: '+(result.last_event_at?new Date(result.last_event_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}):'ainda nenhum')+
+          ' · Última hora: '+(result.counted_last_hour?.voice_minutes||0)+' minuto(s) de voz, '+(result.counted_last_hour?.message_count||0)+' mensagem(ns).';
+      }catch(err){discordState.textContent='Não foi possível consultar integração: '+err.message;}
+    };
+    integrations.append(discordState,button('Atualizar status Discord',refreshDiscordState,'soft-action'));
+    refreshDiscordState();
     pane.append(integrations);
     // Recompensas por card em destaque, separadas das outras opções numéricas.
     const rarityRewards=block('Moedas recebidas por raridade',
@@ -2678,7 +2689,7 @@
       state.dailyClaimInFlight=false;el.classList.remove('action-pending');el.removeAttribute('aria-busy');
     }
   };
-  $('dailyCard').onclick=async()=>{const result=await safeRun(()=>API('/api/daily/card',{}),'Card diário recebido!',r=>{applyConfirmedCoins({coins_gained:r?.card?.bonus_coins??0});$('dailyCard').disabled=true;$('dailyCard').textContent='⏳ Aguardar 3h';});if(result?.card)showCard(result.card,`+${result.card.bonus_coins??result.card_bonus??state.game?.rules?.['card_bonus_'+result.card.rarity]??1} moedas pelo card!`);};
+  $('dailyCard').onclick=async()=>{const result=await safeRun(()=>API('/api/daily/card',{}),'Card diário recebido!',r=>{applyConfirmedCoins({coins_gained:r?.card?.bonus_coins??0});$('dailyCard').disabled=true;$('dailyCard').textContent='⏳ Aguardar 5h';});if(result?.card)showCard(result.card,`+${result.card.bonus_coins??result.card_bonus??state.game?.rules?.['card_bonus_'+result.card.rarity]??1} moedas pelo card!`);};
   document.querySelectorAll('[data-tab]').forEach(btn=>btn.addEventListener('click',()=>chooseTab(btn.dataset.tab)));
   document.querySelectorAll('[data-card-tab]').forEach(btn=>btn.addEventListener('click',()=>cardPane(btn.dataset.cardTab).catch(err=>toast(err.message))));
   $('closeCardDetail').onclick=closeCardDetail;$('closeAdmin').onclick=()=>{$('adminModal').hidden=true;document.body.classList.remove('page-open');};
