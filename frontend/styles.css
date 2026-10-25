@@ -3197,3 +3197,70 @@ body.dark-mode :is(
 #profilesPane > .soft-action:has(+ *){max-width:100%;}
 .discord-only-member{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;}
 .discord-only-avatar{width:clamp(88px,15vw,150px);aspect-ratio:1;border-radius:50%;object-fit:cover;}
+
+/* Recanto 0.2.25 — Níveis: ícone circular SEM fundo, EXP à direita. */
+.recanto-level{display:flex;align-items:center;gap:12px;min-width:0;width:100%;color:#2f438f;text-align:left;}
+.recanto-level-icon{width:44px;height:44px;flex:0 0 44px;display:grid;place-items:center;
+  font-size:31px;line-height:1;aspect-ratio:1;border-radius:50%;background:transparent!important;
+  box-shadow:none!important;border:0!important;overflow:hidden;}
+.recanto-level-icon img{display:block;width:100%;height:100%;border-radius:50%;object-fit:contain;background:transparent;}
+.recanto-level-detail{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1;}
+.recanto-level-heading{display:flex;justify-content:space-between;align-items:center;gap:7px;flex-wrap:wrap;line-height:1.2;}
+.recanto-level-heading strong{font-size:14px;line-height:1.2;white-space:normal;overflow-wrap:anywhere;}
+.recanto-level-heading small{font-size:11px;font-weight:600;white-space:nowrap;color:#6476b0;}
+.recanto-level-track{width:100%;height:9px;min-height:9px;border-radius:100px;overflow:hidden;
+  background:#e4e7ff;box-shadow:inset 0 0 0 1px #5d65e01c;}
+.recanto-level-fill{height:100%;border-radius:inherit;background:#5865f2;transition:width .35s ease;}
+.profile-level-desktop{display:none;}
+.profile-level-mobile{display:flex;}
+@media(max-width:767px){
+  #profileContent>.profile-level-host,#profileContent>.desktop-left-column>.profile-level-mobile{display:flex!important;
+    margin:0!important;background:#fff;color:#293a81;width:100%;max-width:100%;padding:17px 20px;
+    border-radius:20px;min-height:82px;box-shadow:0 6px 22px rgba(33,40,121,.10);align-items:center;}
+  #profileContent .desktop-left-column{display:contents!important;}
+  .recanto-level{gap:14px;}
+  .recanto-level-icon{height:46px;width:46px;flex-basis:46px;}
+}
+@media(min-width:768px){
+  #profileContent .profile-level-mobile{display:none!important;}
+  #profileContent .desktop-identity .profile-level-desktop{display:block!important;
+    width:100%;min-width:0;max-width:400px;margin-top:17px;}
+  #profileContent .desktop-identity .recanto-level-heading strong{font-size:13px;}
+  #profileContent .desktop-identity .recanto-level-heading small{font-size:10px;}
+  #profileContent .desktop-identity .recanto-level-icon{width:39px;height:39px;flex-basis:39px;font-size:27px;}
+}
+.public-identity-info .recanto-level,.public-identity .recanto-level{width:min(100%,360px);margin-top:12px;}
+.public-identity-info .recanto-level-heading strong,.public-identity .recanto-level-heading strong{font-size:13px;}
+.public-identity-info .recanto-level-heading small,.public-identity .recanto-level-heading small{font-size:11px;}
+body.dark-mode .profile-level-mobile{background:#1d294a!important;color:#fff!important;}
+body.dark-mode .recanto-level{color:#edf0ff;}
+body.dark-mode .recanto-level-heading small{color:#c6d0ff;}
+body.dark-mode .recanto-level-track{background:#3e4d80;}
+/* Gerenciamento responsivo de rankings e EXP. */
+.admin-levels{min-width:0;}
+.admin-rank-list{display:flex;flex-direction:column;gap:9px;margin:14px 0;}
+.admin-rank-item{display:flex;align-items:center;flex-wrap:wrap;gap:9px;padding:9px 0;
+  border-bottom:1px solid rgba(128,138,190,.2);min-width:0;}
+.admin-rank-item strong{flex:1 1 140px;min-width:0;overflow-wrap:anywhere;}
+.admin-rank-symbol{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;font-size:26px;
+  border-radius:50%;background:transparent!important;overflow:hidden;}
+.admin-rank-symbol img{width:100%;height:100%;border-radius:50%;object-fit:contain;}
+.admin-xp-box,.admin-xp-adjust{display:flex;flex-direction:column;gap:10px;padding-top:15px;
+  margin-top:15px;border-top:1px solid #dce1ff;}
+.admin-xp-box h4,.admin-xp-adjust h4{margin:0;font-size:16px;}
+.admin-xp-row{display:flex;gap:8px;align-items:flex-end;min-width:0;}
+.admin-xp-row .admin-field{flex:1 1 auto;min-width:0;margin:0;}
+.admin-xp-row button{flex:0 0 auto;min-height:39px;}
+@media(max-width:390px){.admin-xp-row{flex-direction:column;align-items:stretch;}}
+/* Descrições de perfil/selos: manter centralizadas em ambos os formatos. */
+#cardModal.profile-info-fullscreen #cardDetail > .profile-info-description,
+#cardModal.profile-info-fullscreen #cardDetail > .profile-info-note,
+#cardModal.profile-info-fullscreen #cardDetail > .profile-info-status,
+#cardModal.profile-info-fullscreen #cardDetail > .profile-info-progress{
+  display:block;width:100%;max-width:min(100%,460px)!important;
+  align-self:center!important;margin:0 auto!important;text-align:center!important;
+  padding-inline:12px;line-height:1.5;overflow-wrap:anywhere;white-space:normal;
+}
+/* Textos informativos abaixo de cartões devem quebrar naturalmente, não encostar nas bordas. */
+.profile-info-description,.profile-info-note,.community-search-hint{overflow-wrap:anywhere;}
+.community-search-results{max-height:min(55dvh,450px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;}

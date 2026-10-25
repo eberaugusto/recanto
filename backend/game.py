@@ -47,6 +47,12 @@ DEFAULTS = {
     'vet_cost': 180, 'vaccine_cost': 120, 'neglect_hours': 48,
     'vet_dead_days': 3,
     'pet_death_penalty': 150,
+    # EXP por ação (o servidor concede somente após a transação confirmada).
+    'xp_pet_self': 8, 'xp_pet_visit': 12, 'xp_feed_self': 12, 'xp_feed_visit': 15,
+    'xp_trade_cards': 40, 'xp_trade_coins': 40, 'xp_spend_per_25_coins': 2,
+    'xp_card_comum': 8, 'xp_card_raro': 16, 'xp_card_lendário': 32, 'xp_card_prismático': 60,
+    'xp_achievement': 70, 'xp_favorite_card': 12, 'xp_favorite_game': 10,
+    'xp_discord_voice_minute': 4, 'xp_discord_message': 2,
 }
 MISSIONS = [
     ('daily_card', 'Resgate um card', 1, 12),
@@ -352,6 +358,32 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         day: Mapped[str] = mapped_column(String(10), primary_key=True)
         count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    # Progressão contínua, independente do saldo de moedas e do nível exibido.
+    class UserExperience(Base):
+        __tablename__='recanto_user_experience'
+        user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
+        total_xp: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    class ExperienceOnce(Base):
+        __tablename__='recanto_experience_once'
+        user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
+        action_key: Mapped[str] = mapped_column(String(100), primary_key=True)
+
+    class ExperienceLog(Base):
+        __tablename__='recanto_experience_log'
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), nullable=False, index=True)
+        event: Mapped[str] = mapped_column(String(55), nullable=False)
+        delta: Mapped[int] = mapped_column(Integer, nullable=False)
+        created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    class LevelRank(Base):
+        __tablename__='recanto_level_ranks'
+        start_level: Mapped[int] = mapped_column(Integer, primary_key=True)
+        name: Mapped[str] = mapped_column(String(80), nullable=False)
+        icon: Mapped[str] = mapped_column(String(30), nullable=False, default='⭐')
+        image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
     class DiscordActivityEvent(Base):
         """Recibo idempotente; cada mensagem/minuto do Discord so conta uma vez."""
         __tablename__ = 'recanto_discord_activity_events'
@@ -506,6 +538,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 if table == 'user_pets' and 'death_penalty_applied' not in existing:
                     connection.execute(text("UPDATE user_pets SET death_penalty_applied = TRUE WHERE status = 'morto'"))
     Base.metadata.create_all(engine)
+    with SessionLocal.begin() as ranks_db:
+        if not ranks_db.scalar(select(func.count(LevelRank.start_level))):
+            for first, name, icon in [(1,'Iniciante','🌱'),(5,'Explorador','🧭'),(10,'Guardião','🛡️'),(20,'Veterano','⚔️'),(35,'Mestre','💠'),(50,'Lendário','👑')]:
+                ranks_db.add(LevelRank(start_level=first,name=name,icon=icon))
     # Atualizacao unica dos Pets ja adotados. Nenhuma visita pode rerrolar a Sorte.
     with SessionLocal.begin() as migration_db:
         old_pets=migration_db.scalars(select(UserPet).where(UserPet.luck.is_(None))).all()
@@ -555,7 +591,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 for cls, key in ((ReservedCard, None), (VisitorCare, 'visitor_id'), (VisitorCare, 'owner_id'),
                                  (InventoryPack, 'user_id'), (InventoryTreat, 'user_id'),
                                  (FavoriteCard, 'user_id'), (Trade, 'sender_id'), (Trade, 'receiver_id'),
-                                 (TradeReward, 'user_id'), (MissionProgress, 'user_id'),
+                                 (TradeReward, 'user_id'), (MissionProgress, 'user_id'), (UserExperience,'user_id'), (ExperienceOnce,'user_id'), (ExperienceLog,'user_id'),
                                  (Claim, 'user_id'), (UserAchievement, 'user_id'),
                                  (AchievementProgress, 'user_id'), (DiscordActivityEvent, 'user_id'), (DiscordMessageRate, 'user_id'), (UserPet, 'user_id'),
                                  (OwnedCard, 'user_id'), (CardCooldown, 'user_id'), (FavoriteGame,'user_id'), (FavoriteChampion,'user_id'), (InventoryCollectible,'user_id'),
@@ -726,6 +762,136 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             db.add(Claim(user_id=uid, kind=kind, day=local_day()))
         else:
             cl.day = local_day()
+
+    def xp_level_floor(level):
+        # Soma fechada do custo 100+25*n+3*n² por nível anterior; nível não tem teto.
+        n=max(0,int(level)-1)
+        return 100*n+25*n*(n+1)//2+n*(n+1)*(2*n+1)//2
+
+    def xp_level_of(total_xp):
+        xp=max(0,int(total_xp))
+        high=2
+        while xp_level_floor(high)<=xp:
+            high*=2  # Sem limite de nível arbitrário.
+        low=1
+        while low+1<high:
+            mid=(low+high)//2
+            if xp_level_floor(mid)<=xp:low=mid
+            else:high=mid
+        return low
+
+    def level_info(db, uid):
+        row=db.get(UserExperience,uid)
+        total=max(0,int(row.total_xp)) if row else 0
+        level=xp_level_of(total)
+        earned=total-xp_level_floor(level)
+        needed=xp_level_floor(level+1)-xp_level_floor(level)
+        ranks=db.scalars(select(LevelRank).where(LevelRank.start_level<=level).order_by(LevelRank.start_level.desc())).all()
+        rank=ranks[0] if ranks else None
+        return {'level':level,'total_xp':total,'xp_current':earned,'xp_needed':needed,
+                'xp_percent':round(earned*100/needed,2),
+                'rank':{'name':rank.name if rank else 'Iniciante',
+                        'start_level':rank.start_level if rank else 1,
+                        'icon':rank.icon if rank else '⭐',
+                        'image_url':rank.image_url if rank else None}}
+
+    def grant_experience(db, uid, amount, event, once_key=None):
+        amount=int(amount)
+        if amount<=0:return 0
+        amount=min(amount,1000000)
+        if once_key:
+            once_key=str(once_key)[:100]
+            if db.get(ExperienceOnce,(uid,once_key)):return 0
+            db.add(ExperienceOnce(user_id=uid,action_key=once_key))
+            db.flush()
+        row=db.get(UserExperience,uid)
+        if not row:
+            row=UserExperience(user_id=uid,total_xp=0);db.add(row);db.flush()
+        before=row.total_xp
+        row.total_xp=min(2**60,before+amount)
+        gained=row.total_xp-before
+        if gained:db.add(ExperienceLog(user_id=uid,event=str(event)[:55],delta=gained))
+        return gained
+
+    def xp_action(db, uid, key, event=None, once_key=None):
+        return grant_experience(db,uid,setting(db,'xp_'+key),event or key,once_key)
+
+    def xp_spend(db, uid, coins):
+        # O bônus só ocorre sobre gasto confirmado, e nunca em depósito de oferta cancelável.
+        amount=max(0,int(coins))
+        return grant_experience(db,uid,min(150,(amount//25)*setting(db,'xp_spend_per_25_coins')),'moedas_gastas')
+
+    @app.get('/api/levels/me')
+    def my_level(request:Request):
+        uid=me(request)
+        with SessionLocal() as db:return {'level_info':level_info(db,uid)}
+
+    @app.get('/api/levels/{member_id}')
+    def member_level(member_id:str,request:Request):
+        me(request)
+        with SessionLocal() as db:
+            if not db.get(User,member_id):raise HTTPException(404,detail='Membro não encontrado')
+            return {'level_info':level_info(db,member_id)}
+
+    @app.get('/api/admin/levels')
+    def admin_levels(request:Request):
+        only_admin(request)
+        with SessionLocal() as db:
+            return {'ranks':[{'start_level':r.start_level,'name':r.name,'icon':r.icon,'image_url':r.image_url}
+                             for r in db.scalars(select(LevelRank).order_by(LevelRank.start_level)).all()],
+                    'rewards':{key:value.value for key,value in
+                               ((k,db.get(GameSetting,k)) for k in DEFAULTS if k.startswith('xp_')) if value}}
+
+    @app.post('/api/admin/levels/ranks')
+    async def admin_save_rank(request:Request):
+        only_admin(request)
+        data=json_body(await request.json(),('start_level','name'))
+        first=integer(data['start_level']);name=str(data['name']).strip();icon=str(data.get('icon') or '⭐')[:30]
+        image=str(data.get('image_url') or '').strip() or None
+        old_level=data.get('old_level')
+        if not 1<=first<=1000000 or not 2<=len(name)<=80 or (image and not (image.startswith('https://') or image.startswith('/uploads/'))):
+            raise HTTPException(422,detail='Nível, nome ou imagem inválidos')
+        if old_level is not None:old_level=integer(old_level)
+        with writing() as db:
+            if old_level is not None and old_level!=first:
+                if old_level==1:raise HTTPException(409,detail='O ranking inicial deve começar no nível 1')
+                if db.get(LevelRank,first):raise HTTPException(409,detail='Já existe ranking nesse nível')
+                old=db.get(LevelRank,old_level)
+                if old:db.delete(old);db.flush()
+            row=db.get(LevelRank,first)
+            if row:row.name=name;row.icon=icon;row.image_url=image
+            else:db.add(LevelRank(start_level=first,name=name,icon=icon,image_url=image))
+        return {'ok':True}
+
+    @app.post('/api/admin/levels/ranks/delete')
+    async def admin_delete_rank(request:Request):
+        only_admin(request);data=json_body(await request.json(),('start_level',))
+        first=integer(data['start_level'])
+        if first==1:raise HTTPException(409,detail='Não é possível remover o ranking inicial')
+        with writing() as db:
+            row=db.get(LevelRank,first)
+            if not row:raise HTTPException(404,detail='Ranking não encontrado')
+            db.delete(row)
+        return {'ok':True}
+
+    @app.post('/api/admin/levels/adjust')
+    async def admin_adjust_level(request:Request):
+        admin_id=only_admin(request);data=json_body(await request.json(),('discord_id','action','amount'))
+        target=str(data['discord_id']).strip();action=str(data['action']);amount=integer(data['amount'])
+        if not target.isdecimal() or len(target)<15 or len(target)>22 or action not in ('add','remove') or not 1<=amount<=1000000:
+            raise HTTPException(422,detail='Informe ID, operação e EXP válidos')
+        with writing() as db:
+            if not db.get(User,target):raise HTTPException(404,detail='Usuário ainda não entrou no Recanto')
+            if action=='add':grant_experience(db,target,amount,'admin_bonus')
+            else:
+                row=db.get(UserExperience,target)
+                if row:
+                    decrease=min(amount,row.total_xp);row.total_xp-=decrease
+                    if decrease:db.add(ExperienceLog(user_id=target,event='admin_remocao',delta=-decrease))
+            db.flush()
+            outcome=level_info(db,target)
+        logging.getLogger('recanto.admin').info('EXP alterada: admin=%s ação=%s quantidade=%s',admin_id,action,amount)
+        return {'ok':True,'level_info':outcome}
 
     def progress(db, uid, mission, amount=1):
         day = local_day()
@@ -921,6 +1087,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if not db.get(UserAchievement, (uid, award.id)):
                 db.add(UserAchievement(user_id=uid, achievement_id=award.id, unlocked_at=utcnow()))
                 publish_feed(db,uid,'badge',badge={'name':award.title,'icon':award.icon,'image_url':award.image_url})
+                xp_action(db,uid,'achievement','selo',once_key='badge:'+str(award.id))
 
     # RECANTO 0.2.22 — Eventos autenticados do bot. Nenhum POST do navegador
     # pode alterar contador de voz/mensagens. A autenticacao usa HTTPS + chave
@@ -1001,6 +1168,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 # a missao diaria recebe credito na data do recebimento.
                 progress(db, uid, kind, amount)
                 achievement_event(db, uid, kind, amount)
+                # O bot Oracle já descarta AFK e aplica cooldown nas mensagens.
+                # O recibo único impede EXP repetida em tentativas de reenvio.
+                xp_key = 'xp_discord_voice_minute' if kind == 'voice_minutes' else 'xp_discord_message'
+                grant_experience(db,uid,setting(db,xp_key)*amount,'discord_'+kind)
             return {'ok': True, 'duplicate': False, 'counted': counted,
                     'registered': counted, 'credited': amount if counted else 0,
                     'reason': None if counted else 'membro ainda não entrou no Recanto'}
@@ -1071,6 +1242,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 if moment.astimezone(GAME_TZ).date().isoformat() == local_day():
                     progress(db, uid, kind, 1)
                 achievement_event(db, uid, kind, 1)
+                xp_key = 'xp_discord_voice_minute' if kind == 'voice_minutes' else 'xp_discord_message'
+                grant_experience(db,uid,setting(db,xp_key),'discord_'+kind)
             elif user is None:
                 reason = 'membro ainda não entrou no Recanto'
             return {'ok': True, 'duplicate': False, 'counted': bool(counted),
@@ -1096,9 +1269,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 and 'POST' in (getattr(route, 'methods', None) or set())]
             return {'configured': len(os.getenv('RECANTO_BOT_SECRET', '').strip()) >= 32,
                     'guild_configured': bool(os.getenv('DISCORD_GUILD_ID', '').strip()),
+                    'member_search_configured': bool(os.getenv('DISCORD_BOT_TOKEN', '').strip()),
                     'last_event_at': naive_to_utc(last).isoformat() if last else None,
                     'counted_last_hour': dict(recent),
-                    'bridge_version': '0.2.24',
+                    'bridge_version': '0.2.25',
                     'legacy_endpoint_handler': route_owners[0] if route_owners else None,
                     'legacy_endpoint_route_count': len(route_owners),
                     'legacy_routes_replaced_at_startup': len(legacy_routes_removed),
@@ -1155,6 +1329,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         db.add(own)
         db.flush()
         achievement_event(db, uid, 'card')
+        xp_action(db,uid,'card_'+str(chosen['rarity']),'card_'+str(chosen['rarity']))
         return {'owned_id': own.id, 'card_id': chosen['id'], 'name': chosen['name'],
                 'rarity': chosen['rarity'], 'image_url': chosen['image_url'], 'collection': chosen.get('collection','Recanto Original')}
 
@@ -1470,6 +1645,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                         bonuses[user] = bonus
                         progress(db, user, 'trade')
                         achievement_event(db, user, 'trade')
+                        xp_action(db,user,'trade_cards','troca_de_cards')
             t.resolved_at = utcnow()
         return {'ok': True, 'status': t.status, 'my_coin_bonus': bonuses.get(uid, 0)}
 
@@ -1527,7 +1703,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 offer.status='aceita'
                 card_row=db.get(Card,owned.card_id)
                 if card_row:publish_feed(db,offer.seller_id,'trade_coins',card=feed_card({'name':card_row.name,'rarity':card_row.rarity,'image_url':card_row.image_url}),coins=offer.amount,other=db.get(User,offer.buyer_id).username)
-                for who in (offer.buyer_id,offer.seller_id):progress(db,who,'trade');achievement_event(db,who,'trade')
+                for who in (offer.buyer_id,offer.seller_id):
+                    progress(db,who,'trade');achievement_event(db,who,'trade')
+                    xp_action(db,who,'trade_coins','troca_por_moedas')
+                xp_spend(db,offer.buyer_id,offer.amount)
             else:
                 wallet(db,offer.buyer_id).coins+=offer.amount
                 offer.status='cancelada' if action=='cancel' else ('recusada' if action=='reject' else 'expirada')
@@ -1709,7 +1888,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             raise HTTPException(422,detail='Selecione até 6 jogos diferentes da lista')
         with writing() as db:
             db.execute(delete(FavoriteGame).where(FavoriteGame.user_id==uid))
-            for order,game in enumerate(chosen):db.add(FavoriteGame(user_id=uid,game_id=game,position=order))
+            for order,game in enumerate(chosen):
+                db.add(FavoriteGame(user_id=uid,game_id=game,position=order))
+                xp_action(db,uid,'favorite_game','favorito_jogo',once_key='favgame:'+game)
         return {'ok':True}
 
     @app.get('/api/champions/preferences')
@@ -1783,6 +1964,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 cost = setting(db, key)
                 require_coins(db, uid, cost)
                 w.coins -= cost
+                xp_spend(db,uid,cost)
                 give_treat(db, uid, foodsku, qty)
                 result = {'ok':True, 'treats_gained':qty, 'item':foodsku, 'spent':cost}
             else:
@@ -1799,6 +1981,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 for position,chosen in enumerate(choices):
                     db.add(ReservedCard(pack_id=pack.id, card_id=chosen['id'], position=position))
                 w.coins -= cost
+                xp_spend(db,uid,cost)
                 result={'ok':True,'pack_id':pack.id,'pack_amount':qty,'spent':cost}
         return result
 
@@ -1870,6 +2053,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 card=db.get(OwnedCard,owned_id)
                 if not card or card.user_id!=uid: raise HTTPException(403,detail='Card não pertence à sua coleção')
             fav=db.get(FavoriteCard,uid)
+            if owned_id is not None:
+                xp_action(db,uid,'favorite_card','favorito_card',once_key='favcard:'+str(card.card_id))
             if owned_id is None:
                 if fav: db.delete(fav)
             elif fav: fav.owned_id=owned_id
@@ -1947,13 +2132,33 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             avatar=f'https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.{ext}?size=128' if avatar_hash else None
         return {'key':user_id,'name':display,'username':username,'avatar_url':avatar,'bot':bool(user.get('bot'))}
 
+    async def discord_member_search(prefix, amount=40):
+        token=os.getenv('DISCORD_BOT_TOKEN','').strip()
+        guild=os.getenv('DISCORD_GUILD_ID','').strip()
+        if not token or not guild.isdecimal() or not prefix:return None
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                r=await client.get(f'https://discord.com/api/v10/guilds/{guild}/members/search',
+                    headers={'Authorization':'Bot '+token},params={'query':prefix,'limit':min(100,max(amount,1))})
+                r.raise_for_status()
+                out=r.json()
+                return out if isinstance(out,list) else None
+        except (httpx.HTTPError,ValueError,TypeError):return None
+
     @app.get('/api/community/profiles')
-    async def community_profiles(request: Request, q: str='', offset: int=0, limit: int=100, registered_only: bool=False):
+    async def community_profiles(request: Request, q: str='', offset: int=0, limit: int=8, registered_only: bool=False):
         uid=me(request)
         q=q.strip()[:80].casefold()
         offset=max(0,min(int(offset),100000))
-        limit=max(1,min(int(limit),200))
+        limit=max(1,min(int(limit),8))  # Nunca retornar listas enormes ao navegador.
         roster=None if registered_only else await discord_server_members()
+        # Busca remota por prefixo mantém membros recém-chegados pesquisáveis.
+        # Sem query, o navegador nunca recebe a lista completa de membros.
+        extra=await discord_member_search(q,60) if q and not registered_only else None
+        if roster is not None and extra:
+            roster=roster+extra
+        elif roster is None and extra:
+            roster=extra
         with SessionLocal() as db:
             if roster is None:
                 # Fallback preserva o comportamento anterior quando o bot não
@@ -1966,13 +2171,14 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     .group_by(OwnedCard.user_id)).all()) if shown else {}
                 return {'members':[{'key':u.id,'name':u.username,'avatar_url':u.avatar_url,
                     'card_count':count_map.get(u.id,0),'registered':True} for u in shown],
-                    'total':len(found),'has_more':offset+limit<len(found),'discord_enabled':False}
+                    'total':len(found),'has_more':offset+limit<len(found),'discord_enabled':False,
+                    'discord_reason':'registered_only' if registered_only else ('missing_bot_token' if not os.getenv('DISCORD_BOT_TOKEN','').strip() else 'discord_unavailable')}
             guild=os.getenv('DISCORD_GUILD_ID','958567158479208458').strip()
             normalized=[]
             seen=set()
             for m in roster:
                 brief=discord_member_brief(m,guild)
-                if not brief or brief['key']==uid or brief['key'] in seen:continue
+                if not brief or brief['key']==uid or brief['key'] in seen or brief['bot']:continue
                 seen.add(brief['key'])
                 if q and q not in brief['name'].casefold() and q not in brief['username'].casefold():continue
                 normalized.append(brief)
@@ -1989,7 +2195,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 # Nome e avatar mais recentes do Discord têm prioridade;
                 # perfil completo do Recanto só existe após o primeiro login.
             return {'members':shown,'total':len(normalized),
-                'has_more':offset+limit<len(normalized),'discord_enabled':True}
+                'has_more':offset+limit<len(normalized),'discord_enabled':True,'discord_reason':'ok'}
 
     @app.get('/api/community/profiles/{member_id}')
     def public_profile(member_id: str, request: Request):
@@ -2019,7 +2225,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     'favorite':favorite_info(db,member_id),
                     'pet':pet_dict(db,obj), 'favorite_games':user_games(db,member_id),
                     'favorite_champions':user_champions(db,member_id),
-                    'collectibles':owned_collectibles(db,member_id)}
+                    'collectibles':owned_collectibles(db,member_id),
+                    'level_info':level_info(db,member_id)}
 
     @app.post('/api/pets/visit/{owner_id}')
     async def visit_pet(owner_id: str,request: Request):
@@ -2056,6 +2263,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             wallet(db,visitor).coins+=gain
             wallet(db,owner_id).coins+=owner_gain
             progress(db,visitor,'pet' if action=='pet' else 'feed')
+            xp_action(db,visitor,'pet_visit' if action=='pet' else 'feed_visit','visita_pet')
             achievement_event(db,visitor,'pet' if action=='pet' else 'feed')
             result=pet_dict(db,obj)
             visitor_balance=wallet(db,visitor).coins
@@ -2292,6 +2500,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 obj.last_pet_at = now
             obj.last_action_at = now
             progress(db, uid, action)
+            xp_action(db,uid,'pet_self' if action=='pet' else 'feed_self','cuidado_pet')
             achievement_event(db, uid, action)
             result = pet_dict(db, obj)
             remaining_treats = wallet(db, uid).treats
@@ -2324,6 +2533,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 raise HTTPException(409, detail='Este Pet não está aguardando resgate no veterinário')
             price = setting(db, 'vet_cost')
             require_coins(db, uid, price).coins -= price
+            xp_spend(db,uid,price)
             obj.status = 'ativo'
             obj.vet_since = None
             obj.food = 70

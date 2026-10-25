@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=0.2.24">
+  <link rel="stylesheet" href="/styles.css?v=0.2.25">
 </head>
 <body>
 <!-- Recanto 0.1.2 — layout responsivo e gestão com carregamento progressivo. -->
@@ -77,8 +77,9 @@
         <div class="stat"><span class="stat-icon"><svg><use href="#heart"/></svg></span><strong class="stat-value" id="valPetiscos">50</strong><span class="stat-name">Petiscos</span></div>
       </div><span class="profile-divider"></span><div class="last-card"><div class="last-card-art" id="latestCard" role="button" tabindex="0" aria-label="Ver card favorito ampliado"></div><span>Card Favorito</span></div></div></section>
       <div class="profile-avatar"><div class="avatar" id="userAvatar"><svg class="avatar-placeholder"><use href="#person"/></svg></div></div>
-      <div class="desktop-identity"><h2 id="desktopProfileName">Meu Recanto</h2><span class="desktop-online">● Online</span></div>
+      <div class="desktop-identity"><h2 id="desktopProfileName">Meu Recanto</h2><span class="desktop-online">● Online</span><div id="profileLevelDesktop" class="profile-level-host profile-level-desktop" aria-label="Seu nível"></div></div>
       </div>
+      <div id="profileLevelMobile" class="profile-level-host profile-level-mobile" aria-label="Seu nível"></div>
       </div>
       <section class="mobile-pet-widget" hidden aria-label="Meu Pet no perfil"><h2>🐾 Meu Pet</h2><div class="mobile-pet-content" id="mobilePetPreview"></div><button type="button" id="mobileSeePet" class="desktop-widget-action">Ver meu Pet →</button></section>
       <aside class="desktop-right-column">
@@ -136,9 +137,9 @@
       <p class="notifications-status" id="notificationsStatus" role="status" aria-live="polite" hidden></p>
       <button type="button" class="soft-action settings-admin" id="settingsAdmin" hidden aria-label="Abrir Gestão do Recanto"><svg aria-hidden="true"><use href="#gear"/></svg><span>Gestão do Recanto</span></button>
       <button type="button" class="soft-action settings-update-check" id="checkUpdates"><svg aria-hidden="true"><use href="#missions"/></svg><span>Verificar atualizações</span></button>
-      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.2.24</p></section></div>
+      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.2.25</p></section></div>
   </main>
 </div>
-<script src="/app.js?v=0.2.24" defer></script>
+<script src="/app.js?v=0.2.25" defer></script>
 </body>
 </html>

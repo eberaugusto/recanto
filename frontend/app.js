@@ -182,7 +182,7 @@
     btn.disabled=installed;
     btn.querySelector('span').textContent='Instalar';
   }
-  function renderProfile(me){loadCollectionCardStyles().catch(()=>{});state.account=me;$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);$('desktopWallet').textContent=money(me.coins);$('desktopCards').textContent=money(me.cards);$('desktopTreats').textContent=money(me.treats);$('desktopUserName').textContent=me.name;$('desktopProfileName').textContent=me.name;avatar($('userAvatar'),me.name,me.avatar_url);avatar($('desktopAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.remove('recanto-favorite-frame');recent.classList.toggle('has-card',false);recent.setAttribute('aria-label','Nenhum card favorito selecionado');recent.onclick=()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};recent.textContent='?';paintCoins();const profileId=me.name;API('/api/cards/favorite').then(({card})=>{if(state.account?.name!==profileId)return;recent.replaceChildren();recent.classList.toggle('has-card',!!card);recent.setAttribute('aria-label',card?'Ampliar card favorito: '+card.name:'Nenhum card favorito selecionado');recent.onclick=card?()=>showCard(card,'Card favorito',true):()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};if(card){recent.classList.add('recanto-favorite-frame');recent.append(frameCardArt(card,'recanto-favorite-art'));}else{recent.classList.remove('recanto-favorite-frame');recent.textContent='?';}}).catch(()=>{});}
+  function renderProfile(me){loadCollectionCardStyles().catch(()=>{});state.account=me;loadOwnLevel().catch(()=>{});$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);$('desktopWallet').textContent=money(me.coins);$('desktopCards').textContent=money(me.cards);$('desktopTreats').textContent=money(me.treats);$('desktopUserName').textContent=me.name;$('desktopProfileName').textContent=me.name;avatar($('userAvatar'),me.name,me.avatar_url);avatar($('desktopAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.remove('recanto-favorite-frame');recent.classList.toggle('has-card',false);recent.setAttribute('aria-label','Nenhum card favorito selecionado');recent.onclick=()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};recent.textContent='?';paintCoins();const profileId=me.name;API('/api/cards/favorite').then(({card})=>{if(state.account?.name!==profileId)return;recent.replaceChildren();recent.classList.toggle('has-card',!!card);recent.setAttribute('aria-label',card?'Ampliar card favorito: '+card.name:'Nenhum card favorito selecionado');recent.onclick=card?()=>showCard(card,'Card favorito',true):()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};if(card){recent.classList.add('recanto-favorite-frame');recent.append(frameCardArt(card,'recanto-favorite-art'));}else{recent.classList.remove('recanto-favorite-frame');recent.textContent='?';}}).catch(()=>{});}
 
   async function refreshProfile(){
     if(!state.account)return;
@@ -199,6 +199,7 @@
         $('desktopCards').textContent=money(me.cards);$('desktopTreats').textContent=money(me.treats);
       }
       paintCoins();
+      if(state.tab==='perfil')loadOwnLevel().catch(()=>{});
     }else showLogin();
   }
   function showLogin(){resetCachedData();state.adminReady=false;state.petPreviewLoaded=false;$('adminModal').hidden=true;document.body.classList.remove('page-open');$('settingsAdmin').hidden=true;state.account=null;$('loginScreen').hidden=false;$('splashScreen').hidden=true;$('homeScreen').hidden=true;$('modal').hidden=true;}
@@ -305,7 +306,38 @@
     return chip;
   }
 
+  // 0.2.25: nível infinito calculado e concedido exclusivamente no backend.
+  function levelBadge(data){
+    const level=data||{};const rank=level.rank||{};
+    const host=h('div','recanto-level');
+    const medal=h('div','recanto-level-icon');
+    if(rank.image_url){const img=h('img');img.src=rank.image_url;img.alt='Ícone de '+(rank.name||'ranking');img.loading='lazy';img.onerror=()=>{medal.replaceChildren(document.createTextNode(rank.icon||'⭐'));};medal.append(img);}
+    else medal.textContent=rank.icon||'⭐';
+    const details=h('div','recanto-level-detail');
+    const meta=h('div','recanto-level-heading');
+    meta.append(h('strong','',`Nível ${Number(level.level)||1} · ${rank.name||'Iniciante'}`),
+      h('small','',`${Number(level.xp_current)||0} / ${Number(level.xp_needed)||100} EXP`));
+    const bar=h('div','recanto-level-track');bar.setAttribute('role','progressbar');
+    bar.setAttribute('aria-label','Experiência até o próximo nível');
+    bar.setAttribute('aria-valuemin','0');bar.setAttribute('aria-valuemax',String(level.xp_needed||100));
+    bar.setAttribute('aria-valuenow',String(level.xp_current||0));
+    const fill=h('div','recanto-level-fill');fill.style.width=Math.max(0,Math.min(100,Number(level.xp_percent)||0))+'%';bar.append(fill);
+    details.append(meta,bar);host.append(medal,details);return host;
+  }
+  function showOwnLevel(data){
+    state.currentLevel=data;
+    for(const id of ['profileLevelDesktop','profileLevelMobile']){
+      const host=$(id);if(host){host.replaceChildren(levelBadge(data));host.hidden=false;}
+    }
+  }
+  async function loadOwnLevel(){
+    if(!state.account)return;
+    const data=await API('/api/levels/me');
+    if(data.level_info)showOwnLevel(data.level_info);
+  }
+
   async function loadProfileExtras(){
+    loadOwnLevel().catch(()=>{});
     const [ach,game,prefs,champions]=await Promise.all([API('/api/achievements'),API('/api/game/config'),API('/api/games/preferences'),API('/api/champions/preferences')]);state.game=game;
     if(!$('badgesSection')){const b=h('section','profile-badges');b.id='badgesSection';$('desktopLeftColumn').append(b);}
     const b=$('badgesSection');b.replaceChildren();
@@ -1076,7 +1108,7 @@
   }
   async function searchProfiles(){
     $('profilesModal').hidden=false;const pane=$('profilesPane');pane.replaceChildren();
-    const input=h('input','profiles-search');input.placeholder='Buscar membros do servidor…';input.setAttribute('aria-label','Buscar membros do Discord');pane.append(input);
+    const input=h('input','profiles-search');input.placeholder='Pesquise pelo nome ou apelido no Discord…';input.setAttribute('aria-label','Buscar membros do Discord');pane.append(input);
     const hint=h('small','community-search-hint','Carregando membros…');pane.append(hint);
     const results=h('div','community-search-results');pane.append(results);
     const next=button('Mostrar mais membros',()=>fetchPage(false),'soft-action');next.hidden=true;pane.append(next);
@@ -1086,7 +1118,7 @@
       try{
         if(replace){offset=0;results.replaceChildren();}
         const q=encodeURIComponent(current);
-        const d=await API('/api/community/profiles?q='+q+'&offset='+offset+'&limit=100');
+        const d=await API('/api/community/profiles?q='+q+'&offset='+offset+'&limit=8');
         if(myToken!==token||$('profilesModal').hidden)return;
         if(replace&&!d.members.length)results.append(h('p','','Nenhum membro encontrado.'));
         d.members.forEach(m=>{
@@ -1101,8 +1133,12 @@
         offset+=d.members.length;
         next.hidden=!d.has_more;
         hint.textContent=d.discord_enabled
-          ?`${d.total} membro(s) do servidor Discord encontrados.`
-          :`${d.total} membro(s) cadastrados no Recanto. A lista completa do Discord requer a configuração do bot.`;
+          ?(current ? `${d.total} resultado(s) no servidor · exibindo até ${offset}.` : `Sugestões da comunidade · exibindo ${offset} de ${d.total}. Pesquise pelo nome para encontrar qualquer membro.`)
+          : (d.discord_reason==='missing_bot_token'
+             ? 'Busca limitada ao Recanto: configure DISCORD_BOT_TOKEN também no Render (Environment) para pesquisar todos os membros do servidor.'
+             : d.discord_reason==='registered_only'
+               ? `${d.total} membro(s) com conta no Recanto.`
+               : 'Lista do Discord indisponível. Confira o token do bot e Server Members Intent no Render.');
       }catch(err){if(myToken===token)toast(err.message);}
     }
     let seq=0;input.addEventListener('input',()=>{const n=++seq;token++;current=input.value.trim();setTimeout(()=>{if(n===seq)fetchPage(true);},280);});
@@ -1141,7 +1177,7 @@
         pane.append(button('← Voltar à busca',()=>{$('publicProfilePage').hidden=true;searchProfiles();},'soft-action'));
         const title=h('div','public-identity');
         if(d.avatar_url){const img=h('img');img.src=d.avatar_url;img.alt=d.name;title.append(img);}else title.append(h('div','profile-thumb','◉'));
-        const meta=h('div');meta.append(h('h3','',d.name),h('p','',d.cards+' cards na coleção'));title.append(meta);pane.append(title);
+        const meta=h('div');meta.append(h('h3','',d.name),h('p','',d.cards+' cards na coleção'));if(d.level_info)meta.append(levelBadge(d.level_info));title.append(meta);pane.append(title);
         if(d.favorite){const fav=block('★ Card favorito',d.favorite.name);fav.classList.add('public-section','public-favorite');
           const art=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');art.setAttribute('role','button');art.tabIndex=0;art.addEventListener('click',()=>showCard(d.favorite,'Card favorito',true));art.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showCard(d.favorite,'Card favorito',true);}});fav.prepend(art);pane.append(fav);}
         const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section');const line=h('div','public-badges');
@@ -1168,7 +1204,7 @@
       const hero=h('section','public-profile-hero');
       const title=h('div','public-identity');
       if(d.avatar_url){const img=h('img');img.src=d.avatar_url;img.alt=d.name;title.append(img);}else title.append(h('div','profile-thumb','◉'));
-      const meta=h('div','public-identity-info');meta.append(h('h3','',d.name),h('span','public-online','● Perfil da comunidade'),h('p','public-card-count',`${d.cards} card(s) na coleção`));title.append(meta);hero.append(title);
+      const meta=h('div','public-identity-info');meta.append(h('h3','',d.name),h('span','public-online','● Perfil da comunidade'),h('p','public-card-count',`${d.cards} card(s) na coleção`));if(d.level_info)meta.append(levelBadge(d.level_info));title.append(meta);hero.append(title);
       if(d.favorite){const recent=h('div','public-hero-favorite');const cover=mediaCover(d.favorite.image_url,'★',d.favorite.name,'item-cover');cover.tabIndex=0;cover.setAttribute('role','button');cover.setAttribute('aria-label','Ampliar card favorito de '+d.name);cover.addEventListener('click',()=>showCard(d.favorite,'Card favorito de '+d.name,true));cover.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showCard(d.favorite,'Card favorito de '+d.name,true);}});recent.append(cover,h('strong','','Card favorito: '+d.favorite.name));hero.prepend(recent);}
       main.append(hero);
       const badges=block('🏅 Selos desbloqueados');badges.classList.add('public-section','public-badges');const line=h('div','public-badges-row');
@@ -2476,7 +2512,7 @@
     );
     missionBlock.append(missionVisibility);
     pane.append(missionBlock);
-    const integrations=block('Integrações','Voz e mensagens: configure RECANTO_BOT_SECRET e DISCORD_GUILD_ID no Render. O bot original da Oracle é compatível e não precisa de módulo adicional. Não execute dois coletores. O segredo jamais vai no navegador. Consulte o guia da versão 0.2.24.');
+    const integrations=block('Integrações','Voz e mensagens: configure RECANTO_BOT_SECRET e DISCORD_GUILD_ID no Render. O bot original da Oracle é compatível e não precisa de módulo adicional. Não execute dois coletores. O segredo jamais vai no navegador. Consulte o guia da versão 0.2.25.');
     const discordState=h('p','admin-style-help','Verificando conexão com o bot...');
     const refreshDiscordState=async()=>{
       try{
@@ -2486,12 +2522,77 @@
           ' · Última hora: '+(result.counted_last_hour?.voice_minutes||0)+' minuto(s) de voz, '+(result.counted_last_hour?.message_count||0)+' mensagem(ns).'+
           (result.bridge_version?' · Integração v'+result.bridge_version+' (rota: '+(result.legacy_endpoint_handler||'indisponível')+')':'')+
           (result.received_total!==undefined?' · Total recebido: '+result.received_total+' · Contabilizados: '+result.counted_total+' · Não contabilizados: '+result.uncounted_total:'')+
-          (result.legacy_endpoint_route_count>1?' · ⚠ Existem múltiplas rotas de eventos!':'');
+          (result.legacy_endpoint_route_count>1?' · ⚠ Existem múltiplas rotas de eventos!':'')+
+          (result.member_search_configured?' · ✓ Busca de membros habilitada.':' · ⚠ Para buscar todos os membros, adicione DISCORD_BOT_TOKEN ao Render e habilite Server Members Intent.');
       }catch(err){discordState.textContent='Não foi possível consultar integração: '+err.message;}
     };
     integrations.append(discordState,button('Atualizar status Discord',refreshDiscordState,'soft-action'));
     refreshDiscordState();
     pane.append(integrations);
+    const levels=block('Níveis e Rankings','Progressão infinita. Edite quando um ranking começa, seu ícone circular e a EXP concedida por atividade.');
+    levels.classList.add('admin-levels');
+    const rankList=h('div','admin-rank-list');levels.append(rankList);
+    const rankName=adminField('Nome do ranking','Iniciante');
+    const rankStart=adminField('Nível inicial (1 ou maior)','1','number');rankStart[1].min='1';rankStart[1].max='1000000';
+    const rankIcon=adminField('Ícone/emoji do ranking','⭐');
+    const rankUrl=adminField('Imagem circular do ranking (HTTPS ou upload)','');
+    const rankFile=h('input','text-input');rankFile.type='file';rankFile.accept='image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.webp,.gif';
+    const previous=h('input');previous.type='hidden';previous.value='';
+    levels.append(rankName[0],rankStart[0],rankIcon[0],rankUrl[0],
+                  h('p','admin-style-help','Ou envie a arte do ícone (imagem transparente recomendada):'),rankFile,previous);
+    const refreshRanks=async()=>{
+      try{
+        const data=await API('/api/admin/levels');rankList.replaceChildren();
+        for(const r of data.ranks||[]){
+          const row=h('div','admin-rank-item');const art=h('span','admin-rank-symbol');
+          if(r.image_url){const img=h('img');img.src=r.image_url;img.alt=r.name;art.append(img);}
+          else art.textContent=r.icon||'⭐';
+          row.append(art,h('strong','',`Nível ${r.start_level} · ${r.name}`));
+          row.append(button('Editar',()=>{rankName[1].value=r.name;rankStart[1].value=r.start_level;rankIcon[1].value=r.icon;rankUrl[1].value=r.image_url||'';previous.value=r.start_level;},'soft-action'));
+          if(r.start_level!==1)row.append(button('Excluir',async()=>{
+            if(!confirm('Excluir o ranking '+r.name+'? Os jogadores manterão seus níveis e EXP.'))return;
+            const result=await safeRun(()=>API('/api/admin/levels/ranks/delete',{start_level:r.start_level}),'Ranking excluído');
+            if(result)await refreshRanks();
+          },'soft-action'));
+          rankList.append(row);
+        }
+      }catch(error){rankList.replaceChildren(h('p','',error.message));}
+    };
+    levels.append(button('Salvar ranking',async()=>{
+      let image_url=rankUrl[1].value.trim();
+      if(rankFile.files?.length){try{image_url=await uploadArtwork(rankFile.files[0]);}catch(error){toast(error.message);return;}}
+      const first=Number(rankStart[1].value);
+      if(!Number.isSafeInteger(first)||first<1){toast('Informe um nível inicial válido');return;}
+      const result=await safeRun(()=>API('/api/admin/levels/ranks',{
+        start_level:first,old_level:previous.value?Number(previous.value):null,
+        name:rankName[1].value,icon:rankIcon[1].value,image_url}),'Ranking salvo!');
+      if(result){previous.value='';rankFile.value='';await refreshRanks();loadOwnLevel().catch(()=>{});}
+    }));
+    refreshRanks();
+    const xpBox=h('div','admin-xp-box');xpBox.append(h('h4','','EXP por atividade'));
+    const xpNames={xp_pet_self:'Acariciar seu Pet',xp_pet_visit:'Acariciar Pet de outra pessoa',
+      xp_feed_self:'Alimentar seu Pet',xp_feed_visit:'Alimentar Pet de outra pessoa',
+      xp_trade_cards:'Troca de Cards concluída',xp_trade_coins:'Troca por moedas concluída',
+      xp_spend_per_25_coins:'EXP a cada 25 moedas gastas',
+      xp_card_comum:'Conseguir Card comum',xp_card_raro:'Conseguir Card raro',
+      xp_card_lendário:'Conseguir Card lendário',xp_card_prismático:'Conseguir Card prismático',
+      xp_achievement:'Conquistar Selo',xp_favorite_card:'Favoritar Card pela primeira vez',
+      xp_favorite_game:'Favoritar jogo pela primeira vez',
+      xp_discord_voice_minute:'Cada minuto completo em voz (exceto AFK)',
+      xp_discord_message:'Mensagem válida do Discord (antispam ativo)'};
+    for(const [key,title] of Object.entries(xpNames)){
+      const field=adminField(title,String(opts.settings[key]??0),'number');field[1].min='0';field[1].max='100000';
+      const section=h('div','admin-xp-row');section.append(field[0],button('Salvar',()=>safeRun(()=>API('/api/admin/settings',{
+        key,value:Number(field[1].value)}),'EXP atualizada!'),'soft-action'));xpBox.append(section);
+    }
+    levels.append(xpBox);
+    const adjust=h('div','admin-xp-adjust');adjust.append(h('h4','','Adicionar ou remover EXP de um membro'));
+    const who=adminField('Discord ID do usuário','');const qty=adminField('Quantidade de EXP','100','number');qty[1].min='1';
+    adjust.append(who[0],qty[0]);
+    for(const action of ['add','remove'])adjust.append(button(action==='add'?'Conceder EXP':'Remover EXP',()=>safeRun(()=>API('/api/admin/levels/adjust',{
+      discord_id:who[1].value.trim(),amount:Number(qty[1].value),action}),action==='add'?'EXP concedida!':'EXP removida!'),'soft-action'));
+    levels.append(adjust);pane.append(levels);
+
     // Recompensas por card em destaque, separadas das outras opções numéricas.
     const rarityRewards=block('Moedas recebidas por raridade',
       'Cada Card resgatado ou revelado em um pack concede as moedas da sua raridade. Em packs, as recompensas de todos os Cards são somadas. Valores de 0 a 1.000.000 moedas.');
@@ -2515,7 +2616,7 @@
     rarityRewards.append(rarityRewardFields);pane.append(rarityRewards);
     const settings=block('Outros valores configuráveis','Preços, prazos e demais recompensas.');
     for(const [key,value] of Object.entries(opts.settings)){
-      if(key.startsWith('card_bonus_'))continue;
+      if(key.startsWith('card_bonus_')||key.startsWith('xp_'))continue;
       const [fld,inp]=adminField(key,value,'number');
       settings.append(fld,button('Salvar '+key,()=>safeRun(()=>API('/api/admin/settings',{key,value:Number(inp.value)}),'Valor salvo!'),'soft-action'));
     }
@@ -2592,10 +2693,11 @@
     resetButton.disabled=true;
     confirmation.addEventListener('input',()=>resetButton.disabled=confirmation.value.trim()!=='LIMPAR TUDO');
     reset.append(field,resetButton);pane.append(reset);
-    const groups=['Geral','Feed','Economia','Cards','Loja','Pets','Missões','Selos','Assets','Usuários','Integrações'];
+    const groups=['Geral','Feed','Economia','Níveis','Cards','Loja','Pets','Missões','Selos','Assets','Usuários','Integrações'];
     const classify=(name)=>{
       const x=name.toLowerCase();
       if(x.includes('limpar feed'))return 'Feed';
+      if(x.includes('níveis e rankings'))return 'Níveis';
       if(x.includes('valores configuráveis'))return 'Economia';
       if(x.includes('cadastrar card')||x.includes('gerenciar cards')||x.includes('coleção'))return 'Cards';
       if(x.includes('gerenciar itens')||x.includes('capa'))return 'Loja';
