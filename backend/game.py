@@ -1,4 +1,4 @@
-"""Recanto v0.9.1. Economia e jogo executados inteiramente no servidor.
+"""Recanto 0.3.2. Economia e jogo executados inteiramente no servidor.
 
 Ações que alteram saldo/itens usam transações serializadas. O browser só pede
 operações; nunca escolhe resultado de sorteio, saldo, recompensa ou tempo.
@@ -165,7 +165,7 @@ TREAT_TYPES = {'biscoito':{'name':'Biscoito','food':15,'emoji':'🍪'},
                'fruta':{'name':'Frutinha','food':30,'emoji':'🍓'},
                'banquete':{'name':'Banquete','food':55,'emoji':'🍖'},
                'vacina':{'name':'Vacina','food':0,'emoji':'💉'}}
-MISSION_EMOJI = {'daily_card':'🃏','daily_coins':'🪙','trade':'🔄','pet':'💗','feed':'🍪','adopt':'🐾','pack':'🎁','voice_minutes':'🎙️','message_count':'💬'}
+MISSION_EMOJI = {'daily_card':'🃏','daily_coins':'🪙','trade':'🔄','pet':'💗','feed':'🍪','adopt':'🐾','pack':'🎁','voice_minutes':'🎙️','message_count':'💬','profile_visit':'👤','expedition_start':'🗺️','collectible_gain':'🎁','favorite_game':'🎮','favorite_champion':'⚔️'}
 # Eventos de voz e mensagens só são aceitos do bot autenticado, nunca do navegador.
 SEED_BADGES = [
     ('Primeira Troca', 'Troque seu primeiro card com outro membro.', '🤝', 'trade', 1),
@@ -279,10 +279,52 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         reward_card_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
         reward_collectible_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
         reward_rarities: Mapped[str | None] = mapped_column(String(512), nullable=True)
+        # Custos congelados no envio: uma edição do administrador não altera expedições já iniciadas.
+        cost_food: Mapped[int | None] = mapped_column(Integer, nullable=True)
+        cost_happiness: Mapped[int | None] = mapped_column(Integer, nullable=True)
+        cost_health: Mapped[int | None] = mapped_column(Integer, nullable=True)
+        display_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    class MissionActionDaily(Base):
+        # Impede o usuário de farmar missões recarregando perfis ou salvando os mesmos favoritos.
+        __tablename__ = 'recanto_mission_action_daily'
+        user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
+        day: Mapped[str] = mapped_column(String(10), primary_key=True)
+        kind: Mapped[str] = mapped_column(String(40), primary_key=True)
+        target: Mapped[str] = mapped_column(String(45), primary_key=True)
+
+    class RecantoMissionExtra(Base):
+        # Missões das novas ações sem depender do main.py, que não vem no pacote incremental.
+        __tablename__='recanto_extra_missions'
+        code: Mapped[str]=mapped_column(String(40), primary_key=True)
+        title: Mapped[str]=mapped_column(String(120), nullable=False)
+        kind: Mapped[str]=mapped_column(String(15), nullable=False)
+        event: Mapped[str]=mapped_column(String(40), nullable=False)
+        goal: Mapped[int]=mapped_column(Integer, nullable=False)
+        reward: Mapped[int]=mapped_column(Integer, nullable=False)
+        emoji: Mapped[str]=mapped_column(String(30), default='🎯')
+        image_url: Mapped[str | None]=mapped_column(String(512), nullable=True)
+        enabled: Mapped[bool]=mapped_column(Boolean, nullable=False, default=True)
+
+    class RecantoMissionExtraProgress(Base):
+        __tablename__='recanto_extra_mission_progress'
+        user_id: Mapped[str]=mapped_column(ForeignKey('users.id'), primary_key=True)
+        code: Mapped[str]=mapped_column(String(40), primary_key=True)
+        period: Mapped[str]=mapped_column(String(10), primary_key=True)
+        amount: Mapped[int]=mapped_column(Integer, nullable=False, default=0)
+        claimed: Mapped[bool]=mapped_column(Boolean, nullable=False, default=False)
 
     class ExpeditionConfig(Base):
         __tablename__ = 'expedition_configs'
         code: Mapped[str] = mapped_column(String(30), primary_key=True)
+        name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+        minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+        food: Mapped[int | None] = mapped_column(Integer, nullable=True)
+        happiness: Mapped[int | None] = mapped_column(Integer, nullable=True)
+        health: Mapped[int | None] = mapped_column(Integer, nullable=True)
+        coin_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
+        coin_max: Mapped[int | None] = mapped_column(Integer, nullable=True)
+        enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
         image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
         card_chance: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
         rarity_weights: Mapped[str] = mapped_column(String(512), nullable=False, default='{}')
@@ -534,7 +576,15 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         'user_pets': {'nickname': 'VARCHAR(40)', 'equipped_collectible_id': 'INTEGER',
                       'death_at': 'TIMESTAMP', 'death_penalty_applied': 'BOOLEAN NOT NULL DEFAULT FALSE',
                       'health': 'INTEGER NOT NULL DEFAULT 100', 'luck': 'INTEGER'},
+        'expedition_configs': {
+            'name': 'VARCHAR(100)', 'minutes': 'INTEGER', 'food': 'INTEGER',
+            'happiness': 'INTEGER', 'health': 'INTEGER',
+            'coin_min': 'INTEGER', 'coin_max': 'INTEGER',
+            'enabled': 'BOOLEAN NOT NULL DEFAULT TRUE',
+        },
         'pet_expeditions': {
+            'cost_food': 'INTEGER', 'cost_happiness': 'INTEGER',
+            'cost_health': 'INTEGER', 'display_name': 'VARCHAR(100)',
             'reward_card_id': 'INTEGER',
             'reward_collectible_id': 'INTEGER',
             'reward_rarities': 'VARCHAR(512)',
@@ -603,7 +653,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 for cls, key in ((ReservedCard, None), (VisitorCare, 'visitor_id'), (VisitorCare, 'owner_id'),
                                  (InventoryPack, 'user_id'), (InventoryTreat, 'user_id'),
                                  (FavoriteCard, 'user_id'), (Trade, 'sender_id'), (Trade, 'receiver_id'),
-                                 (TradeReward, 'user_id'), (MissionProgress, 'user_id'), (UserExperience,'user_id'), (ExperienceOnce,'user_id'), (ExperienceLog,'user_id'),
+                                 (TradeReward, 'user_id'), (MissionProgress, 'user_id'), (MissionActionDaily,'user_id'), (RecantoMissionExtraProgress,'user_id'), (UserExperience,'user_id'), (ExperienceOnce,'user_id'), (ExperienceLog,'user_id'),
                                  (Claim, 'user_id'), (UserAchievement, 'user_id'),
                                  (AchievementProgress, 'user_id'), (DiscordActivityEvent, 'user_id'), (DiscordMessageRate, 'user_id'), (UserPet, 'user_id'),
                                  (OwnedCard, 'user_id'), (CardCooldown, 'user_id'), (FavoriteGame,'user_id'), (FavoriteChampion,'user_id'), (InventoryCollectible,'user_id'),
@@ -905,6 +955,32 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         logging.getLogger('recanto.admin').info('EXP alterada: admin=%s ação=%s quantidade=%s',admin_id,action,amount)
         return {'ok':True,'level_info':outcome}
 
+    EXTRA_EVENTS={
+        'profile_visit':'Visitar o perfil de outro membro',
+        'expedition_start':'Enviar o Pet para uma expedição',
+        'collectible_gain':'Conseguir um colecionável',
+        'favorite_game':'Definir jogos favoritos',
+        'favorite_champion':'Definir campeões favoritos',
+    }
+
+    def extra_period(kind):
+        if kind=='unica':return 'ever'
+        today=local_day()
+        if kind=='diaria':return today
+        today_date=datetime.strptime(today,'%Y-%m-%d').date()
+        return (today_date-timedelta(days=today_date.weekday())).isoformat()
+
+    def extra_mission_progress(db, uid, event, amount):
+        for mission in db.scalars(select(RecantoMissionExtra).where(
+                RecantoMissionExtra.event==event,RecantoMissionExtra.enabled.is_(True))).all():
+            key=(uid,mission.code,extra_period(mission.kind))
+            row=db.get(RecantoMissionExtraProgress,key)
+            if not row:
+                row=RecantoMissionExtraProgress(user_id=uid,code=mission.code,
+                    period=key[2],amount=0,claimed=False)
+                db.add(row)
+            row.amount=min(mission.goal,max(0,row.amount+amount))
+
     def progress(db, uid, mission, amount=1):
         day = local_day()
         obj = db.get(MissionProgress, (uid, day, mission))
@@ -912,8 +988,20 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             db.add(MissionProgress(user_id=uid, day=day, mission=mission, progress=amount, claimed=False))
         else:
             obj.progress = min(9999, obj.progress + amount)
-        if mission_tracker:
+        if mission in EXTRA_EVENTS:
+            # Novas ações usam o sistema integrado daqui; não dependem do main.py antigo.
+            extra_mission_progress(db,uid,mission,amount)
+        elif mission_tracker:
             mission_tracker(db, uid, mission, amount)
+
+    def mission_action(db, uid, kind, target='once'):
+        # Ação confirmada e distinta no dia; evita farmar EXP/moedas recarregando uma tela.
+        day = local_day()
+        key=(uid,day,kind,str(target)[:45])
+        if db.get(MissionActionDaily,key): return False
+        db.add(MissionActionDaily(user_id=uid,day=day,kind=kind,target=str(target)[:45]))
+        progress(db,uid,kind)
+        return True
 
     def publish_feed(db, uid, kind, **payload):
         # Somente ações confirmadas pelo servidor; propostas são anúncios, não transações.
@@ -1456,17 +1544,35 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             Collectible.name)).all()
         return [collectible_dict(item,row.quantity,row.acquired_at) for row,item in rows]
 
+    def expedition_codes(db, include_disabled=False):
+        # Compatibilidade com as três expedições antigas; as personalizadas ficam no DB.
+        keys=list(EXPEDITIONS)
+        for row in db.scalars(select(ExpeditionConfig.code).order_by(ExpeditionConfig.code)):
+            if row not in keys: keys.append(row)
+        if include_disabled: return keys
+        return [code for code in keys if expedition_settings(db,code)['enabled']]
+
     def expedition_settings(db, code):
-        base=EXPEDITIONS[code]
+        base=EXPEDITIONS.get(code,{})
         obj=db.get(ExpeditionConfig,code)
+        if not base and not obj: raise HTTPException(404,detail='Expedição desconhecida')
         try:
-            weights=json.loads(obj.rarity_weights) if obj else WEIGHTS['expedition']
+            weights=json.loads(obj.rarity_weights) if obj and obj.rarity_weights else WEIGHTS['expedition']
             weights={tier:max(0,float(weights.get(tier,0))) for tier in TIERS}
         except (ValueError,TypeError,AttributeError):weights=WEIGHTS['expedition'].copy()
-        return {'id':code,'name':base['name'],'minutes':base['minutes'],
-            'food':base['food'],'coins':base['coins'],
+        def field(name, default):
+            value=getattr(obj,name,None) if obj else None
+            return default if value is None else value
+        coins=(int(field('coin_min',(base.get('coins') or (10,20))[0])),
+               int(field('coin_max',(base.get('coins') or (10,20))[1])))
+        return {'id':code, 'name':field('name',base.get('name',code)),
+            'minutes':int(field('minutes',base.get('minutes',60))),
+            'food':int(field('food',base.get('food',12))),
+            'happiness':int(field('happiness',base.get('happiness',6))),
+            'health':int(field('health',base.get('health',0))),
+            'coins':coins,'enabled':bool(field('enabled',True)),
             'image_url':obj.image_url if obj else None,
-            'card_chance':obj.card_chance if obj else base['card_chance'],
+            'card_chance':obj.card_chance if obj else base.get('card_chance',0),
             'rarity_weights':weights,
             'featured_card_id':obj.featured_card_id if obj else None,
             'collectible_id':obj.collectible_id if obj else None,
@@ -1900,6 +2006,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if not isinstance(chosen,list) or len(chosen)>6 or len(set(map(str,chosen)))!=len(chosen) or any(not isinstance(x,str) or x not in options for x in chosen):
             raise HTTPException(422,detail='Selecione até 6 jogos diferentes da lista')
         with writing() as db:
+            previous=[x.game_id for x in db.scalars(select(FavoriteGame).where(FavoriteGame.user_id==uid).order_by(FavoriteGame.position))]
+            if chosen and chosen!=previous:mission_action(db,uid,'favorite_game')
             db.execute(delete(FavoriteGame).where(FavoriteGame.user_id==uid))
             for order,game in enumerate(chosen):
                 db.add(FavoriteGame(user_id=uid,game_id=game,position=order))
@@ -1925,6 +2033,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             any(not isinstance(item,str) or item not in allowed for item in chosen)):
             raise HTTPException(422,detail='Selecione até 6 campeões diferentes da lista')
         with writing() as db:
+            previous=[x.champion_id for x in db.scalars(select(FavoriteChampion).where(FavoriteChampion.user_id==uid).order_by(FavoriteChampion.position))]
+            if chosen and chosen!=previous:mission_action(db,uid,'favorite_champion')
             db.execute(delete(FavoriteChampion).where(FavoriteChampion.user_id==uid))
             for order,champion_id in enumerate(chosen):
                 db.add(FavoriteChampion(user_id=uid,champion_id=champion_id,position=order))
@@ -2279,10 +2389,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
 
     @app.get('/api/community/profiles/{member_id}')
     def public_profile(member_id: str, request: Request):
-        me(request)
+        visitor=me(request)
         with writing() as db:
             user=db.get(User,member_id)
             if not user or member_id.startswith('teste_'): raise HTTPException(404,detail='Membro não encontrado')
+            if visitor!=member_id:mission_action(db,visitor,'profile_visit',member_id)
             obj=db.get(UserPet,member_id)
             pet_tick(db,obj)
             badges=db.execute(select(Achievement.title,Achievement.icon,Achievement.image_url).join(UserAchievement,UserAchievement.achievement_id==Achievement.id).where(UserAchievement.user_id==member_id)).all()
@@ -2383,35 +2494,39 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 {'id': s.id, 'name': s.name, 'emoji': s.emoji, 'image_url': s.image_url, **model_fields(s)} for s in types],
                     'treats': wallet(db, uid).treats,
                     'coins_balance': wallet(db, uid).coins,
-                    'expedition':({'mission':mission.mission,'name':EXPEDITIONS[mission.mission]['name'],
+                    'expedition':({'mission':mission.mission,'name':mission.display_name or expedition_settings(db,mission.mission)['name'],
                        'ends_at':naive_to_utc(mission.ends_at).isoformat(),'ready':utcnow()>=naive_to_utc(mission.ends_at)}
                        if (mission:=db.get(PetExpedition,uid)) else None),
-                    'expedition_options':[expedition_settings(db,k) for k in EXPEDITIONS]}
+                    'expedition_options':[expedition_settings(db,k) for k in expedition_codes(db)]}
 
     @app.post('/api/pets/expedition/start')
     async def start_expedition(request:Request):
         uid=me(request);data=json_body(await request.json(),('mission',));key=str(data['mission'])
-        if key not in EXPEDITIONS:raise HTTPException(422,detail='Expedição desconhecida')
-        base=EXPEDITIONS[key]
         with writing() as db:
+            info=expedition_settings(db,key)
+            if not info['enabled']:raise HTTPException(409,detail='Expedição indisponível')
             obj=db.get(UserPet,uid)
             if not obj:raise HTTPException(409,detail='Adote um Pet antes')
             pet_tick(db,obj)
             if obj.status!='ativo':raise HTTPException(409,detail='Seu Pet está indisponível')
-            if obj.food<base['food']+15:raise HTTPException(409,detail='Alimente o Pet antes de enviá-lo à expedição')
             if db.get(PetExpedition,uid):raise HTTPException(409,detail='Já existe uma expedição pendente')
-            info=expedition_settings(db,key)
+            if obj.food<info['food']+15:raise HTTPException(409,detail='Seu Pet precisa de mais fome para partir e voltar em segurança')
+            if obj.happiness<info['happiness']+10:raise HTTPException(409,detail='Seu Pet precisa de mais felicidade para partir')
+            if (obj.health if obj.health is not None else 100)<info['health']+10:
+                raise HTTPException(409,detail='Seu Pet precisa de mais saúde para partir')
             now=utcnow();obj.status='missao';obj.last_tick_at=now;obj.last_action_at=now
-            coins=RANDOM.randint(*base['coins'])
+            coins=RANDOM.randint(*info['coins'])
             card_award=RANDOM.randrange(10000)<int(info['card_chance'])*100
             collect_id=info['collectible_id'] if RANDOM.randrange(10000)<int(info['collectible_chance'])*100 else None
             species=db.get(PetSpecies,obj.species_id)
             publish_feed(db,uid,'expedition_start',pet={'name':obj.nickname or species.name,'image_url':species.image_url,'emoji':species.emoji})
             db.add(PetExpedition(user_id=uid,mission=key,started_at=now,
-                ends_at=now+timedelta(minutes=base['minutes']),coins=coins,
+                ends_at=now+timedelta(minutes=info['minutes']),coins=coins,
                 card_award=card_award,reward_card_id=info['featured_card_id'] if card_award else None,
-                reward_collectible_id=collect_id,reward_rarities=json.dumps(lucky_expedition_weights(info['rarity_weights'],obj.luck or 1))))
-        return {'ok':True,'ends_at':(now+timedelta(minutes=base['minutes'])).isoformat()}
+                reward_collectible_id=collect_id,reward_rarities=json.dumps(lucky_expedition_weights(info['rarity_weights'],obj.luck or 1)),
+                cost_food=info['food'],cost_happiness=info['happiness'],cost_health=info['health'],display_name=info['name']))
+            progress(db,uid,'expedition_start')
+        return {'ok':True,'ends_at':(now+timedelta(minutes=info['minutes'])).isoformat()}
 
     @app.post('/api/pets/expedition/collect')
     def collect_expedition(request:Request):
@@ -2420,8 +2535,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             row=db.get(PetExpedition,uid);obj=db.get(UserPet,uid)
             if not row or not obj or obj.status!='missao':raise HTTPException(409,detail='Nenhuma expedição em andamento')
             if utcnow()<naive_to_utc(row.ends_at):raise HTTPException(409,detail='Seu Pet ainda está em expedição')
-            info=EXPEDITIONS[row.mission]
-            obj.food=max(0,obj.food-info['food']);obj.happiness=max(0,obj.happiness-6)
+            info=expedition_settings(db,row.mission)
+            obj.food=max(0,obj.food-(row.cost_food if row.cost_food is not None else info['food']))
+            obj.happiness=max(0,obj.happiness-(row.cost_happiness if row.cost_happiness is not None else info['happiness']))
+            obj.health=max(0,(obj.health if obj.health is not None else 100)-
+                            (row.cost_health if row.cost_health is not None else info['health']))
             obj.status='ativo';obj.last_tick_at=utcnow();obj.last_action_at=utcnow()
             earned=row.coins;wallet(db,uid).coins+=earned
             granted=None;converted_coins=0;new_collectible=None
@@ -2454,6 +2572,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     if owned:owned.quantity+=1
                     else:db.add(InventoryCollectible(user_id=uid,collectible_id=item.id,quantity=1))
                     new_collectible=collectible_dict(item)
+                    progress(db,uid,'collectible_gain')
             db.delete(row)
         return {'ok':True,'coins_gained':earned,'card':granted,'converted_coins':converted_coins,
                 'collectible':new_collectible}
@@ -2789,13 +2908,97 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             sid = obj.id
         return {'ok': True, 'id': sid}
 
+    # 0.3.2 — Extensão autônoma de missões para novas ações do Recanto.
+    # Não intercepta as rotas atuais de Missões do backend/main.py.
+    @app.get('/api/recanto-extra-missions')
+    def extra_missions(request:Request):
+        uid=me(request)
+        with SessionLocal() as db:
+            missions=db.scalars(select(RecantoMissionExtra).where(
+                RecantoMissionExtra.enabled.is_(True)).order_by(RecantoMissionExtra.code)).all()
+            items=[]
+            for mission in missions:
+                period=extra_period(mission.kind)
+                row=db.get(RecantoMissionExtraProgress,(uid,mission.code,period))
+                items.append({'code':mission.code,'title':mission.title,'goal':mission.goal,
+                    'kind':mission.kind,'event':mission.event,'reward':mission.reward,
+                    'emoji':mission.emoji,'image_url':mission.image_url,
+                    'progress':min(mission.goal,row.amount) if row else 0,
+                    'claimed':row.claimed if row else False,'source':'extra'})
+            return {'items':items}
+
+    @app.post('/api/recanto-extra-missions/{code}/claim')
+    def claim_extra_mission(code:str,request:Request):
+        uid=me(request)
+        with writing() as db:
+            mission=db.get(RecantoMissionExtra,code)
+            if not mission or not mission.enabled:raise HTTPException(404,detail='Missão indisponível')
+            row=db.get(RecantoMissionExtraProgress,(uid,code,extra_period(mission.kind)))
+            if not row or row.amount<mission.goal:raise HTTPException(409,detail='Missão ainda não concluída')
+            if row.claimed:raise HTTPException(409,detail='Recompensa já resgatada')
+            row.claimed=True
+            coins=wallet(db,uid);coins.coins+=mission.reward
+            achievement_event(db,uid,'mission')
+            return {'ok':True,'coins_gained':mission.reward,'coins_balance':coins.coins}
+
+    @app.get('/api/admin/recanto-extra-missions')
+    def admin_extra_missions(request:Request):
+        only_admin(request)
+        with SessionLocal() as db:
+            rows=db.scalars(select(RecantoMissionExtra).order_by(RecantoMissionExtra.code)).all()
+            return {'events':EXTRA_EVENTS,'items':[
+                {'code':m.code,'title':m.title,'kind':m.kind,'event':m.event,
+                 'goal':m.goal,'reward':m.reward,'emoji':m.emoji,
+                 'image_url':m.image_url,'enabled':m.enabled,'source':'extra'} for m in rows]}
+
+    @app.post('/api/admin/recanto-extra-missions')
+    async def admin_save_extra_mission(request:Request):
+        only_admin(request)
+        data=json_body(await request.json(),('code','title','kind','event','goal','reward'))
+        code=str(data['code']).strip().lower()
+        title=str(data['title']).strip();kind=str(data['kind']);event=str(data['event'])
+        goal=integer(data['goal']);reward=integer(data['reward'])
+        enabled=data.get('enabled',True)
+        emoji=str(data.get('emoji') or '🎯')[:30]
+        if (not re.fullmatch(r'[a-z][a-z0-9_-]{2,39}',code) or code in {m[0] for m in MISSIONS}
+            or not 2<=len(title)<=120 or kind not in ('unica','diaria','semanal')
+            or event not in EXTRA_EVENTS or not 1<=goal<=100000 or not 0<=reward<=100000
+            or type(enabled) is not bool):
+            raise HTTPException(422,detail='Código, título, tipo, evento ou metas inválidos')
+        image=safe_artwork(data.get('image_url'))
+        with writing() as db:
+            row=db.get(RecantoMissionExtra,code)
+            if row:
+                # Não alterar evento/tipo/meta de uma missão com progresso já existente.
+                has_progress=db.scalar(select(RecantoMissionExtraProgress.user_id).where(
+                    RecantoMissionExtraProgress.code==code).limit(1)) is not None
+                if has_progress and (row.kind!=kind or row.event!=event or row.goal!=goal):
+                    raise HTTPException(409,detail='Missão já iniciada: mantenha evento, tipo e meta. Para alterar, crie outra missão.')
+                row.title=title;row.kind=kind;row.event=event;row.goal=goal;row.reward=reward
+                row.emoji=emoji;row.image_url=image;row.enabled=enabled
+            else:
+                db.add(RecantoMissionExtra(code=code,title=title,kind=kind,event=event,
+                    goal=goal,reward=reward,emoji=emoji,image_url=image,enabled=enabled))
+        return {'ok':True,'code':code}
+
+    @app.post('/api/admin/recanto-extra-missions/{code}/visibility')
+    async def extra_mission_visibility(code:str,request:Request):
+        only_admin(request)
+        data=json_body(await request.json(),('enabled',))
+        if type(data['enabled']) is not bool:raise HTTPException(422,detail='Situação inválida')
+        with writing() as db:
+            row=db.get(RecantoMissionExtra,code)
+            if not row:raise HTTPException(404,detail='Missão não encontrada')
+            row.enabled=data['enabled']
+        return {'ok':True,'code':code,'enabled':data['enabled']}
+
     # 0.1.21 — expedicoes e colecionaveis, gerenciados apenas por administradores.
     @app.get('/api/admin/expeditions')
     def admin_expeditions(request: Request):
         only_admin(request)
         with SessionLocal() as db:
             return {
-                'items':[expedition_settings(db,key) for key in EXPEDITIONS],
+                'items':[expedition_settings(db,key) for key in expedition_codes(db,True)],
                 'cards':[{'id':card.id,'name':card.name,'rarity':card.rarity} for card in db.scalars(
                     select(Card).where(Card.active.is_(True)).order_by(Card.name)).all()],
                 'collectibles':[collectible_dict(c) for c in db.scalars(
@@ -2805,9 +3008,21 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
     @app.post('/api/admin/expeditions/{code}')
     async def admin_save_expedition(code: str, request: Request):
         only_admin(request)
-        if code not in EXPEDITIONS:raise HTTPException(404,detail='Expedição desconhecida')
+        if not re.fullmatch(r'[a-z][a-z0-9_-]{2,29}',code):
+            raise HTTPException(422,detail='Código deve ter de 3 a 30 caracteres: letras, números, _ ou -')
         payload=await request.json()
         json_body(payload, ('card_chance','rarity_weights','collectible_chance'))
+        existing_defaults=EXPEDITIONS.get(code,{})
+        name=str(payload.get('name') or existing_defaults.get('name') or '').strip()
+        minutes=integer(payload.get('minutes',existing_defaults.get('minutes',60)))
+        food=integer(payload.get('food',existing_defaults.get('food',12)))
+        happiness=integer(payload.get('happiness',6))
+        health=integer(payload.get('health',0))
+        coin_min=integer(payload.get('coin_min',(existing_defaults.get('coins') or (10,20))[0]))
+        coin_max=integer(payload.get('coin_max',(existing_defaults.get('coins') or (10,20))[1]))
+        enabled=payload.get('enabled',True)
+        if not 2<=len(name)<=100 or not 1<=minutes<=43200 or not 0<=food<=85 or not 0<=happiness<=90 or not 0<=health<=90 or not (0<=coin_min<=coin_max<=100000) or type(enabled) is not bool:
+            raise HTTPException(422,detail='Informe nome, duração (1 a 43200 minutos), fome (0 a 85), felicidade/saúde (0 a 90), moedas e situação válidos')
         chance=integer(payload['card_chance'])
         collectible_chance=integer(payload['collectible_chance'])
         if not 0<=chance<=100 or not 0<=collectible_chance<=100:
@@ -2838,6 +3053,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             obj=db.get(ExpeditionConfig,code)
             if not obj:
                 obj=ExpeditionConfig(code=code);db.add(obj)
+            obj.name=name;obj.minutes=minutes;obj.food=food;obj.happiness=happiness;obj.health=health
+            obj.coin_min=coin_min;obj.coin_max=coin_max;obj.enabled=enabled
             obj.image_url=image_url
             obj.card_chance=chance
             obj.rarity_weights=json.dumps(weights,ensure_ascii=False)
@@ -3429,6 +3646,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     MissionProgress.user_id == uid,
                     MissionProgress.day == local_day())).all():
                 db.delete(progress)
+            db.execute(delete(MissionActionDaily).where(
+                MissionActionDaily.user_id==uid,MissionActionDaily.day==local_day()))
+            db.execute(delete(RecantoMissionExtraProgress).where(
+                RecantoMissionExtraProgress.user_id==uid,
+                RecantoMissionExtraProgress.period==local_day()))
         return {'ok': True, 'detail': 'Resgates diários do administrador reiniciados'}
 
     # A limpeza seletiva preserva contas, sessões, catálogos e configurações.
@@ -3510,6 +3732,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 for cls in (PetExpedition,InventoryCollectible,UserPet):purge(db,cls,uid_predicate(cls))
             if 'missions' in selected:
                 for cls in (Claim,MissionProgress):purge(db,cls,uid_predicate(cls))
+                purge(db,RecantoMissionExtraProgress,uid_predicate(RecantoMissionExtraProgress))
+                purge(db,MissionActionDaily,uid_predicate(MissionActionDaily))
                 for table in ('recanto_mission_counters','recanto_mission_claims'):
                     extras(db,table)
             if 'badges' in selected:
@@ -3586,6 +3810,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if cooldown:db.delete(cooldown)
             for m in db.scalars(select(MissionProgress).where(MissionProgress.user_id == uid, MissionProgress.day == local_day())).all():
                 db.delete(m)
+            db.execute(delete(MissionActionDaily).where(MissionActionDaily.user_id==uid,MissionActionDaily.day==local_day()))
+            db.execute(delete(RecantoMissionExtraProgress).where(RecantoMissionExtraProgress.user_id==uid,
+                RecantoMissionExtraProgress.period==local_day()))
         return {'ok': True}
 
     @app.post('/api/dev/reset-all')
@@ -3597,7 +3824,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if scope not in ('progress','factory') or payload['confirmation'] != 'LIMPAR TUDO':
             raise HTTPException(422, detail='Confirme digitando LIMPAR TUDO')
         with writing() as db:
-            for table in (VisitorCare, FavoriteCard, ReservedCard, InventoryPack, InventoryTreat, InventoryCollectible,
+            for table in (MissionActionDaily,RecantoMissionExtraProgress,VisitorCare, FavoriteCard, ReservedCard, InventoryPack, InventoryTreat, InventoryCollectible,
                           CoinOffer, CardCooldown, PetExpedition, FavoriteGame, FavoriteChampion, TradeReward, Trade, MissionProgress, Claim, UserAchievement,
                           AchievementProgress, UserPet, OwnedCard):
                 db.execute(delete(table))

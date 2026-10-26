@@ -1790,7 +1790,7 @@
     for(const option of data.expedition_options||[]){
       const row=h('div','expedition-choice');
       const expInfo=h('div','expedition-info');
-      expInfo.append(h('strong','',option.name),h('small','',`${option.minutes/60}h • -${option.food} fome • ${option.coins[0]}–${option.coins[1]} moedas • ${option.card_chance}% chance de Card${option.collectible_chance?' • '+option.collectible_chance+'% colecionável':''}`));
+      expInfo.append(h('strong','',option.name),h('small','',`${option.minutes%60===0?option.minutes/60+'h':Math.floor(option.minutes/60)+'h '+option.minutes%60+'min'} • -${option.food} fome • -${option.happiness} felicidade • -${option.health} saúde • ${option.coins[0]}–${option.coins[1]} moedas • ${option.card_chance}% chance de Card${option.collectible_chance?' • '+option.collectible_chance+'% colecionável':''}`));
       expInfo.append(button('Enviar',()=>safeRun(()=>API('/api/pets/expedition/start',{mission:option.id}),'Seu Pet iniciou a missão!'),'soft-action'));
       const expeditionEmoji={passeio:'🌲',exploracao:'🏛️',jornada:'🧭'}[option.id]||'🗺️';
       row.append(mediaCover(option.image_url,expeditionEmoji,option.name,'expedition-cover'),expInfo);
@@ -1876,7 +1876,9 @@
   }
   async function loadShop(){const [shop,me,daily]=await Promise.all([API('/api/shop'),API('/api/me'),API('/api/daily/status')]);$('shopWallet').textContent=`🪙 ${money(me.coins)}`;state.reset=daily.next_reset;state.dailyReward=Number(daily.reward||0);$('dailyCoins').disabled=daily.coins_claimed||state.dailyClaimInFlight;$('dailyCoins').textContent=state.dailyClaimInFlight?'Confirmando resgate…':daily.coins_claimed?'✓ Resgatado':`Resgatar ${money(daily.reward)} moedas`;updateCountdowns();const pane=$('shopPane');pane.replaceChildren();for(const s of shop.products){const box=block(s.name,s.kind==='cards'?`${s.amount} cartas aleatórias · guarda no Inventário`:s.sku==='vaccine'?'1 vacina para Pets em recuperação':`${s.amount} petisco(s) · +${s.food||15} fome por unidade`);box.id='shop-'+s.sku;box.classList.add('product-card');box.prepend(mediaCover(s.image_url,s.emoji||'🎁',s.name,'product-cover'));if(s.rates)box.append(h('p','rates',Object.entries(s.rates).map(([k,v])=>`${tierLabels[k]} ${v}%`).join(' · ')));box.append(button(`Comprar · 🪙 ${money(s.price)}`,()=>safeRun(()=>API('/api/shop/purchase',{sku:s.sku}),result=>result.pack_id?`Pacote guardado no Inventário!`:`${result.treats_gained} item(ns) adicionado(s) ao Inventário!`)));pane.append(box);}if(state.focusShop){const selected=$('shop-'+state.focusShop);state.focusShop=null;if(selected){selected.classList.add('shop-focus');selected.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});setTimeout(()=>selected.classList.remove('shop-focus'),1800);}}}
   async function loadMissions(){
-    const data=await API('/api/missions');state.missionReset=data.next_reset;
+    const [data,extras]=await Promise.all([API('/api/missions'),API('/api/recanto-extra-missions').catch(()=>({items:[]}))]);
+    data.items=[...(data.items||[]),...(extras.items||[])];
+    state.missionReset=data.next_reset;
     const pane=$('missionPane');pane.replaceChildren();
     const completed=data.items.filter(x=>x.claimed).length;
     $('missionCount').textContent=`${completed}/${data.items.length} resgatadas`;
@@ -1888,7 +1890,7 @@
         const box=block(poroLegacyText(m.title),`Progresso: ${m.progress}/${m.goal} · Recompensa: 🪙 ${m.reward}`);
         box.classList.add('mission-card');box.prepend(mediaCover(m.image_url,m.emoji||'🎯',poroLegacyText(m.title),'mission-cover'));
         const bar=h('div','mission-meter');const fill=h('div','mission-fill');fill.style.width=Math.min(100,100*m.progress/m.goal)+'%';bar.append(fill);box.append(bar);
-        const action=button(m.claimed?'✓ Resgatada':m.progress>=m.goal?'Resgatar recompensa':'Em andamento',()=>safeRun(()=>API('/api/missions/'+m.code+'/claim',{}),`+${m.reward} moedas!`,result=>{applyConfirmedCoins(result,m.reward);action.textContent='✓ Resgatada';action.dataset.keepDisabled='1';action.disabled=true;}));
+        const action=button(m.claimed?'✓ Resgatada':m.progress>=m.goal?'Resgatar recompensa':'Em andamento',()=>safeRun(()=>API((m.source==='extra'?'/api/recanto-extra-missions/':'/api/missions/')+encodeURIComponent(m.code)+'/claim',{}),`+${m.reward} moedas!`,result=>{applyConfirmedCoins(result,m.reward);action.textContent='✓ Resgatada';action.dataset.keepDisabled='1';action.disabled=true;}));
         action.disabled=m.claimed||m.progress<m.goal;box.append(action);section.append(box);
       }
       pane.append(section);
@@ -2109,6 +2111,7 @@
     try{
       const authorizedTask=API('/api/admin/authorized-ids');
       const missionsTask=API('/api/admin/missions');
+      const extraMissionsTask=API('/api/admin/recanto-extra-missions').catch(()=>({items:[]}));
       const catalogTask=API('/api/catalog');
       const gamesTask=API('/api/games/preferences');
     const championsTask=API('/api/champions/preferences');
@@ -2392,7 +2395,24 @@
 
     const expeditionBlock=block('Configurar Expedições','A chance de card e de colecionável são independentes. Em cada expedição, o resultado é definido no servidor.');
     const expData=await API('/api/admin/expeditions');
-    const expChoice=h('select','select-input');for(const opt of expData.items||[]){const item=h('option','',opt.name);item.value=opt.id;expChoice.append(item);}
+    const expChoice=h('select','select-input');
+    const addExpOpt=(record)=>{const item=h('option','',record.name);item.value=record.id;expChoice.append(item);};
+    expData.items.forEach(addExpOpt);
+    const [expCode,expCodeInput]=adminField('Código da expedição (apenas para nova; letras sem espaços)','');
+    const [expName,expNameInput]=adminField('Nome da expedição','');
+    const [expMinutes,expMinutesInput]=adminField('Duração em minutos (60 = 1h)','60','number');
+    const [expFood,expFoodInput]=adminField('Consumo de fome (0–85)','12','number');
+    const [expHappy,expHappyInput]=adminField('Consumo de felicidade (0–90)','6','number');
+    const [expHealth,expHealthInput]=adminField('Consumo de saúde (0–90)','0','number');
+    const [expCoinMin,expCoinMinInput]=adminField('Moedas mínimas','10','number');
+    const [expCoinMax,expCoinMaxInput]=adminField('Moedas máximas','20','number');
+    const expEnabled=h('input','');expEnabled.type='checkbox';expEnabled.checked=true;
+    const newExpMode=h('input','');newExpMode.type='checkbox';
+    const expNewToggle=h('label','admin-check');expNewToggle.append(newExpMode,document.createTextNode(' Criar nova expedição'));
+    const expExistingGroup=h('div','');expExistingGroup.append(h('label','','Editar uma expedição'),expChoice);
+    const updateMode=()=>{expExistingGroup.hidden=newExpMode.checked;expCode.hidden=!newExpMode.checked; if(newExpMode.checked){expCodeInput.value='';expNameInput.value='';expMinutesInput.value='60';expFoodInput.value='12';expHappyInput.value='6';expHealthInput.value='0';expCoinMinInput.value='10';expCoinMaxInput.value='20';expEnabled.checked=true;expCoverInput.value='';expChanceInput.value='0';collectChanceInput.value='0';collectibleChoice.value='';cardChoice.value='';Object.entries(weights).forEach(([tier,input])=>{input.value=({comum:84,raro:14,'lendário':1.8,'prismático':0.2})[tier]??0;});}else{showExpedition();}};
+    newExpMode.addEventListener('change',updateMode);
+    const expEnabledLabel=h('label','admin-check');expEnabledLabel.append(expEnabled,document.createTextNode(' Expedição ativa'));
     const [expCover,expCoverInput]=adminField('Imagem da expedição (HTTPS ou /uploads/...)','');
     const expFile=h('input','text-input');expFile.type='file';expFile.accept='image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif';
     const [expChance,expChanceInput]=adminField('Probabilidade de ganhar um card (0–100%)','0','number');expChanceInput.min='0';expChanceInput.max='100';
@@ -2404,20 +2424,30 @@
     for(const item of expData.collectibles||[]){op=h('option','',item.name);op.value=String(item.id);collectibleChoice.append(op);}
     const [collectChance,collectChanceInput]=adminField('Probabilidade de ganhar o colecionável (0–100%)','0','number');collectChanceInput.min='0';collectChanceInput.max='100';
     const showExpedition=()=>{const item=expData.items.find(x=>x.id===expChoice.value);if(!item)return;
+      expNameInput.value=item.name||'';expMinutesInput.value=item.minutes||60;
+      expFoodInput.value=item.food??12;expHappyInput.value=item.happiness??6;expHealthInput.value=item.health??0;
+      expCoinMinInput.value=item.coins?.[0]??10;expCoinMaxInput.value=item.coins?.[1]??20;
+      expEnabled.checked=item.enabled!==false;
       expCoverInput.value=item.image_url||'';expFile.value='';expChanceInput.value=item.card_chance;
       cardChoice.value=item.featured_card_id||'';collectibleChoice.value=item.collectible_id||'';collectChanceInput.value=item.collectible_chance||0;
       for(const [tier,input] of Object.entries(weights))input.value=item.rarity_weights?.[tier]??0;};
-    expChoice.onchange=showExpedition;showExpedition();
-    expeditionBlock.append(h('label','','Expedição'),expChoice,expCover,h('label','','Ou enviar imagem'),expFile,
+    expChoice.onchange=showExpedition;showExpedition();updateMode();
+    expeditionBlock.append(expNewToggle,expExistingGroup,expCode,expName,expMinutes,expFood,expHappy,expHealth,expCoinMin,expCoinMax,expEnabledLabel,
+      expCover,h('label','','Ou enviar imagem'),expFile,
       expChance,h('label','','Peso das raridades (não precisa somar 100)'),...weightFields,
       h('label','','Card específico opcional (se já possuir, converter em moedas)'),cardChoice,
       h('label','','Colecionável como recompensa opcional'),collectibleChoice,collectChance,
       button('Salvar configuração da expedição',async()=>{
-        const payload={image_url:expFile.files.length?await uploadArtwork(expFile.files[0]):expCoverInput.value,
+        const code=newExpMode.checked?expCodeInput.value.trim().toLowerCase():expChoice.value;
+        if(!/^[a-z][a-z0-9_-]{2,29}$/.test(code)){toast('Informe um código válido para a expedição.');return;}
+        const payload={name:expNameInput.value.trim(),minutes:Number(expMinutesInput.value),food:Number(expFoodInput.value),
+          happiness:Number(expHappyInput.value),health:Number(expHealthInput.value),
+          coin_min:Number(expCoinMinInput.value),coin_max:Number(expCoinMaxInput.value),enabled:expEnabled.checked,
+          image_url:expFile.files.length?await uploadArtwork(expFile.files[0]):expCoverInput.value,
           card_chance:Number(expChanceInput.value),collectible_chance:Number(collectChanceInput.value),
           rarity_weights:Object.fromEntries(Object.entries(weights).map(([tier,input])=>[tier,Number(input.value)])),
           featured_card_id:cardChoice.value?Number(cardChoice.value):null,collectible_id:collectibleChoice.value?Number(collectibleChoice.value):null};
-        const result=await safeRun(()=>API('/api/admin/expeditions/'+encodeURIComponent(expChoice.value),payload),'Expedição atualizada!');
+        const result=await safeRun(()=>API('/api/admin/expeditions/'+encodeURIComponent(code),payload),'Expedição salva!');
         if(result){state.adminReady=false;state.adminGroup='Pets';await openAdmin(true);}
       }));
     pane.append(expeditionBlock);
@@ -2500,7 +2530,9 @@
     const missionBlock=block('Missões do Recanto','Crie e edite missões únicas, diárias ou semanais. As semanais entram na semana atual; após a próxima segunda-feira, cadastre/reative as missões da nova semana.');
     const existing=h('select','select-input');
     existing.append(Object.assign(h('option','','Nova missão'),{value:''}));
-    missionsTask.then(data=>{missionData.items=data.items||[];for(const row of missionData.items){const o=h('option','',poroLegacyText(row.title)+' ['+row.code+']');o.value=row.code;existing.append(o);}})
+    Promise.all([missionsTask,extraMissionsTask]).then(([data,extraData])=>{
+      missionData.items=[...(data.items||[]).map(row=>({...row,source:'main'})),...(extraData.items||[])];
+      for(const row of missionData.items){const o=h('option','',poroLegacyText(row.title)+' ['+row.code+']');o.value=row.code;existing.append(o);}})
       .catch(err=>{missionBlock.append(h('p','', 'Missões indisponíveis: '+err.message));});
     const mFields={};
     for(const [key,label,value] of [['code','Código único (ex: voz_30)',''],['title','Título',''],['goal','Meta numérica','1'],['reward','Recompensa em moedas','10'],['emoji','Emoji','🎯'],['image_url','Capa URL HTTPS (opcional)','']]){
@@ -2508,7 +2540,7 @@
       mFields[key]=inp;missionBlock.append(wrap);
     }
     const missionType=h('select','select-input');for(const [v,t] of [['unica','Única'],['diaria','Diária'],['semanal','Semanal']]){const opt=h('option','',t);opt.value=v;missionType.append(opt);}
-    const missionEvent=h('select','select-input');for(const [v,t] of [['adopt','Adotar Pet'],['trade','Trocar card'],['daily_card','Resgatar card'],['daily_coins','Resgatar moedas'],['pet','Acariciar Pet'],['feed','Alimentar Pet'],['pack','Abrir pack'],['voice_minutes','Minutos em canal de voz'],['message_count','Mensagens de texto']]){const opt=h('option','',t);opt.value=v;missionEvent.append(opt);}
+    const missionEvent=h('select','select-input');for(const [v,t] of [['adopt','Adotar Pet'],['trade','Trocar card'],['daily_card','Resgatar card'],['daily_coins','Resgatar moedas'],['pet','Acariciar Pet'],['feed','Alimentar Pet'],['pack','Abrir pack'],['voice_minutes','Minutos em canal de voz'],['message_count','Mensagens de texto'],['profile_visit','Visitar perfil de outro membro'],['expedition_start','Enviar Pet para expedição'],['collectible_gain','Conseguir colecionável'],['favorite_game','Definir jogos favoritos'],['favorite_champion','Definir campeões favoritos']]){const opt=h('option','',t);opt.value=v;missionEvent.append(opt);}
     const enabled=h('input');enabled.type='checkbox';enabled.checked=true;
     existing.onchange=()=>{const row=missionData.items.find(m=>m.code===existing.value);if(!row)return;
       for(const key of Object.keys(mFields))mFields[key].value=row[key]??'';
@@ -2518,18 +2550,34 @@
     missionBlock.append(h('label','','Tipo de missão'),missionType,h('label','','Ação que conta progresso'),missionEvent,h('label','','Ou envie a imagem da missão'),imageUpload,h('label','','Missão ativa'),enabled,
       button('Salvar missão',async()=>{const payload=Object.fromEntries(Object.entries(mFields).map(([k,v])=>[k,v.value]));
         payload.goal=Number(payload.goal);payload.reward=Number(payload.reward);payload.kind=missionType.value;payload.event=missionEvent.value;payload.enabled=enabled.checked;
-        const result=await safeRun(async()=>{if(imageUpload.files.length)payload.image_url=await uploadArtwork(imageUpload.files[0]);return API('/api/admin/missions',payload);},'Missão cadastrada/atualizada!');if(result){state.adminReady=false;await openAdmin(true);}}));
+        const chosen=missionData.items.find(m=>m.code===existing.value);
+        const extraEvents=new Set(['profile_visit','expedition_start','collectible_gain','favorite_game','favorite_champion']);
+        const useExtra=extraEvents.has(payload.event)||chosen?.source==='extra';
+        if(chosen?.source==='main' && extraEvents.has(payload.event)){
+          toast('Para trocar uma missão existente por uma nova ação, cadastre uma nova missão com outro código.');return;
+        }
+        if(useExtra && !extraEvents.has(payload.event)){
+          toast('Esta missão utiliza uma ação nova. Para mudar para uma ação antiga, crie outra missão.');return;
+        }
+        const result=await safeRun(async()=>{
+          if(imageUpload.files.length)payload.image_url=await uploadArtwork(imageUpload.files[0]);
+          return API(useExtra?'/api/admin/recanto-extra-missions':'/api/admin/missions',payload);
+        },'Missão cadastrada/atualizada!');if(result){state.adminReady=false;await openAdmin(true);}}));
     const missionVisibility=h('div','admin-action-row');
     missionVisibility.append(
       button('Remover missão (desativar)',async()=>{
         if(!existing.value){toast('Selecione uma missão cadastrada.');return;}
         if(!window.confirm('Desativar esta missão? O progresso histórico será preservado.'))return;
-        const result=await safeRun(()=>API('/api/admin/missions/'+encodeURIComponent(existing.value)+'/visibility',{enabled:false}),'Missão removida da lista ativa.');
+        const chosen=missionData.items.find(m=>m.code===existing.value);
+        const path=chosen?.source==='extra'?'/api/admin/recanto-extra-missions/':'/api/admin/missions/';
+        const result=await safeRun(()=>API(path+encodeURIComponent(existing.value)+'/visibility',{enabled:false}),'Missão removida da lista ativa.');
         if(result){state.adminReady=false;await openAdmin(true);}
       },'danger-action'),
       button('Restaurar missão',async()=>{
         if(!existing.value){toast('Selecione uma missão cadastrada.');return;}
-        const result=await safeRun(()=>API('/api/admin/missions/'+encodeURIComponent(existing.value)+'/visibility',{enabled:true}),'Missão reativada.');
+        const chosen=missionData.items.find(m=>m.code===existing.value);
+        const path=chosen?.source==='extra'?'/api/admin/recanto-extra-missions/':'/api/admin/missions/';
+        const result=await safeRun(()=>API(path+encodeURIComponent(existing.value)+'/visibility',{enabled:true}),'Missão reativada.');
         if(result){state.adminReady=false;await openAdmin(true);}
       },'soft-action')
     );
