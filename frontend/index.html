@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=0.3.2">
+  <link rel="stylesheet" href="/styles.css?v=0.3.3">
 </head>
 <body>
 <!-- Recanto 0.1.2 — layout responsivo e gestão com carregamento progressivo. -->
@@ -54,7 +54,7 @@
     <header class="desktop-topbar" aria-label="Barra superior">
       <button type="button" class="desktop-search" id="desktopSearch" aria-label="Buscar membros da comunidade"><svg aria-hidden="true"><use href="#person"/></svg><span>Buscar membros da comunidade...</span></button>
       <div class="desktop-topbar-actions">
-        <div class="desktop-wallet-summary" aria-label="Saldos do perfil"><div class="desktop-coins"><svg><use href="#coin"/></svg><span><b id="desktopWallet">—</b><small>Moedas</small></span></div><div class="desktop-resource"><svg><use href="#cards"/></svg><span><b id="desktopCards">—</b><small>Cards</small></span></div><div class="desktop-resource"><svg><use href="#heart"/></svg><span><b id="desktopTreats">—</b><small>Petiscos</small></span></div></div>
+        <div id="desktopEventBanners" class="recanto-event-banners recanto-event-banners-desktop" hidden aria-label="Eventos ativos"></div><div class="desktop-wallet-summary" aria-label="Saldos do perfil"><div class="desktop-coins"><svg><use href="#coin"/></svg><span><b id="desktopWallet">—</b><small>Moedas</small></span></div><div class="desktop-resource"><svg><use href="#cards"/></svg><span><b id="desktopCards">—</b><small>Cards</small></span></div><div class="desktop-resource"><svg><use href="#heart"/></svg><span><b id="desktopTreats">—</b><small>Petiscos</small></span></div></div>
         
         <div class="desktop-user"><span class="desktop-user-avatar" id="desktopAvatar"></span><span id="desktopUserName">Meu Recanto</span></div>
       </div>
@@ -70,6 +70,7 @@
     <div id="profileContent">
       <div class="desktop-left-column" id="desktopLeftColumn">
       <header class="profile-header"><div class="greeting"><svg class="discord-mark"><use href="#discord"/></svg><span id="userName">Olá, Fulano</span><span class="desktop-profile-title">Meu Perfil</span></div><div class="header-actions"><button type="button" class="settings-button search-icon-button" id="searchUsers" aria-label="Buscar perfis" title="Buscar perfis"><svg><use href="#person"/></svg></button><button type="button" class="settings-button" id="settings" aria-label="Configurações"><svg><use href="#gear"/></svg></button></div></header>
+      <div id="mobileEventBanners" class="recanto-event-banners recanto-event-banners-mobile" hidden aria-label="Eventos ativos"></div>
       <div class="desktop-profile-hero">
       <section class="profile-panel"><div class="profile-panel-inner"><div class="stats-list">
         <div class="stat"><span class="stat-icon"><svg><use href="#coin"/></svg></span><strong class="stat-value" id="valMoedas">50</strong><span class="stat-name">Moedas</span></div>
@@ -95,7 +96,7 @@
     <section class="content-page" id="cardsScreen" hidden>
       <header class="content-head"><h1><span class="section-title-icon" data-title-icon="cards"><svg aria-hidden="true"><use href="#cards"/></svg></span><span>Cards</span></h1><span id="cardsCount">Coleção</span></header>
       <div class="scroll-content">
-        <div class="daily-card-box"><div class="daily-card-info"><div class="daily-icon" id="dailyCardIcon" aria-hidden="true">🃏</div><div><strong>Resgate de cards · 5h</strong><p id="cardCountdown">Carregando...</p></div></div><button class="main-action" id="dailyCard">Resgatar card</button></div>
+        <div class="daily-card-box"><div class="daily-card-info"><div class="daily-icon" id="dailyCardIcon" aria-hidden="true">🃏</div><div><strong id="cardClaimTitle">Resgate de Cards</strong><p id="cardCountdown">Carregando...</p></div></div><button class="main-action" id="dailyCard">Resgatar card</button></div>
         <div class="mini-tabs"><button class="mini-active" data-card-tab="colecao">Minha coleção</button><button data-card-tab="catalogo">Catálogo</button><button data-card-tab="trocas">Trocas</button></div>
         <div id="cardFilters" class="card-filters" hidden></div>
         <div id="cardsPane"></div>
@@ -137,9 +138,9 @@
       <p class="notifications-status" id="notificationsStatus" role="status" aria-live="polite" hidden></p>
       <button type="button" class="soft-action settings-admin" id="settingsAdmin" hidden aria-label="Abrir Gestão do Recanto"><svg aria-hidden="true"><use href="#gear"/></svg><span>Gestão do Recanto</span></button>
       <button type="button" class="soft-action settings-update-check" id="checkUpdates"><svg aria-hidden="true"><use href="#missions"/></svg><span>Verificar atualizações</span></button>
-      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.3.2</p></section></div>
+      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.3.3</p></section></div>
   </main>
 </div>
-<script src="/app.js?v=0.3.2" defer></script>
+<script src="/app.js?v=0.3.3" defer></script>
 </body>
 </html>

@@ -3462,3 +3462,39 @@ body.dark-mode #publicProfilePage .public-level-mobile .recanto-level{color:#f3f
 .admin-selective-reset .admin-field select,.admin-selective-reset .admin-field input{width:100%;}
 body.dark-mode .admin-selective-reset .admin-reset-choice,body.dark-mode .admin-selective-reset .admin-reset-select-all{background:rgba(104,118,225,.12);border-color:rgba(207,215,255,.22);}
 @media (max-width:680px){.admin-selective-reset .admin-reset-categories{grid-template-columns:minmax(0,1fr);}}
+
+
+/* Recanto 0.3.3 — Faixas de eventos ativos no topo e acima do resumo no Mobile. */
+.recanto-event-banners[hidden]{display:none!important}
+.recanto-event-banners{min-width:0;min-height:0;gap:8px;scrollbar-width:thin}
+.recanto-event-banners-desktop{display:none}
+.recanto-event-banners-mobile{display:flex;flex-direction:row;gap:8px;width:100%;position:relative;z-index:1;margin:14px 0 -3px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:thin}
+.recanto-live-event{box-sizing:border-box;display:flex;align-items:center;gap:9px;min-width:0;padding:9px 12px;border-radius:13px;background:linear-gradient(115deg,#3949ad,#686de0);color:#fff;box-shadow:none}
+.recanto-event-banners-mobile .recanto-live-event{flex:0 0 100%;scroll-snap-align:start}
+.recanto-live-event-icon{font-size:24px;flex:none;line-height:1.1}
+.recanto-live-event-details{min-width:0;display:flex;flex-direction:column;gap:2px}
+.recanto-live-event-details strong{font-size:12px;font-weight:800;line-height:1.25}
+.recanto-live-event-details small{font-size:11px;line-height:1.35;opacity:.94;white-space:normal;overflow-wrap:anywhere}
+body.dark-mode .recanto-live-event{background:linear-gradient(115deg,#333d7c,#5058a5);color:#fff}
+.recanto-shop-discount{color:#386f53;font-weight:700;font-size:12px}
+body.dark-mode .recanto-shop-discount{color:#abebc9}
+.recanto-claim-total{font-weight:800}.recanto-claim-total.recanto-invalid{color:#c24848}
+.recanto-admin-event-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:12px}
+.recanto-admin-event-item{padding:12px;border:1px solid rgba(100,111,175,.2);border-radius:12px;background:rgba(115,128,217,.06);cursor:pointer;display:flex;flex-direction:column;gap:5px}
+.recanto-admin-event-item strong{font-size:13px}.recanto-admin-event-item small{font-size:10px;font-weight:800}.recanto-admin-event-item p{font-size:11px;margin:0;white-space:normal;overflow-wrap:anywhere}
+.recanto-admin-event-item:hover{background:rgba(115,128,217,.13)}
+.recanto-event-status{font-weight:700}
+@media(min-width:768px){
+  .recanto-event-banners-mobile{display:none!important}
+  .recanto-event-banners-desktop:not([hidden]){display:flex;flex:0 1 330px;max-width:330px;min-width:125px;max-height:68px;gap:7px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory}
+  .recanto-event-banners-desktop .recanto-live-event{min-width:170px;max-width:330px;flex:0 0 100%;scroll-snap-align:start;padding:7px 10px;}
+  .recanto-event-banners-desktop .recanto-live-event-icon{font-size:20px}
+  .recanto-event-banners-desktop .recanto-live-event-details strong{font-size:11px}
+  .recanto-event-banners-desktop .recanto-live-event-details small{font-size:10px;max-height:28px;overflow:hidden}
+  .desktop-topbar-actions{min-width:0}
+}
+@media(max-width:767px){
+  #profileContent .desktop-left-column > .recanto-event-banners-mobile{width:100%;flex:none;margin-top:12px}
+  /* O cabeçalho e o banner precedem o resumo, sem se sobrepor ao Avatar. */
+  #profileContent .desktop-left-column:has(.recanto-event-banners-mobile:not([hidden])) > .desktop-profile-hero{margin-top:clamp(105px,13dvh,160px)}
+}

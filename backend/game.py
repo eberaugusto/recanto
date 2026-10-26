@@ -1,4 +1,4 @@
-"""Recanto 0.3.2. Economia e jogo executados inteiramente no servidor.
+"""Recanto 0.3.3. Economia e jogo executados inteiramente no servidor.
 
 Ações que alteram saldo/itens usam transações serializadas. O browser só pede
 operações; nunca escolhe resultado de sorteio, saldo, recompensa ou tempo.
@@ -53,6 +53,10 @@ DEFAULTS = {
     'xp_card_comum': 8, 'xp_card_raro': 16, 'xp_card_lendário': 32, 'xp_card_prismático': 60,
     'xp_achievement': 70, 'xp_favorite_card': 12, 'xp_favorite_game': 10,
     'xp_discord_voice_minute': 4, 'xp_discord_message': 2,
+    'xp_mission_claim': 20,
+    'card_claim_minutes': 300,
+    'card_chance_comum': 60, 'card_chance_raro': 29,
+    'card_chance_lendário': 10, 'card_chance_prismático': 1,
 }
 MISSIONS = [
     ('daily_card', 'Resgate um card', 1, 12),
@@ -198,6 +202,20 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         __tablename__ = 'game_settings'
         key: Mapped[str] = mapped_column(String(45), primary_key=True)
         value: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    class RecantoEvent(Base):
+        """Campanhas independentes, agendadas por horário de Brasília e avaliadas pelo servidor."""
+        __tablename__ = 'recanto_events'
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        name: Mapped[str] = mapped_column(String(100), nullable=False)
+        description: Mapped[str] = mapped_column(String(240), nullable=False, default='')
+        emoji: Mapped[str] = mapped_column(String(24), nullable=False, default='✨')
+        kind: Mapped[str] = mapped_column(String(32), nullable=False)
+        value: Mapped[int] = mapped_column(Integer, nullable=False)
+        mode: Mapped[str] = mapped_column(String(12), nullable=False, default='manual')
+        enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+        starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+        ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     class GameLock(Base):
         __tablename__ = 'game_lock'
@@ -729,6 +747,54 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
     def setting(db, key):
         return db.get(GameSetting, key).value
 
+    EVENT_KINDS = {
+        'card_cooldown': ('Resgate acelerado', 30, 10080),
+        'double_cards': ('Resgate duplo', 2, 2),
+        'shop_discount': ('Desconto na Loja (%)', 1, 90),
+        'expedition_speed': ('Expedições mais rápidas (%)', 1, 90),
+        'mission_xp': ('EXP extra por Missão (%)', 1, 400),
+    }
+
+    def active_events(db, now=None):
+        now=now or utcnow()
+        return [e for e in db.scalars(select(RecantoEvent).where(RecantoEvent.enabled.is_(True)).order_by(RecantoEvent.id)).all()
+                if (e.mode!='scheduled' or (e.starts_at is not None and e.ends_at is not None))
+                and (e.starts_at is None or naive_to_utc(e.starts_at)<=now)
+                and (e.ends_at is None or naive_to_utc(e.ends_at)>now)]
+
+    def event_effects(db, now=None):
+        rows=active_events(db,now)
+        benefits={'card_cooldown':setting(db,'card_claim_minutes'), 'double_cards':1,
+                  'shop_discount':0, 'expedition_speed':0, 'mission_xp':0}
+        for item in rows:
+            if item.kind=='card_cooldown':benefits[item.kind]=min(benefits[item.kind],item.value)
+            elif item.kind=='double_cards':benefits[item.kind]=2
+            elif item.kind in benefits:benefits[item.kind]=max(benefits[item.kind],item.value)
+        return benefits
+
+    def event_dict(row, now=None):
+        now=now or utcnow()
+        active=bool(row.enabled and (row.mode!='scheduled' or (row.starts_at and row.ends_at))
+              and (row.starts_at is None or naive_to_utc(row.starts_at)<=now)
+              and (row.ends_at is None or naive_to_utc(row.ends_at)>now))
+        return {'id':row.id,'name':row.name,'description':row.description,'emoji':row.emoji,
+                'kind':row.kind,'value':row.value,'mode':row.mode,'enabled':bool(row.enabled),
+                'starts_at':naive_to_utc(row.starts_at).isoformat() if row.starts_at else None,
+                'ends_at':naive_to_utc(row.ends_at).isoformat() if row.ends_at else None,
+                'active':active}
+
+    def event_price(db, base):
+        reduction=event_effects(db)['shop_discount']
+        return max(1, (int(base)*(100-reduction)+99)//100) if reduction else int(base)
+
+    def mission_claim_experience(db, uid):
+        base=setting(db,'xp_mission_claim')
+        extra=event_effects(db)['mission_xp']
+        return grant_experience(db,uid,base*(100+extra)//100,'missao_concluida')
+
+    def card_claim_weights(db):
+        return {tier:setting(db,'card_chance_'+tier) for tier in TIERS}
+
     def card_bonus(db, rarity):
         if rarity not in TIERS:
             raise HTTPException(409, detail='Raridade invalida para recompensa')
@@ -736,7 +802,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
 
     def next_card_available(db, uid):
         row=db.get(CardCooldown,uid)
-        return naive_to_utc(row.last_claimed)+timedelta(hours=5) if row else None
+        return naive_to_utc(row.last_claimed)+timedelta(minutes=event_effects(db)['card_cooldown']) if row else None
 
     def game_entry(db, row):
         key,name,emoji=row
@@ -1411,12 +1477,13 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                  'reserved': reserved.get(r[0], 0),
                  'remaining': max(0, TIERS.get(r[2], 1) - counts.get(r[0], 0) - reserved.get(r[0], 0))} for r in rows]
 
-    def random_card(pool, weight_key):
+    def random_card(pool, weight_key, overrides=None):
         eligible = [c for c in pool if c['remaining'] > 0]
         if not eligible:
             raise HTTPException(409, detail='Todos os cards se esgotaram; cadastre novos no painel de gestão.')
         tiers = sorted({x['rarity'] for x in eligible})
-        weighted = [max(0, WEIGHTS[weight_key].get(t, 0)) for t in tiers]
+        weights = overrides if overrides is not None else WEIGHTS[weight_key]
+        weighted = [max(0, weights.get(t, 0)) for t in tiers]
         if not sum(weighted):
             raise HTTPException(409, detail='Não há cards habilitados para sorteio')
         chosen_tier = RANDOM.choices(tiers, weights=weighted, k=1)[0]
@@ -1610,8 +1677,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         uid = me(request)
         with SessionLocal() as db:
             cfg = {x.key: x.value for x in db.scalars(select(GameSetting)).all()}
-            return {'rules': cfg, 'chances': WEIGHTS, 'max_copies': TIERS,
-                    'reset_timezone': TIMEZONE_NAME, 'admin': is_admin(uid, request),
+            return {'rules': cfg, 'chances': dict(WEIGHTS,diario=card_claim_weights(db)), 'max_copies': TIERS,
+                    'reset_timezone': TIMEZONE_NAME, 'card_claim_minutes':event_effects(db)['card_cooldown'],
+                    'claim_rates':card_claim_weights(db), 'admin': is_admin(uid, request),
                     'demo': False, 'local_development': os.getenv('APP_ENV','development').strip().lower()=='development'}
 
     @app.get('/api/daily/status')
@@ -1623,7 +1691,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     'card_next_at':at.isoformat() if at else None,
                     'coins_claimed': claim_exists(db, uid, 'coins'),
                     'next_reset': reset_iso(), 'reward': setting(db, 'daily_coins'),
-                    'card_rewards': {tier:card_bonus(db,tier) for tier in TIERS}}
+                    'card_rewards': {tier:card_bonus(db,tier) for tier in TIERS},
+                    'card_claim_minutes':event_effects(db)['card_cooldown'],
+                    'double_cards':event_effects(db)['double_cards'],
+                    'claim_rates':card_claim_weights(db)}
 
     @app.post('/api/daily/coins')
     def daily_coins(request: Request):
@@ -1642,21 +1713,32 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         uid = me(request)
         with writing() as db:
             at=next_card_available(db,uid)
+            effects=event_effects(db)
             if at and at>utcnow():
-                raise HTTPException(409, detail='Aguarde 5 horas entre resgates de cartas.')
-            chosen = random_card(stock(db), 'diario')
-            result = grant_card(db, uid, chosen)
-            reward=card_bonus(db, result['rarity'])
+                raise HTTPException(409, detail=f'Aguarde {effects["card_cooldown"]} minutos entre resgates de cartas.')
+            pool=stock(db)
+            quantity=effects['double_cards']
+            if sum(card['remaining'] for card in pool)<quantity:
+                raise HTTPException(409,detail=f'Estoque insuficiente para resgatar {quantity} Cards neste evento.')
+            obtained=[]
+            reward=0
+            for _ in range(quantity):
+                chosen=random_card(pool,'diario',card_claim_weights(db))
+                granted=grant_card(db,uid,chosen)
+                granted['bonus_coins']=card_bonus(db,granted['rarity'])
+                reward+=granted['bonus_coins']
+                obtained.append(granted)
+                publish_feed(db,uid,'daily_card',card=feed_card(granted))
             balance=wallet(db, uid)
             balance.coins += reward
-            result['coins_balance']=balance.coins
             cooldown=db.get(CardCooldown,uid)
-            if cooldown: cooldown.last_claimed=utcnow()
-            else: db.add(CardCooldown(user_id=uid,last_claimed=utcnow()))
+            now=utcnow()
+            if cooldown: cooldown.last_claimed=now
+            else: db.add(CardCooldown(user_id=uid,last_claimed=now))
             progress(db, uid, 'daily_card')
-            publish_feed(db,uid,'daily_card',card=feed_card(result))
-            result['bonus_coins'] = reward
-        return {'ok': True, 'card': result}
+        return {'ok': True, 'card': obtained[0], 'cards':obtained,
+                'coins_balance':balance.coins, 'bonus_coins':reward,
+                'next_at':(now+timedelta(minutes=effects['card_cooldown'])).isoformat()}
 
     @app.get('/api/catalog')
     def catalog(request: Request):
@@ -2045,15 +2127,15 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         me(request)
         with SessionLocal() as db:
             products = [
-                {'sku': 'pack3', 'name': 'Pacote com 3 cards', 'price': setting(db, 'pack3_cost'), 'amount': 3,
+                {'sku': 'pack3', 'name': 'Pacote com 3 cards', 'price': event_price(db,setting(db, 'pack3_cost')), 'original_price':setting(db,'pack3_cost'), 'amount': 3,
                  'rates': WEIGHTS['pack3'], 'kind': 'cards'},
-                {'sku': 'pack5', 'name': 'Pacote com 5 cards', 'price': setting(db, 'pack5_cost'), 'amount': 5,
+                {'sku': 'pack5', 'name': 'Pacote com 5 cards', 'price': event_price(db,setting(db, 'pack5_cost')), 'original_price':setting(db,'pack5_cost'), 'amount': 5,
                  'rates': WEIGHTS['pack5'], 'kind': 'cards'},
-                {'sku': 'treat3', 'name': '3 Biscoitos', 'price': setting(db, 'treat_bundle_cost'),
+                {'sku': 'treat3', 'name': '3 Biscoitos', 'price': event_price(db,setting(db, 'treat_bundle_cost')), 'original_price':setting(db,'treat_bundle_cost'),
                  'amount': 3, 'kind': 'treats','food':15,'treat_sku':'biscoito'},
-                {'sku': 'fruit', 'name': 'Frutinha', 'price':setting(db,'treat_fruit_cost'), 'amount':1,'kind':'treats','food':30,'treat_sku':'fruta'},
-                {'sku': 'feast', 'name':'Banquete', 'price':setting(db,'treat_feast_cost'), 'amount':1,'kind':'treats','food':55,'treat_sku':'banquete'},
-                {'sku': 'vaccine', 'name':'Vacina para Pet', 'price':setting(db,'vaccine_cost'), 'amount':1,'kind':'treats','food':0,'treat_sku':'vacina'},
+                {'sku': 'fruit', 'name': 'Frutinha', 'price':event_price(db,setting(db,'treat_fruit_cost')), 'original_price':setting(db,'treat_fruit_cost'), 'amount':1,'kind':'treats','food':30,'treat_sku':'fruta'},
+                {'sku': 'feast', 'name':'Banquete', 'price':event_price(db,setting(db,'treat_feast_cost')), 'original_price':setting(db,'treat_feast_cost'), 'amount':1,'kind':'treats','food':55,'treat_sku':'banquete'},
+                {'sku': 'vaccine', 'name':'Vacina para Pet', 'price':event_price(db,setting(db,'vaccine_cost')), 'original_price':setting(db,'vaccine_cost'), 'amount':1,'kind':'treats','food':0,'treat_sku':'vacina'},
             ]
             covers = {c.sku:c.image_url for c in db.scalars(select(ProductCover)).all()}
             controls = {c.sku:c for c in db.scalars(select(ShopItemControl)).all()}
@@ -2084,7 +2166,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                                    'fruit':('fruta',1,'treat_fruit_cost'),
                                    'feast':('banquete',1,'treat_feast_cost'),
                                    'vaccine':('vacina',1,'vaccine_cost')}[sku]
-                cost = setting(db, key)
+                cost = event_price(db,setting(db, key))
                 require_coins(db, uid, cost)
                 w.coins -= cost
                 xp_spend(db,uid,cost)
@@ -2092,7 +2174,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 result = {'ok':True, 'treats_gained':qty, 'item':foodsku, 'spent':cost}
             else:
                 qty = 3 if sku=='pack3' else 5
-                cost = setting(db, sku+'_cost')
+                cost = event_price(db,setting(db, sku+'_cost'))
                 require_coins(db, uid, cost)
                 pool = stock(db)
                 if sum(x['remaining'] for x in pool) < qty:
@@ -2497,7 +2579,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     'expedition':({'mission':mission.mission,'name':mission.display_name or expedition_settings(db,mission.mission)['name'],
                        'ends_at':naive_to_utc(mission.ends_at).isoformat(),'ready':utcnow()>=naive_to_utc(mission.ends_at)}
                        if (mission:=db.get(PetExpedition,uid)) else None),
-                    'expedition_options':[expedition_settings(db,k) for k in expedition_codes(db)]}
+                    'expedition_options':[dict(expedition_settings(db,k),effective_minutes=max(1,
+                        (expedition_settings(db,k)['minutes']*(100-event_effects(db)['expedition_speed'])+99)//100))
+                        for k in expedition_codes(db)]}
 
     @app.post('/api/pets/expedition/start')
     async def start_expedition(request:Request):
@@ -2521,12 +2605,12 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             species=db.get(PetSpecies,obj.species_id)
             publish_feed(db,uid,'expedition_start',pet={'name':obj.nickname or species.name,'image_url':species.image_url,'emoji':species.emoji})
             db.add(PetExpedition(user_id=uid,mission=key,started_at=now,
-                ends_at=now+timedelta(minutes=info['minutes']),coins=coins,
+                ends_at=now+timedelta(minutes=max(1,(info['minutes']*(100-event_effects(db)['expedition_speed'])+99)//100)),coins=coins,
                 card_award=card_award,reward_card_id=info['featured_card_id'] if card_award else None,
                 reward_collectible_id=collect_id,reward_rarities=json.dumps(lucky_expedition_weights(info['rarity_weights'],obj.luck or 1)),
                 cost_food=info['food'],cost_happiness=info['happiness'],cost_health=info['health'],display_name=info['name']))
             progress(db,uid,'expedition_start')
-        return {'ok':True,'ends_at':(now+timedelta(minutes=info['minutes'])).isoformat()}
+        return {'ok':True,'ends_at':(now+timedelta(minutes=max(1,(info['minutes']*(100-event_effects(db)['expedition_speed'])+99)//100))).isoformat()}
 
     @app.post('/api/pets/expedition/collect')
     def collect_expedition(request:Request):
@@ -2778,6 +2862,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             balance=wallet(db, uid)
             balance.coins += definitions[code][3]
             achievement_event(db, uid, 'mission')
+            mission_claim_experience(db,uid)
             balance_after=balance.coins
         return {'ok': True, 'coins_gained': definitions[code][3], 'coins_balance': balance_after}
 
@@ -2808,6 +2893,73 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if action=='remove' and row: db.delete(row)
         return {'ok':True,'discord_id':discord_id,'action':action}
 
+    @app.get('/api/events')
+    def community_events(request:Request):
+        me(request)
+        with SessionLocal() as db:
+            now=utcnow()
+            return {'active':[event_dict(row,now) for row in active_events(db,now)],
+                    'effects':event_effects(db,now),'server_time':now.isoformat()}
+
+    @app.get('/api/admin/events')
+    def admin_events(request:Request):
+        only_admin(request)
+        with SessionLocal() as db:
+            return {'items':[event_dict(row) for row in db.scalars(select(RecantoEvent).order_by(RecantoEvent.id.desc())).all()],
+                    'kinds':{key:{'label':label,'min':minimum,'max':maximum}
+                             for key,(label,minimum,maximum) in EVENT_KINDS.items()},
+                    'timezone':TIMEZONE_NAME}
+
+    def parse_event_date(value):
+        if value in (None,''):return None
+        if not isinstance(value,str):raise HTTPException(422,detail='Data/hora inválida')
+        try:
+            stamp=datetime.fromisoformat(value)
+            if stamp.tzinfo is None:stamp=stamp.replace(tzinfo=GAME_TZ)
+            return stamp.astimezone(timezone.utc)
+        except (ValueError,OverflowError):raise HTTPException(422,detail='Data/hora inválida')
+
+    @app.post('/api/admin/events')
+    async def save_event(request:Request):
+        only_admin(request)
+        payload=json_body(await request.json(),('name','description','kind','value','mode','enabled'))
+        name=str(payload['name']).strip();description=str(payload['description']).strip()
+        kind=str(payload['kind']);mode=str(payload['mode']);value=integer(payload['value'])
+        enabled=payload['enabled'];emoji=str(payload.get('emoji') or '✨').strip()[:24]
+        if not 2<=len(name)<=100 or len(description)>240 or kind not in EVENT_KINDS or mode not in ('manual','scheduled') or type(enabled) is not bool:
+            raise HTTPException(422,detail='Informe nome, descrição, efeito e modo válidos')
+        low,high=EVENT_KINDS[kind][1:]
+        if not low<=value<=high:raise HTTPException(422,detail=f'Valor de evento entre {low} e {high}')
+        starts=parse_event_date(payload.get('starts_at'));ends=parse_event_date(payload.get('ends_at'))
+        if mode=='scheduled' and (not starts or not ends):
+            raise HTTPException(422,detail='Eventos programados precisam de início e término')
+        if starts and ends and ends<=starts:raise HTTPException(422,detail='O término precisa ser posterior ao início')
+        if starts and ends and ends-starts>timedelta(days=366):
+            raise HTTPException(422,detail='Duração máxima de um evento: 366 dias')
+        candidate=payload.get('id')
+        if candidate is not None and (type(candidate) is not int or candidate<1):
+            raise HTTPException(422,detail='ID de evento inválido')
+        with writing() as db:
+            row=db.get(RecantoEvent,candidate) if candidate else None
+            if candidate and row is None:raise HTTPException(404,detail='Evento não encontrado')
+            if row is None:row=RecantoEvent();db.add(row)
+            row.name=name;row.description=description;row.emoji=emoji or '✨'
+            row.kind=kind;row.value=value;row.mode=mode;row.enabled=enabled
+            row.starts_at=starts;row.ends_at=ends
+            db.flush();event_id=row.id
+        return {'ok':True,'id':event_id}
+
+    @app.post('/api/admin/events/delete')
+    async def delete_event(request:Request):
+        only_admin(request)
+        data=json_body(await request.json(),('id',))
+        ident=integer(data['id'])
+        with writing() as db:
+            row=db.get(RecantoEvent,ident)
+            if not row:raise HTTPException(404,detail='Evento não encontrado')
+            db.delete(row)
+        return {'ok':True}
+
     @app.get('/api/admin/settings')
     def admin_settings(request: Request):
         only_admin(request)
@@ -2828,11 +2980,29 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         ceiling=1000000 if key.startswith('card_bonus_') else 100000
         if not 0 <= value <= ceiling:
             raise HTTPException(422, detail=f'Informe um valor inteiro entre 0 e {ceiling:,}'.replace(',', '.'))
+        if key=='card_claim_minutes' and not 15<=value<=10080:
+            raise HTTPException(422,detail='Intervalo de resgate entre 15 e 10.080 minutos')
+        if key.startswith('card_chance_'):
+            raise HTTPException(422,detail='Edite as quatro raridades juntas para totalizar 100%')
         if key in ('neglect_hours', 'vet_dead_days') and value < 1:
             raise HTTPException(422, detail='O prazo deve ser no mínimo 1')
         with writing() as db:
             db.get(GameSetting, key).value = value
         return {'ok': True, 'key': key, 'value': value}
+
+    @app.post('/api/admin/cards/claim-settings')
+    async def save_claim_settings(request: Request):
+        only_admin(request)
+        data=json_body(await request.json(),('minutes','chances'))
+        minutes=integer(data['minutes']);chances=data['chances']
+        if not 15<=minutes<=10080 or not isinstance(chances,dict) or set(chances)!=set(TIERS):
+            raise HTTPException(422,detail='Defina intervalo válido e quatro raridades')
+        if any(type(chances[t]) is not int or not 0<=chances[t]<=100 for t in TIERS) or sum(chances.values())!=100:
+            raise HTTPException(422,detail='As chances precisam somar exatamente 100%')
+        with writing() as db:
+            db.get(GameSetting,'card_claim_minutes').value=minutes
+            for tier in TIERS:db.get(GameSetting,'card_chance_'+tier).value=chances[tier]
+        return {'ok':True,'minutes':minutes,'chances':chances}
 
     @app.post('/api/admin/cards')
     async def admin_add_card(request: Request):
@@ -2939,6 +3109,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             row.claimed=True
             coins=wallet(db,uid);coins.coins+=mission.reward
             achievement_event(db,uid,'mission')
+            mission_claim_experience(db,uid)
             return {'ok':True,'coins_gained':mission.reward,'coins_balance':coins.coins}
 
     @app.get('/api/admin/recanto-extra-missions')

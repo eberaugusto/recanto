@@ -55,7 +55,7 @@
   const poroSpeciesName = value => String(value ?? '');
   const labels={feed:'Feed',perfil:'Perfil',cards:'Cards',inventario:'Inventário',pet:'Pets',loja:'Loja',missoes:'Missões'};
   const tierLabels={comum:'Comum',raro:'Raro',lendário:'Lendário',prismático:'Prismático'};
-  const state={dailyReward:0,dailyClaimInFlight:false,assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:8,cardPage:1,cardPageSize:12,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:matchMedia('(min-width:768px)').matches?'raridade':'padrao',missing:false,newOnly:false},detailClosing:false};
+  const state={dailyReward:0,claimMinutes:300,dailyClaimInFlight:false,events:[],eventEffects:null,assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:8,cardPage:1,cardPageSize:12,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:matchMedia('(min-width:768px)').matches?'raridade':'padrao',missing:false,newOnly:false},detailClosing:false};
   // RECANTO 0.2.5 — molduras prontas por raridade/coleção, sem emblema separado.
   let collectionStyles={};
   let collectionStylesLoaded=false;
@@ -138,6 +138,7 @@
     paintCoins();
   }
   function reconcileAfterAction(){
+    refreshCommunityEvents().catch(()=>{});
     if(reconcileTimer)clearTimeout(reconcileTimer);
     reconcileTimer=setTimeout(()=>{
       reconcileTimer=null;
@@ -155,7 +156,49 @@
     }catch(err){toast('⚠ '+(err?.message||'Não foi possível concluir.'));return null;}
   };
   function countdown(iso){if(!iso)return '—';const delta=new Date(iso).getTime()-Date.now();if(delta<=0)return 'Disponível agora';let s=Math.ceil(delta/1000);const d=Math.floor(s/86400);s%=86400;const hour=Math.floor(s/3600);s%=3600;const minute=Math.floor(s/60);const sec=s%60;return (d?`${d}d `:'')+`${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;}
-  function updateCountdowns(){if(state.reset){const t=countdown(state.reset);$('cardCountdown').textContent=$('dailyCard').disabled?'Novo card em '+countdown(state.cardReset):'Disponível agora (a cada 5h)!';$('coinCountdown').textContent=$('dailyCoins').disabled?'Próximo resgate: '+t:'Resgate disponível!';}if(state.missionReset)$('missionTimer').textContent='Resetam em: '+countdown(state.missionReset);}
+  function claimDurationText(minutes){const n=Number(minutes)||300;return n%60===0?`${n/60}h`:n>60?`${Math.floor(n/60)}h${n%60}min`:`${n}min`;}
+  function updateCountdowns(){const cardTitle=$('cardClaimTitle');if(cardTitle)cardTitle.textContent=`Resgate de Cards · ${claimDurationText(state.claimMinutes)}`;if(state.reset){const t=countdown(state.reset);$('cardCountdown').textContent=$('dailyCard').disabled?'Novo card em '+countdown(state.cardReset):`Disponível agora (a cada ${claimDurationText(state.claimMinutes)})!`;$('coinCountdown').textContent=$('dailyCoins').disabled?'Próximo resgate: '+t:'Resgate disponível!';}if(state.missionReset)$('missionTimer').textContent='Resetam em: '+countdown(state.missionReset);}
+
+  function eventTimeLabel(iso){if(!iso)return '';return new Date(iso).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
+  function paintCommunityEvents(){
+    const events=state.events||[];
+    for(const id of ['desktopEventBanners','mobileEventBanners']){
+      const host=$(id);if(!host)continue;
+      host.replaceChildren();host.hidden=!events.length;
+      for(const item of events){
+        const banner=h('div','recanto-live-event');banner.title=`${item.name}${item.ends_at?' · até '+eventTimeLabel(item.ends_at):''}`;
+        banner.append(h('span','recanto-live-event-icon',item.emoji||'✨'));
+        const inner=h('div','recanto-live-event-details');inner.append(h('strong','',item.name));
+        inner.append(h('small','',item.description||'Evento especial ativo no Recanto'));
+        banner.append(inner);host.append(banner);
+      }
+    }
+  }
+  let communityEventLoading=false;
+  async function refreshCommunityEvents(){
+    if(!state.account||communityEventLoading)return;
+    communityEventLoading=true;
+    try{
+      const data=await fetchJson('/api/events');
+      const before=JSON.stringify({a:state.events,e:state.eventEffects});
+      state.events=data.active||[];state.eventEffects=data.effects||{};
+      paintCommunityEvents();
+      if(before!==JSON.stringify({a:state.events,e:state.eventEffects})){
+        if(state.tab==='cards'){
+          const daily=await fetchJson('/api/daily/status');
+          state.claimMinutes=daily.card_claim_minutes||300;state.cardReset=daily.card_next_at;
+          $('dailyCard').disabled=daily.card_claimed;
+          $('dailyCard').textContent=daily.card_claimed?`⏳ Aguardar ${claimDurationText(state.claimMinutes)}`:'Resgatar card';
+          $('dailyCardIcon').classList.toggle('card-icon-available',!daily.card_claimed);
+          updateCountdowns();
+        }
+        if(state.tab==='loja')loadShop().catch(()=>{});
+        if(state.tab==='pet')refreshActive(true).catch(()=>{});
+      }
+    }catch(_){/* O banner não deve bloquear a navegação. */}
+    finally{communityEventLoading=false;}
+  }
+
   function avatar(el,name,url){el.replaceChildren();if(url){const img=h('img');img.src=url;img.alt='Foto de '+name;img.onerror=()=>{img.remove();el.textContent='◉';};el.append(img);}else el.textContent='◉';}
 
   function applyTheme(mode){
@@ -877,7 +920,7 @@
     }
     modal.hidden=true;state.detailClosing=false;
   }
-    async function loadCards(){const [daily,game]=await Promise.all([API('/api/daily/status'),API('/api/game/config')]);state.game=game;state.reset=daily.next_reset;state.cardReset=daily.card_next_at;$('dailyCard').disabled=daily.card_claimed;$('dailyCard').textContent=daily.card_claimed?'⏳ Aguardar 5h':'Resgatar card';$('dailyCardIcon').classList.toggle('card-icon-available',!daily.card_claimed);updateCountdowns();await cardPane(state.cardTab);}
+    async function loadCards(){const [daily,game]=await Promise.all([API('/api/daily/status'),API('/api/game/config')]);state.game=game;state.reset=daily.next_reset;state.cardReset=daily.card_next_at;state.claimMinutes=daily.card_claim_minutes||300;$('dailyCard').disabled=daily.card_claimed;$('dailyCard').textContent=daily.card_claimed?`⏳ Aguardar ${claimDurationText(state.claimMinutes)}`:'Resgatar card';$('dailyCardIcon').classList.toggle('card-icon-available',!daily.card_claimed);updateCountdowns();await cardPane(state.cardTab);}
   function renderCardFilters(items,ownedIds,tab,container){
     const host=$('cardFilters');host.replaceChildren();host.hidden=false;
     const filters=state.cardFilters;
@@ -1790,7 +1833,7 @@
     for(const option of data.expedition_options||[]){
       const row=h('div','expedition-choice');
       const expInfo=h('div','expedition-info');
-      expInfo.append(h('strong','',option.name),h('small','',`${option.minutes%60===0?option.minutes/60+'h':Math.floor(option.minutes/60)+'h '+option.minutes%60+'min'} • -${option.food} fome • -${option.happiness} felicidade • -${option.health} saúde • ${option.coins[0]}–${option.coins[1]} moedas • ${option.card_chance}% chance de Card${option.collectible_chance?' • '+option.collectible_chance+'% colecionável':''}`));
+      expInfo.append(h('strong','',option.name),h('small','',`${(option.effective_minutes??option.minutes)%60===0?(option.effective_minutes??option.minutes)/60+'h':Math.floor((option.effective_minutes??option.minutes)/60)+'h '+(option.effective_minutes??option.minutes)%60+'min'}${option.effective_minutes<option.minutes?' ⚡ evento':''} • -${option.food} fome • -${option.happiness} felicidade • -${option.health} saúde • ${option.coins[0]}–${option.coins[1]} moedas • ${option.card_chance}% chance de Card${option.collectible_chance?' • '+option.collectible_chance+'% colecionável':''}`));
       expInfo.append(button('Enviar',()=>safeRun(()=>API('/api/pets/expedition/start',{mission:option.id}),'Seu Pet iniciou a missão!'),'soft-action'));
       const expeditionEmoji={passeio:'🌲',exploracao:'🏛️',jornada:'🧭'}[option.id]||'🗺️';
       row.append(mediaCover(option.image_url,expeditionEmoji,option.name,'expedition-cover'),expInfo);
@@ -1874,7 +1917,7 @@
     const wrapper=h('div',cls);if(src){const img=h('img');img.src=src;img.alt=title;img.loading='lazy';img.onerror=()=>{img.remove();wrapper.textContent=emoji;};wrapper.append(img);}else wrapper.textContent=emoji;
     return wrapper;
   }
-  async function loadShop(){const [shop,me,daily]=await Promise.all([API('/api/shop'),API('/api/me'),API('/api/daily/status')]);$('shopWallet').textContent=`🪙 ${money(me.coins)}`;state.reset=daily.next_reset;state.dailyReward=Number(daily.reward||0);$('dailyCoins').disabled=daily.coins_claimed||state.dailyClaimInFlight;$('dailyCoins').textContent=state.dailyClaimInFlight?'Confirmando resgate…':daily.coins_claimed?'✓ Resgatado':`Resgatar ${money(daily.reward)} moedas`;updateCountdowns();const pane=$('shopPane');pane.replaceChildren();for(const s of shop.products){const box=block(s.name,s.kind==='cards'?`${s.amount} cartas aleatórias · guarda no Inventário`:s.sku==='vaccine'?'1 vacina para Pets em recuperação':`${s.amount} petisco(s) · +${s.food||15} fome por unidade`);box.id='shop-'+s.sku;box.classList.add('product-card');box.prepend(mediaCover(s.image_url,s.emoji||'🎁',s.name,'product-cover'));if(s.rates)box.append(h('p','rates',Object.entries(s.rates).map(([k,v])=>`${tierLabels[k]} ${v}%`).join(' · ')));box.append(button(`Comprar · 🪙 ${money(s.price)}`,()=>safeRun(()=>API('/api/shop/purchase',{sku:s.sku}),result=>result.pack_id?`Pacote guardado no Inventário!`:`${result.treats_gained} item(ns) adicionado(s) ao Inventário!`)));pane.append(box);}if(state.focusShop){const selected=$('shop-'+state.focusShop);state.focusShop=null;if(selected){selected.classList.add('shop-focus');selected.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});setTimeout(()=>selected.classList.remove('shop-focus'),1800);}}}
+  async function loadShop(){const [shop,me,daily]=await Promise.all([API('/api/shop'),API('/api/me'),API('/api/daily/status')]);$('shopWallet').textContent=`🪙 ${money(me.coins)}`;state.reset=daily.next_reset;state.dailyReward=Number(daily.reward||0);$('dailyCoins').disabled=daily.coins_claimed||state.dailyClaimInFlight;$('dailyCoins').textContent=state.dailyClaimInFlight?'Confirmando resgate…':daily.coins_claimed?'✓ Resgatado':`Resgatar ${money(daily.reward)} moedas`;updateCountdowns();const pane=$('shopPane');pane.replaceChildren();for(const s of shop.products){const box=block(s.name,s.kind==='cards'?`${s.amount} cartas aleatórias · guarda no Inventário`:s.sku==='vaccine'?'1 vacina para Pets em recuperação':`${s.amount} petisco(s) · +${s.food||15} fome por unidade`);box.id='shop-'+s.sku;box.classList.add('product-card');if(s.original_price>s.price)box.append(h('p','recanto-shop-discount',`🏷️ Preço normal: 🪙 ${money(s.original_price)} · desconto de evento`));box.prepend(mediaCover(s.image_url,s.emoji||'🎁',s.name,'product-cover'));if(s.rates)box.append(h('p','rates',Object.entries(s.rates).map(([k,v])=>`${tierLabels[k]} ${v}%`).join(' · ')));box.append(button(`Comprar · 🪙 ${money(s.price)}`,()=>safeRun(()=>API('/api/shop/purchase',{sku:s.sku}),result=>result.pack_id?`Pacote guardado no Inventário!`:`${result.treats_gained} item(ns) adicionado(s) ao Inventário!`)));pane.append(box);}if(state.focusShop){const selected=$('shop-'+state.focusShop);state.focusShop=null;if(selected){selected.classList.add('shop-focus');selected.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});setTimeout(()=>selected.classList.remove('shop-focus'),1800);}}}
   async function loadMissions(){
     const [data,extras]=await Promise.all([API('/api/missions'),API('/api/recanto-extra-missions').catch(()=>({items:[]}))]);
     data.items=[...(data.items||[]),...(extras.items||[])];
@@ -2650,7 +2693,8 @@
       xp_achievement:'Conquistar Selo',xp_favorite_card:'Favoritar Card pela primeira vez',
       xp_favorite_game:'Favoritar jogo pela primeira vez',
       xp_discord_voice_minute:'Cada minuto completo em voz (exceto AFK)',
-      xp_discord_message:'Mensagem válida do Discord (antispam ativo)'};
+      xp_discord_message:'Mensagem válida do Discord (antispam ativo)',
+      xp_mission_claim:'EXP base por missão resgatada (eventos multiplicam)'};
     for(const [key,title] of Object.entries(xpNames)){
       const field=adminField(title,String(opts.settings[key]??0),'number');field[1].min='0';field[1].max='100000';
       const section=h('div','admin-xp-row');section.append(field[0],button('Salvar',()=>safeRun(()=>API('/api/admin/settings',{
@@ -2685,9 +2729,91 @@
       const slot=h('div','admin-rarity-reward-item tier-'+tier);slot.append(field,save,status);rarityRewardFields.append(slot);
     }
     rarityRewards.append(rarityRewardFields);pane.append(rarityRewards);
+    // 0.3.3 — Probabilidades reais do resgate, cuja soma é validada no servidor.
+    const claimRules=block('Resgates e porcentagens dos Cards','Defina o intervalo de resgate e a chance de cada raridade. As quatro porcentagens devem somar 100%. Eventos podem reduzir temporariamente o intervalo.');
+    const [claimMinutesRow,claimMinutesInput]=adminField('Intervalo entre resgates (minutos)',''+(opts.settings.card_claim_minutes??300),'number');
+    claimMinutesInput.min='15';claimMinutesInput.max='10080';claimMinutesInput.step='1';
+    claimRules.append(claimMinutesRow);
+    const claimInputs={};
+    for(const tier of ['comum','raro','lendário','prismático']){
+      const [field,input]=adminField(`Chance ${tierLabels[tier]} (%)`,String(opts.settings['card_chance_'+tier]??0),'number');
+      input.min='0';input.max='100';input.step='1';claimRules.append(field);claimInputs[tier]=input;
+    }
+    const claimTotal=h('p','recanto-claim-total');
+    const updateClaimTotal=()=>{const total=Object.values(claimInputs).reduce((sum,input)=>sum+Number(input.value||0),0);claimTotal.textContent=`Total: ${total}% de 100%`;claimTotal.classList.toggle('recanto-invalid',total!==100);};
+    Object.values(claimInputs).forEach(input=>input.addEventListener('input',updateClaimTotal));updateClaimTotal();claimRules.append(claimTotal);
+    claimRules.append(button('Salvar tempo e probabilidades',async()=>{
+      const minutes=Number(claimMinutesInput.value);const chances=Object.fromEntries(Object.entries(claimInputs).map(([tier,input])=>[tier,Number(input.value)]));
+      if(!Number.isInteger(minutes)||minutes<15||minutes>10080||Object.values(chances).some(v=>!Number.isInteger(v)||v<0||v>100)||Object.values(chances).reduce((a,b)=>a+b,0)!==100){toast('Preencha números inteiros. As raridades devem somar 100%.');return;}
+      const result=await safeRun(()=>API('/api/admin/cards/claim-settings',{minutes,chances}),'Resgate atualizado!');
+      if(result){opts.settings.card_claim_minutes=minutes;state.claimMinutes=minutes;for(const [tier,value] of Object.entries(chances))opts.settings['card_chance_'+tier]=value;updateCountdowns();}
+    }));pane.append(claimRules);
+
+    // Eventos: vários registros, horários de Brasília e ativação automática no backend.
+    const eventBlock=block('Eventos da Comunidade','Crie eventos ilimitados. Programados ligam e desligam automaticamente nas datas definidas; manuais podem ser ativados e pausados. Benefícios de mesmo tipo não se acumulam: vale o melhor.');
+    const eventsData=await API('/api/admin/events');
+    const eventItems=eventsData.items||[],kinds=eventsData.kinds||{};
+    const eventList=h('div','recanto-admin-event-list');
+    const eventChoice=h('select','select-input');
+    const rebuildChoice=()=>{
+      eventChoice.replaceChildren();const fresh=h('option','','+ Criar novo evento');fresh.value='';eventChoice.append(fresh);
+      for(const item of eventItems){const opt=h('option','',`${item.active?'🟢':item.enabled?'🕒':'⏸'} ${item.name}`);opt.value=String(item.id);eventChoice.append(opt);}
+    };rebuildChoice();
+    const [eventNameRow,eventName]=adminField('Nome do evento','');
+    const [eventDescriptionRow,eventDescription]=adminField('Descrição curta para o banner','');
+    const [eventEmojiRow,eventEmoji]=adminField('Emoji do evento','✨');
+    const eventKind=h('select','select-input');for(const [key,obj] of Object.entries(kinds)){const opt=h('option','',obj.label);opt.value=key;eventKind.append(opt);}
+    const [eventValueRow,eventValue]=adminField('Valor do benefício','90','number');eventValue.min='1';eventValue.step='1';
+    const eventKindHint=h('small','recanto-event-hint','');
+    function updateEventKindHint(){const info=kinds[eventKind.value];if(!info)return;
+      eventValue.min=info.min;eventValue.max=info.max;
+      const map={card_cooldown:'Minutos entre resgates (90 = 1h30).',double_cards:'2 Cards em cada resgate, sujeito ao estoque.',shop_discount:'Porcentagem de desconto na Loja.',expedition_speed:'Porcentagem de redução do tempo para novas expedições.',mission_xp:'EXP adicional em porcentagem ao resgatar Missões.'};
+      eventKindHint.textContent=`${map[eventKind.value]||''} Permitido: ${info.min}–${info.max}.`;
+      if(eventKind.value==='double_cards')eventValue.value='2';
+    }eventKind.addEventListener('change',updateEventKindHint);updateEventKindHint();
+    const eventMode=h('select','select-input');for(const [value,label] of [['manual','Ativação manual'],['scheduled','Ativação automática programada']]){const opt=h('option','',label);opt.value=value;eventMode.append(opt);}
+    const eventEnabled=h('input');eventEnabled.type='checkbox';eventEnabled.checked=false;
+    const eventActiveLabel=h('label','admin-check');eventActiveLabel.append(eventEnabled,document.createTextNode(' Habilitado (manual: ligar agora; programado: ativar nas datas)'));
+    const [eventStartRow,eventStart]=adminField('Início (horário de Brasília)','','datetime-local');
+    const [eventEndRow,eventEnd]=adminField('Término (horário de Brasília)','','datetime-local');
+    const localDateValue=iso=>iso?new Date(iso).toLocaleString('sv-SE',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).replace(' ','T').slice(0,16):'';
+    const eventDateHelp=h('small','', 'No modo programado as duas datas são obrigatórias. No manual, datas opcionais restringem a validade e o término automático.');
+    const eventButtons=h('div','admin-action-row');
+    const eventSave=button('Salvar evento',async()=>{
+      const payload={id:eventChoice.value?Number(eventChoice.value):null,name:eventName.value.trim(),description:eventDescription.value.trim(),emoji:eventEmoji.value.trim()||'✨',kind:eventKind.value,value:Number(eventValue.value),mode:eventMode.value,enabled:eventEnabled.checked,starts_at:eventStart.value||null,ends_at:eventEnd.value||null};
+      const result=await safeRun(()=>API('/api/admin/events',payload),'Evento salvo!');
+      if(result){state.adminReady=false;state.adminGroup='Eventos';await openAdmin(true);refreshCommunityEvents().catch(()=>{});}
+    });
+    const eventDelete=button('Excluir evento',async()=>{
+      if(!eventChoice.value||!confirm('Excluir este evento definitivamente?'))return;
+      const result=await safeRun(()=>API('/api/admin/events/delete',{id:Number(eventChoice.value)}),'Evento excluído!');
+      if(result){state.adminReady=false;state.adminGroup='Eventos';await openAdmin(true);refreshCommunityEvents().catch(()=>{});}
+    },'soft-action');eventButtons.append(eventSave,eventDelete);
+    const eventStatus=h('p','recanto-event-status');
+    const chooseEvent=()=>{
+      const item=eventItems.find(e=>String(e.id)===eventChoice.value);
+      eventName.value=item?.name||'';eventDescription.value=item?.description||'';eventEmoji.value=item?.emoji||'✨';
+      eventKind.value=item?.kind||'card_cooldown';updateEventKindHint();eventValue.value=String(item?.value??90);
+      eventMode.value=item?.mode||'manual';eventEnabled.checked=item?.enabled||false;
+      eventStart.value=localDateValue(item?.starts_at);eventEnd.value=localDateValue(item?.ends_at);
+      eventStatus.textContent=item?(item.active?'● Ativo agora':item.enabled?'◷ Programado ou aguardando a janela':'⏸ Pausado'):'Novo evento';
+      eventDelete.disabled=!item;
+    };eventChoice.addEventListener('change',chooseEvent);chooseEvent();
+    eventBlock.append(h('label','','Criar ou selecionar evento'),eventChoice,eventStatus,eventNameRow,eventDescriptionRow,eventEmojiRow,
+      h('label','','Tipo de benefício'),eventKind,eventValueRow,eventKindHint,h('label','','Modo de ativação'),eventMode,
+      eventActiveLabel,eventStartRow,eventEndRow,eventDateHelp,eventButtons);
+    for(const item of eventItems){const line=h('div','recanto-admin-event-item');line.append(h('strong','',`${item.emoji||'✨'} ${item.name}`),
+      h('small','',item.active?'ATIVO':item.enabled?'AGENDADO / FUTURO':'PAUSADO'),
+      h('p','',`${item.description||'Sem descrição'}${item.starts_at?' · '+eventTimeLabel(item.starts_at):''}${item.ends_at?' até '+eventTimeLabel(item.ends_at):''}`));
+      line.addEventListener('click',()=>{eventChoice.value=String(item.id);chooseEvent();eventChoice.scrollIntoView({block:'center',behavior:'smooth'});});
+      line.setAttribute('role','button');line.tabIndex=0;line.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();line.click();}});
+      eventList.append(line);
+    }
+    if(eventItems.length)eventBlock.append(h('h4','','Eventos cadastrados'),eventList);
+    pane.append(eventBlock);
     const settings=block('Outros valores configuráveis','Preços, prazos e demais recompensas.');
     for(const [key,value] of Object.entries(opts.settings)){
-      if(key.startsWith('card_bonus_')||key.startsWith('xp_'))continue;
+      if(key.startsWith('card_bonus_')||key.startsWith('xp_')||key.startsWith('card_chance_')||key==='card_claim_minutes')continue;
       const [fld,inp]=adminField(key,value,'number');
       settings.append(fld,button('Salvar '+key,()=>safeRun(()=>API('/api/admin/settings',{key,value:Number(inp.value)}),'Valor salvo!'),'soft-action'));
     }
@@ -2830,11 +2956,13 @@
       }
     }).catch(()=>{});
     updateResetConfirmation();
-    const groups=['Geral','Feed','Economia','Níveis','Cards','Loja','Pets','Missões','Selos','Assets','Usuários','Integrações'];
+    const groups=['Geral','Feed','Economia','Eventos','Níveis','Cards','Loja','Pets','Missões','Selos','Assets','Usuários','Integrações'];
     const classify=(name)=>{
       const x=name.toLowerCase();
       if(x.includes('limpar feed'))return 'Feed';
       if(x.includes('níveis e rankings'))return 'Níveis';
+      if(x.includes('resgates e porcentagens'))return 'Economia';
+      if(x.includes('eventos da comunidade'))return 'Eventos';
       if(x.includes('valores configuráveis'))return 'Economia';
       if(x.includes('cadastrar card')||x.includes('gerenciar cards')||x.includes('coleção'))return 'Cards';
       if(x.includes('gerenciar itens')||x.includes('capa'))return 'Loja';
@@ -2931,7 +3059,19 @@
       state.dailyClaimInFlight=false;el.classList.remove('action-pending');el.removeAttribute('aria-busy');
     }
   };
-  $('dailyCard').onclick=async()=>{const result=await safeRun(()=>API('/api/daily/card',{}),'Card diário recebido!',r=>{applyConfirmedCoins({coins_gained:r?.card?.bonus_coins??0});$('dailyCard').disabled=true;$('dailyCard').textContent='⏳ Aguardar 5h';});if(result?.card)showCard(result.card,`+${result.card.bonus_coins??result.card_bonus??state.game?.rules?.['card_bonus_'+result.card.rarity]??1} moedas pelo card!`);};
+  $('dailyCard').onclick=async()=>{
+    const result=await safeRun(()=>API('/api/daily/card',{}),r=>(r.cards?.length||1)>1?'🎉 Evento: você recebeu 2 Cards!':'Card recebido!',r=>{
+      applyConfirmedCoins({coins_balance:r.coins_balance});state.cardReset=r.next_at;
+      $('dailyCard').disabled=true;$('dailyCard').textContent=`⏳ Aguardar ${claimDurationText(state.claimMinutes)}`;
+    });
+    if(result?.card){
+      const list=result.cards||[result.card];
+      showCard(list[0],list.length>1?`✨ Evento: primeiro de 2 Cards! · +${result.bonus_coins||0} moedas no total`:`+${result.bonus_coins??result.card.bonus_coins??0} moedas pelo Card!`);
+      if(list.length>1){const actions=$('cardDetail').querySelector('.detail-actions');
+        if(actions)actions.append(button('Ver 2º Card →',()=>showCard(list[1],'✨ Segundo Card do resgate duplo!')));
+      }
+    }
+  };
   document.querySelectorAll('[data-tab]').forEach(btn=>btn.addEventListener('click',()=>chooseTab(btn.dataset.tab)));
   document.querySelectorAll('[data-card-tab]').forEach(btn=>btn.addEventListener('click',()=>cardPane(btn.dataset.cardTab).catch(err=>toast(err.message))));
   $('closeCardDetail').onclick=closeCardDetail;$('closeAdmin').onclick=()=>{$('adminModal').hidden=true;document.body.classList.remove('page-open');};
@@ -2945,6 +3085,7 @@
     const splash=$('splashScreen');splash.hidden=false;splash.classList.remove('splash-fade');
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     renderProfile(me);
+    refreshCommunityEvents().catch(()=>{});
     // Renderizar o perfil imediatamente; carregar detalhes em segundo plano.
     const firstTab=chooseTab('perfil');
     await Promise.race([firstTab,sleep(280)]);
@@ -2972,6 +3113,8 @@
   startMobileGestures();
   startFeedPolling();
   setInterval(updateCountdowns,1000);
+  setInterval(()=>{if(state.account&&!document.hidden)refreshCommunityEvents().catch(()=>{});},45000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshCommunityEvents().catch(()=>{});});
   (async()=>{
     // Enquanto a sessão é verificada, não exibir o botão de login para quem já está autenticado.
     $('loginScreen').hidden=true;
