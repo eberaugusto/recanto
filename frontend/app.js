@@ -5,7 +5,7 @@
   const tabLoadedAt={};
   const TAB_SOFT_TTL=20000;
   const getCache=new Map();
-  const cacheable=url=>/^(\/api\/(game\/config|achievements|games\/preferences|champions\/preferences|shop|daily\/status|catalog|cards|inventory|pets|missions|collections\/featured|collections\/card-styles|assets|community\/profiles))(\?|$|\/)/.test(url);
+  const cacheable=url=>/^(\/api\/(game\/config|achievements|games\/preferences|champions\/preferences|shop|daily\/status|catalog|cards|inventory|pets|missions|collections\/featured|collections\/card-styles|assets))(\?|$|\/)/.test(url);
   function resetCachedData(){getCache.clear();for(const k of Object.keys(tabLoadedAt))delete tabLoadedAt[k];if(typeof state!=='undefined')state.petPreviewLoaded=false;}
   const API = async (url, data) => {
     if(data===undefined && cacheable(url)){
@@ -1111,7 +1111,7 @@
     const input=h('input','profiles-search');input.placeholder='Pesquise pelo nome ou apelido no Discord…';input.setAttribute('aria-label','Buscar membros do Discord');pane.append(input);
     const hint=h('small','community-search-hint','Carregando membros…');pane.append(hint);
     const results=h('div','community-search-results');pane.append(results);
-    const next=button('Mostrar mais membros',()=>fetchPage(false),'soft-action');next.hidden=true;pane.append(next);
+    // Uma única página de 8 sugestões: pesquisar encontra qualquer membro do diretório.
     let token=0,offset=0,current='';
     async function fetchPage(replace){
       const myToken=token;
@@ -1131,14 +1131,14 @@
           results.append(row);
         });
         offset+=d.members.length;
-        next.hidden=!d.has_more;
+        // Não cresce indefinidamente. Para encontrar outras pessoas, refine a pesquisa.
         hint.textContent=d.discord_enabled
-          ?(current ? `${d.total} resultado(s) no servidor · exibindo até ${offset}.` : `Sugestões da comunidade · exibindo ${offset} de ${d.total}. Pesquise pelo nome para encontrar qualquer membro.`)
+          ?(current ? `${d.total} resultado(s) no servidor · mostrando até 8. Refine o nome para buscar outros.` : `Sugestões da comunidade: até 8 membros. Pesquise pelo nome para encontrar qualquer pessoa do servidor.`)
           : (d.discord_reason==='missing_bot_token'
-             ? 'Busca limitada ao Recanto: configure DISCORD_BOT_TOKEN também no Render (Environment) para pesquisar todos os membros do servidor.'
+             ? 'Busca limitada às contas Recanto. Adicione DISCORD_BOT_TOKEN ao Render ou sincronize o diretório pela Oracle.'
              : d.discord_reason==='registered_only'
                ? `${d.total} membro(s) com conta no Recanto.`
-               : 'Lista do Discord indisponível. Confira o token do bot e Server Members Intent no Render.');
+               : 'Lista do Discord indisponível. Configure DISCORD_BOT_TOKEN no Render ou sincronize a lista pela Oracle.');
       }catch(err){if(myToken===token)toast(err.message);}
     }
     let seq=0;input.addEventListener('input',()=>{const n=++seq;token++;current=input.value.trim();setTimeout(()=>{if(n===seq)fetchPage(true);},280);});
@@ -2546,7 +2546,7 @@
           (result.bridge_version?' · Integração v'+result.bridge_version+' (rota: '+(result.legacy_endpoint_handler||'indisponível')+')':'')+
           (result.received_total!==undefined?' · Total recebido: '+result.received_total+' · Contabilizados: '+result.counted_total+' · Não contabilizados: '+result.uncounted_total:'')+
           (result.legacy_endpoint_route_count>1?' · ⚠ Existem múltiplas rotas de eventos!':'')+
-          (result.member_search_configured?' · ✓ Busca de membros habilitada.':' · ⚠ Para buscar todos os membros, adicione DISCORD_BOT_TOKEN ao Render e habilite Server Members Intent.');
+          ((result.member_search_configured||result.roster_snapshot_count>0)?' · ✓ Diretório Discord habilitado ('+(result.roster_snapshot_count||'API')+' membros sincronizados).':' · ⚠ Busca de membros completa: configure DISCORD_BOT_TOKEN no Render ou execute o sincronizador na Oracle.');
       }catch(err){discordState.textContent='Não foi possível consultar integração: '+err.message;}
     };
     integrations.append(discordState,button('Atualizar status Discord',refreshDiscordState,'soft-action'));
@@ -2705,17 +2705,83 @@
     const feedResult=h('p','admin-entry-status','');
     feedTool.append(feedConfirmField,feedClearButton,feedResult);pane.append(feedTool);
 
-    const reset=block('Limpar progresso para testes','ATENÇÃO: apaga o progresso de TODOS os usuários (cards obtidos, moedas, Pets, trocas, selos e missões). As contas Discord e os catálogos permanecem. A operação não pode ser desfeita.');
-    const [field,confirmation]=adminField('Digite LIMPAR TUDO para confirmar','');
-    const resetButton=button('Apagar progresso de todos os usuários',async()=>{
-      if(confirmation.value.trim()!=='LIMPAR TUDO'){toast('Digite LIMPAR TUDO para confirmar.');return;}
-      if(!window.confirm('ATENÇÃO: apagar todo o progresso de TODOS os usuários? Não é possível desfazer.'))return;
-      const result=await safeRun(()=>API('/api/admin/reset-progress',{confirmation:confirmation.value.trim()}),'Progresso reiniciado!');
-      if(result){confirmation.value='';resetButton.disabled=true;await openAdmin(true);}
+    const reset=block('Limpar dados dos usuários',
+      'Escolha o que apagar e quem será afetado. As contas Discord, os catálogos, os rankings e as configurações ficam preservados. A limpeza é definitiva.');
+    reset.classList.add('admin-selective-reset');
+    const resetTargetLabel=h('label','admin-field','Usuários afetados');
+    const resetTarget=h('select','select-input');
+    const everyone=h('option','','Todos os usuários do Recanto');everyone.value='';resetTarget.append(everyone);
+    const resetTargetId=h('input','text-input');resetTargetId.placeholder='Ou digite o ID Discord de um membro específico (opcional)';
+    resetTargetId.setAttribute('aria-label','ID Discord de um usuário específico');
+    resetTargetLabel.append(resetTarget,resetTargetId);
+    resetTarget.onchange=()=>{resetTargetId.value=resetTarget.value;updateResetConfirmation();};
+    resetTargetId.oninput=()=>{resetTarget.value=resetTargetId.value||'';updateResetConfirmation();};
+    reset.append(resetTargetLabel,h('p','admin-style-help',
+      'Deixe o ID vazio para apagar dos usuários todos. Para um usuário específico, selecione o nome ou informe o ID Discord.'));
+    const resetChoices=h('div','admin-reset-categories');
+    const resetOptions=[
+      ['economy','Moedas, petiscos e inventário de petiscos'],
+      ['cards','Cards, pacotes e trocas'],
+      ['pets','Pets, expedições e colecionáveis'],
+      ['missions','Missões e resgates diários'],
+      ['badges','Selos e progresso das conquistas'],
+      ['favorites','Favoritos (Cards, campeões e jogos)'],
+      ['feed','Feed, respostas e curtidas'],
+      ['levels','EXP, nível e histórico de EXP'],
+      ['discord','Histórico de atividade Discord (inclui eventos já recebidos)']
+    ];
+    const resetChecks=[];
+    for(const [key,label] of resetOptions){
+      const wrap=h('label','admin-reset-choice');
+      const checkbox=h('input');checkbox.type='checkbox';checkbox.value=key;
+      checkbox.setAttribute('aria-label',label);checkbox.onchange=updateResetConfirmation;
+      wrap.append(checkbox,h('span','',label));resetChoices.append(wrap);resetChecks.push(checkbox);
+    }
+    const allSelect=h('label','admin-reset-select-all');
+    const allCheckbox=h('input');allCheckbox.type='checkbox';
+    allCheckbox.onchange=()=>{for(const cb of resetChecks)cb.checked=allCheckbox.checked;updateResetConfirmation();};
+    allSelect.append(allCheckbox,h('strong','','Selecionar todas as categorias (inclui EXP e nível)'));
+    reset.append(allSelect,resetChoices);
+    reset.append(h('p','admin-style-help',
+      'A limpeza de Cards também remove trocas e ofertas dependentes. Ao selecionar todas, o nível de todos os afetados volta para 1. O histórico de eventos Discord reiniciado não recupera minutos antigos.'));
+    const resetConfirm=adminField('Confirmação — use LIMPAR SELECIONADOS ou LIMPAR TUDO','');
+    resetConfirm[1].autocomplete='off';
+    const resetSummary=h('p','admin-reset-summary','Escolha ao menos uma categoria.');
+    const resetButton=button('Apagar dados selecionados',async()=>{
+      const categories=resetChecks.filter(cb=>cb.checked).map(cb=>cb.value);
+      const target=resetTargetId.value.trim();
+      const everything=categories.length===resetOptions.length && !target;
+      const expected=everything?'LIMPAR TUDO':'LIMPAR SELECIONADOS';
+      if(resetConfirm[1].value.trim()!==expected){toast('Digite '+expected+' para confirmar.');return;}
+      const whom=target?'o membro '+target:'TODOS os membros';
+      if(!window.confirm(`CONFIRMAÇÃO FINAL: apagar ${categories.length} categoria(s) de ${whom}? Essa operação NÃO pode ser desfeita.`))return;
+      resetButton.disabled=true;
+      const result=await safeRun(()=>API('/api/admin/reset-progress',{
+        confirmation:expected,categories,user_id:target||null
+      }),'Dados selecionados reiniciados com sucesso!');
+      if(result){resetCachedData();state.adminReady=false;await openAdmin(true);}
+      else updateResetConfirmation();
     },'danger-action');
-    resetButton.disabled=true;
-    confirmation.addEventListener('input',()=>resetButton.disabled=confirmation.value.trim()!=='LIMPAR TUDO');
-    reset.append(field,resetButton);pane.append(reset);
+    function updateResetConfirmation(){
+      const count=resetChecks.filter(cb=>cb.checked).length;
+      allCheckbox.checked=count===resetOptions.length;
+      allCheckbox.indeterminate=count>0&&count<resetOptions.length;
+      const target=resetTargetId.value.trim();
+      const entire=count===resetOptions.length&&!target;
+      const expected=entire?'LIMPAR TUDO':'LIMPAR SELECIONADOS';
+      resetSummary.textContent=count?`${count} categoria(s) · ${target?'1 membro':'todos os membros'}${resetChecks.some(cb=>cb.value==='levels'&&cb.checked)?' · inclui EXP e níveis':''}. Confirme com ${expected}.`:'Selecione pelo menos uma categoria.';
+      resetButton.disabled=!count||resetConfirm[1].value.trim()!==expected;
+    }
+    resetConfirm[1].oninput=updateResetConfirmation;
+    reset.append(resetConfirm[0],resetSummary,resetButton);
+    pane.append(reset);
+    API('/api/admin/reset-users').then(data=>{
+      for(const member of data.members||[]){
+        const option=h('option','',`${member.name} (${member.id})`);option.value=member.id;
+        resetTarget.append(option);
+      }
+    }).catch(()=>{});
+    updateResetConfirmation();
     const groups=['Geral','Feed','Economia','Níveis','Cards','Loja','Pets','Missões','Selos','Assets','Usuários','Integrações'];
     const classify=(name)=>{
       const x=name.toLowerCase();
@@ -2728,7 +2794,7 @@
       if(x.includes('missões do recanto'))return 'Missões';
       if(x.includes('selo'))return 'Selos';
       if(x.includes('assets'))return 'Assets';
-      if(x.includes('administrador')||x.includes('ids autorizados')||x.includes('ajustar moedas'))return 'Usuários';
+      if(x.includes('administrador')||x.includes('ids autorizados')||x.includes('ajustar moedas')||x.includes('limpar dados dos usuários'))return 'Usuários';
       if(x.includes('integrações'))return 'Integrações';
       return 'Geral';
     };

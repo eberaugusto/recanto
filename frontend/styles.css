@@ -3452,3 +3452,13 @@ body.dark-mode #publicProfilePage .public-level-mobile .recanto-level{color:#f3f
     height:100%!important;max-height:100%!important;
   }
 }
+
+/* 0.3.1 — confirmação visual e seleção granular de reset no gerenciador */
+.admin-selective-reset .admin-reset-categories{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0 12px;}
+.admin-selective-reset .admin-reset-choice,.admin-selective-reset .admin-reset-select-all{display:flex;align-items:center;gap:10px;min-width:0;padding:12px;border:1px solid #d9def5;border-radius:12px;background:rgba(104,118,225,.06);font-size:13px;line-height:1.35;cursor:pointer;}
+.admin-selective-reset .admin-reset-choice input,.admin-selective-reset .admin-reset-select-all input{width:18px;height:18px;min-width:18px;accent-color:#5865f2;}
+.admin-selective-reset .admin-reset-select-all{margin:12px 0;font-weight:700;}
+.admin-selective-reset .admin-reset-summary{font-size:12px;color:var(--text-muted,#5b6191);overflow-wrap:anywhere;}
+.admin-selective-reset .admin-field select,.admin-selective-reset .admin-field input{width:100%;}
+body.dark-mode .admin-selective-reset .admin-reset-choice,body.dark-mode .admin-selective-reset .admin-reset-select-all{background:rgba(104,118,225,.12);border-color:rgba(207,215,255,.22);}
+@media (max-width:680px){.admin-selective-reset .admin-reset-categories{grid-template-columns:minmax(0,1fr);}}

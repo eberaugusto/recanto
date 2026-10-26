@@ -395,6 +395,18 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False, index=True)
         counted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
+    class DiscordRosterMember(Base):
+        """Diretório mínimo enviado pela Oracle; nunca armazena mensagens ou tokens."""
+        __tablename__='recanto_discord_roster'
+        user_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+        guild_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+        display_name: Mapped[str] = mapped_column(String(100), nullable=False)
+        username: Mapped[str] = mapped_column(String(100), nullable=False, default='')
+        avatar_url: Mapped[str | None] = mapped_column(String(350), nullable=True)
+        bot: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+        sync_id: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+        synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
     class DiscordMessageRate(Base):
         __tablename__ = 'recanto_discord_message_rate'
         user_id: Mapped[str] = mapped_column(String(32), primary_key=True)
@@ -1270,6 +1282,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             return {'configured': len(os.getenv('RECANTO_BOT_SECRET', '').strip()) >= 32,
                     'guild_configured': bool(os.getenv('DISCORD_GUILD_ID', '').strip()),
                     'member_search_configured': bool(os.getenv('DISCORD_BOT_TOKEN', '').strip()),
+                    'roster_snapshot_count': db.scalar(select(func.count(DiscordRosterMember.user_id)).where(DiscordRosterMember.guild_id==os.getenv('DISCORD_GUILD_ID','').strip())) or 0,
                     'last_event_at': naive_to_utc(last).isoformat() if last else None,
                     'counted_last_hour': dict(recent),
                     'bridge_version': '0.2.25',
@@ -2123,6 +2136,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         display=(member.get('nick') or user.get('global_name') or user.get('username') or 'Membro').strip()
         username=str(user.get('username') or '')
         avatar_hash=member.get('avatar')
+        if 'recanto_avatar_url' in member:
+            return {'key':user_id,'name':display,'username':username,'avatar_url':member.get('recanto_avatar_url'),'bot':bool(user.get('bot'))}
         if avatar_hash:
             ext='gif' if avatar_hash.startswith('a_') else 'png'
             avatar=f'https://cdn.discordapp.com/guilds/{guild_id}/users/{user_id}/avatars/{avatar_hash}.{ext}?size=128'
@@ -2145,6 +2160,59 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 return out if isinstance(out,list) else None
         except (httpx.HTTPError,ValueError,TypeError):return None
 
+    # 0.3.1: a Oracle já dispõe do token Discord; o diretório pode ser
+    # sincronizado por um script local sem expor esse token ao Render.
+    @app.post('/api/integrations/discord/roster')
+    async def sync_discord_roster(request: Request):
+        secret=os.getenv('RECANTO_BOT_SECRET','').strip()
+        guild=os.getenv('DISCORD_GUILD_ID','').strip()
+        if len(secret)<32 or not guild.isdecimal():
+            raise HTTPException(503,detail='Integração Discord indisponível')
+        supplied=request.headers.get('x-recanto-bot-secret','').strip()
+        if not hmac.compare_digest(supplied.encode(),secret.encode()):
+            raise HTTPException(401,detail='Chave do bot inválida')
+        data=await request.json()
+        if not isinstance(data,dict) or str(data.get('guild_id',''))!=guild:
+            raise HTTPException(403,detail='Servidor Discord incorreto')
+        sync_id=str(data.get('sync_id','')).strip()
+        if not re.fullmatch(r'[a-f0-9]{32}',sync_id):
+            raise HTTPException(422,detail='Identificador da sincronização inválido')
+        batch=data.get('members')
+        final=data.get('final')
+        if not isinstance(batch,list) or len(batch)>250 or type(final) is not bool:
+            raise HTTPException(422,detail='Lote inválido (até 250 membros)')
+        validated=[]
+        for item in batch:
+            if not isinstance(item,dict):raise HTTPException(422,detail='Membro inválido')
+            member_id=str(item.get('id','')).strip()
+            if not member_id.isascii() or not member_id.isdigit() or not 15<=len(member_id)<=22:
+                raise HTTPException(422,detail='ID do membro inválido')
+            name=str(item.get('name') or 'Membro').strip()[:100]
+            username=str(item.get('username') or '').strip()[:100]
+            avatar=str(item.get('avatar_url') or '')[:350]
+            if avatar and not (avatar.startswith('https://cdn.discordapp.com/') or avatar.startswith('https://media.discordapp.net/')):
+                avatar=''
+            validated.append((member_id,name or 'Membro',username,avatar or None,bool(item.get('bot',False))))
+        with writing() as db:
+            now=utcnow()
+            for member_id,name,username,avatar,bot in validated:
+                row=db.get(DiscordRosterMember,member_id)
+                if not row:
+                    db.add(DiscordRosterMember(user_id=member_id,guild_id=guild,
+                        display_name=name,username=username,avatar_url=avatar,
+                        bot=bot,sync_id=sync_id,synced_at=now))
+                else:
+                    row.guild_id=guild;row.display_name=name;row.username=username
+                    row.avatar_url=avatar;row.bot=bot;row.sync_id=sync_id;row.synced_at=now
+            db.flush()
+            if final:
+                # Só remove membros que saíram do servidor após receber TODOS os lotes.
+                db.execute(delete(DiscordRosterMember).where(
+                    DiscordRosterMember.guild_id==guild,DiscordRosterMember.sync_id!=sync_id))
+            count=db.scalar(select(func.count(DiscordRosterMember.user_id)).where(
+                DiscordRosterMember.guild_id==guild)) or 0
+        return {'ok':True,'received':len(validated),'total_cached':count,'completed':final}
+
     @app.get('/api/community/profiles')
     async def community_profiles(request: Request, q: str='', offset: int=0, limit: int=8, registered_only: bool=False):
         uid=me(request)
@@ -2160,6 +2228,18 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         elif roster is None and extra:
             roster=extra
         with SessionLocal() as db:
+            from_oracle=False
+            if not roster and not registered_only:
+                # Diretório persistente sincronizado pelo bot da Oracle.
+                # Isso funciona mesmo sem DISCORD_BOT_TOKEN configurado no Render.
+                guild=os.getenv('DISCORD_GUILD_ID','').strip()
+                cached=db.scalars(select(DiscordRosterMember).where(
+                    DiscordRosterMember.guild_id==guild,DiscordRosterMember.bot.is_(False))).all()
+                if cached:
+                    roster=[{'user':{'id':r.user_id,'username':r.username,'bot':r.bot},
+                             'nick':r.display_name,'recanto_avatar_url':r.avatar_url}
+                            for r in cached]
+                    from_oracle=True
             if roster is None:
                 # Fallback preserva o comportamento anterior quando o bot não
                 # estiver configurado ou a API do Discord estiver indisponível.
@@ -2195,7 +2275,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 # Nome e avatar mais recentes do Discord têm prioridade;
                 # perfil completo do Recanto só existe após o primeiro login.
             return {'members':shown,'total':len(normalized),
-                'has_more':offset+limit<len(normalized),'discord_enabled':True,'discord_reason':'ok'}
+                'has_more':offset+limit<len(normalized),'discord_enabled':True,'discord_reason':'oracle_synced' if from_oracle else 'ok'}
 
     @app.get('/api/community/profiles/{member_id}')
     def public_profile(member_id: str, request: Request):
@@ -3351,30 +3431,113 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 db.delete(progress)
         return {'ok': True, 'detail': 'Resgates diários do administrador reiniciados'}
 
+    # A limpeza seletiva preserva contas, sessões, catálogos e configurações.
+    # As dependências cruzadas (trocas, cópias, reservas, Feed) são removidas
+    # antes de suas entidades principais para manter integridade referencial.
+    RESET_GROUPS = {
+        'economy': 'Moedas, petiscos e inventário de petiscos',
+        'cards': 'Cards, pacotes e trocas',
+        'pets': 'Pets, expedições e colecionáveis',
+        'missions': 'Missões e resgates diários',
+        'badges': 'Selos e progresso das conquistas',
+        'favorites': 'Favoritos (Cards, campeões e jogos)',
+        'feed': 'Feed, respostas e curtidas',
+        'levels': 'EXP, níveis e histórico de EXP',
+        'discord': 'Histórico de atividade Discord (inclui recibos de deduplicação)',
+    }
+
+    @app.get('/api/admin/reset-users')
+    def admin_reset_users(request:Request):
+        only_admin(request)
+        with SessionLocal() as db:
+            rows=db.scalars(select(User).order_by(User.username).limit(300)).all()
+            return {'members':[{'id':u.id,'name':u.username} for u in rows],
+                    'total':db.scalar(select(func.count(User.id))) or 0,
+                    'categories':RESET_GROUPS}
+
     @app.post('/api/admin/reset-progress')
     async def admin_reset_progress(request: Request):
-        uid = only_admin(request)
-        payload = json_body(await request.json(), ('confirmation',))
-        if payload['confirmation'] != 'LIMPAR TUDO':
-            raise HTTPException(422, detail='Digite LIMPAR TUDO para confirmar')
-        # Mantém todas as contas e sessões Discord, catálogos, ofertas da loja,
-        # permissões de administradores e configurações da aplicação.
+        admin_id=only_admin(request)
+        payload=json_body(await request.json(),('confirmation',))
+        categories=payload.get('categories')
+        if not isinstance(categories,list) or not categories or len(categories)>len(RESET_GROUPS) or any(
+            not isinstance(c,str) or c not in RESET_GROUPS for c in categories) or len(set(categories))!=len(categories):
+            raise HTTPException(422,detail='Escolha uma ou mais categorias válidas')
+        selected=set(categories)
+        target=str(payload.get('user_id') or '').strip()
+        if target and (not target.isascii() or not target.isdecimal() or not 15<=len(target)<=22):
+            raise HTTPException(422,detail='ID Discord inválido')
+        entire=set(RESET_GROUPS)==selected
+        expected='LIMPAR TUDO' if entire and not target else 'LIMPAR SELECIONADOS'
+        if payload['confirmation']!=expected:
+            raise HTTPException(422,detail='Digite '+expected+' para confirmar')
+        def purge(db,cls,predicate=None):
+            statement=delete(cls)
+            if predicate is not None:statement=statement.where(predicate)
+            return db.execute(statement).rowcount or 0
+        def uid_predicate(cls,attr='user_id'):
+            return getattr(cls,attr)==target if target else None
+        def extras(db,name):
+            table=Base.metadata.tables.get(name)
+            if table is None:return
+            stmt=delete(table)
+            if target:
+                col=table.c.get('user_id')
+                if col is None:col=table.c.get('discord_id')
+                if col is None:return
+                stmt=stmt.where(col==target)
+            db.execute(stmt)
         with writing() as db:
-            for table in (VisitorCare, FavoriteCard, ReservedCard, InventoryPack,
-                          InventoryTreat, InventoryCollectible, CoinOffer, CardCooldown, PetExpedition,
-                          FavoriteGame, FavoriteChampion, TradeReward, Trade, MissionProgress, Claim,
-                          UserAchievement, AchievementProgress, DiscordActivityEvent, DiscordMessageRate, UserPet, OwnedCard):
-                db.execute(delete(table))
-            for name in ('recanto_mission_counters', 'recanto_mission_claims',
-                         'recanto_discord_events', 'recanto_notification_sent'):
-                extra = Base.metadata.tables.get(name)
-                if extra is not None:
-                    db.execute(delete(extra))
-            for balance in db.scalars(select(Wallet)).all():
-                balance.coins = 0
-                balance.treats = 0
-        return {'ok': True, 'scope': 'progress',
-                'detail': 'Progresso de todos os usuários reiniciado por um administrador'}
+            if target and db.get(User,target) is None:
+                raise HTTPException(404,detail='Membro não encontrado no Recanto')
+            if 'cards' in selected:
+                owned_ids=select(OwnedCard.id).where(OwnedCard.user_id==target) if target else None
+                pack_ids=select(InventoryPack.id).where(InventoryPack.user_id==target) if target else None
+                purge(db,Trade, ( (Trade.sender_id==target)|(Trade.receiver_id==target)|
+                    Trade.offered_id.in_(owned_ids)|Trade.wanted_id.in_(owned_ids)) if target else None)
+                purge(db,CoinOffer,((CoinOffer.buyer_id==target)|(CoinOffer.seller_id==target)|
+                    CoinOffer.owned_id.in_(owned_ids)) if target else None)
+                purge(db,FavoriteCard,((FavoriteCard.user_id==target)|FavoriteCard.owned_id.in_(owned_ids)) if target else None)
+                purge(db,ReservedCard,ReservedCard.pack_id.in_(pack_ids) if target else None)
+                for cls in (InventoryPack,TradeReward,OwnedCard,CardCooldown):
+                    purge(db,cls,uid_predicate(cls))
+            if 'economy' in selected:
+                purge(db,InventoryTreat,uid_predicate(InventoryTreat))
+                for w in db.scalars(select(Wallet).where(Wallet.user_id==target) if target else select(Wallet)).all():
+                    w.coins=0;w.treats=0
+            if 'pets' in selected:
+                purge(db,VisitorCare,((VisitorCare.visitor_id==target)|(VisitorCare.owner_id==target)) if target else None)
+                for cls in (PetExpedition,InventoryCollectible,UserPet):purge(db,cls,uid_predicate(cls))
+            if 'missions' in selected:
+                for cls in (Claim,MissionProgress):purge(db,cls,uid_predicate(cls))
+                for table in ('recanto_mission_counters','recanto_mission_claims'):
+                    extras(db,table)
+            if 'badges' in selected:
+                for cls in (UserAchievement,AchievementProgress):purge(db,cls,uid_predicate(cls))
+            if 'favorites' in selected:
+                for cls in (FavoriteCard,FavoriteChampion,FavoriteGame):purge(db,cls,uid_predicate(cls))
+            if 'feed' in selected:
+                if target:
+                    post_ids=select(FeedEvent.id).where(FeedEvent.user_id==target)
+                    purge(db,FeedReply,(FeedReply.user_id==target)|FeedReply.event_id.in_(post_ids))
+                    purge(db,FeedLike,(FeedLike.user_id==target)|FeedLike.event_id.in_(post_ids))
+                    purge(db,FeedEvent,FeedEvent.user_id==target)
+                    purge(db,FeedDailyReward,FeedDailyReward.user_id==target)
+                else:
+                    for cls in (FeedReply,FeedLike,FeedEvent,FeedDailyReward):purge(db,cls)
+            if 'levels' in selected:
+                # IMPORTANTE: o reset total também precisa zerar EXP e nivel.
+                for cls in (ExperienceOnce,ExperienceLog,UserExperience):purge(db,cls,uid_predicate(cls))
+            if 'discord' in selected:
+                for cls in (DiscordActivityEvent,DiscordMessageRate):purge(db,cls,uid_predicate(cls))
+                extras(db,'recanto_discord_events')
+            if entire:
+                extras(db,'recanto_notification_sent')
+        logging.getLogger('recanto.admin').warning(
+            'Reset de progresso: admin=%s alvo=%s categorias=%s',admin_id,target or 'todos',','.join(sorted(selected)))
+        return {'ok':True,'scope':'selected','user_id':target or None,
+                'categories':sorted(selected),'levels_reset':'levels' in selected,
+                'detail':'Categorias escolhidas reiniciadas; contas, catálogos e configurações mantidos'}
 
     @app.post('/api/dev/grant-coins')
     async def grant_test_coins(request: Request):
@@ -3438,6 +3601,12 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                           CoinOffer, CardCooldown, PetExpedition, FavoriteGame, FavoriteChampion, TradeReward, Trade, MissionProgress, Claim, UserAchievement,
                           AchievementProgress, UserPet, OwnedCard):
                 db.execute(delete(table))
+            # 0.3.1: limpeza local completa também reinicia nível, EXP, Feed
+            # e recibos do bot. Os rankings configurados permanecem.
+            for cls in (FeedReply,FeedLike,FeedEvent,FeedDailyReward,
+                        ExperienceOnce,ExperienceLog,UserExperience,
+                        DiscordActivityEvent,DiscordMessageRate):
+                db.execute(delete(cls))
             # Progresso e deduplicação da v1.2 também devem ser reiniciados
             # nas ferramentas EXCLUSIVAMENTE locais de teste.
             for name in ('recanto_mission_counters','recanto_mission_claims',
