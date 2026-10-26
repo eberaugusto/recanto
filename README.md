@@ -1,1 +1,1 @@
-# Recanto v0.3.1
+# Recanto v0.3.2
