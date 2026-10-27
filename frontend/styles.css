@@ -333,7 +333,6 @@ button:disabled { opacity: .6; cursor: wait; }
 .flip-back small{font-size:17px;font-weight:900;letter-spacing:3px}
 .flip-front{transform:rotateY(180deg);background:linear-gradient(140deg,#e6e6ed,#fff);color:#303c6e;text-align:center;font-size:18px;padding:13px;}
 .flip-front img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
-.flip-front .reveal-caption{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(0deg,#141534ed,#14153400);color:white;padding:30px 8px 12px;font-weight:900;font-size:16px;}
 .reveal-counter{font-weight:800;font-size:16px}
 .reveal-next,.reveal-exit{border:0;border-radius:30px;padding:13px 25px;background:white;color:#5661d8;font:inherit;font-weight:800;cursor:pointer;}
 .reveal-exit{background:#ffe5a8;color:#684726}
@@ -3499,7 +3498,7 @@ body.dark-mode .recanto-shop-discount{color:#abebc9}
   #profileContent .desktop-left-column:has(.recanto-event-banners-mobile:not([hidden])) > .desktop-profile-hero{margin-top:clamp(105px,13dvh,160px)}
 }
 
-/* RECANTO 0.3.5 — o verso do Card substitui o orbe, sem confirmação/resumo.
+/* RECANTO 0.3.6 — frente só com a arte e moldura, verso sem logo/estrela.
    Uma única carta em 3D: revelar com giro e luminosidade da raridade. */
 #packReveal.pack-reveal:not([hidden]){
   position:fixed!important;inset:0!important;z-index:100001!important;
@@ -3570,12 +3569,10 @@ body.dark-mode .recanto-shop-discount{color:#abebc9}
 }
 #packReveal .flip-back::before{content:'';position:absolute;inset:11%;border:2px solid #dbe4ffc0;border-radius:10px;pointer-events:none}
 #packReveal .flip-back::after{content:'';position:absolute;inset:19%;border:1px solid #dbe4ff73;border-radius:50%;pointer-events:none}
-#packReveal .recanto-card-back-glyph{position:relative;z-index:1;font-size:clamp(82px,13vmin,128px);line-height:1;text-shadow:0 0 20px #fff6cb8c;filter:drop-shadow(0 3px 4px #142065)}
-#packReveal .flip-back small{position:relative;z-index:1;color:#fff;letter-spacing:.17em;font-size:clamp(14px,2.5vmin,19px);font-weight:900;text-shadow:0 2px 7px #10145b}
-#packReveal .recanto-card-back-detail{position:relative;z-index:1;font-size:clamp(12px,2vmin,17px);letter-spacing:.25em;color:#edf0ff}
+/* Após o giro, isola o verso para evitar vazamento visual em navegadores com 3D. */
+#packReveal[data-phase="revealed"] .flip-back{visibility:hidden}
 #packReveal .flip-face.flip-front{transform:rotateY(180deg);background:transparent;border:0;padding:0;overflow:hidden}
 #packReveal .flip-front>.recanto-pack-portrait{width:100%;height:100%;aspect-ratio:auto;max-width:100%;max-height:100%}
-#packReveal .reveal-caption{z-index:2;font-size:clamp(12px,2.5vw,17px)}
 #packReveal[data-phase="revealed"] .flip-stage{filter:drop-shadow(0 0 18px var(--reward-glow))}
 #packReveal .reveal-counter{position:relative;z-index:4;font-size:clamp(12px,2.4vw,16px);line-height:1.5;
   font-weight:700;max-width:min(90vw,560px);min-height:1.5em;color:white;text-shadow:0 2px 12px #0009}

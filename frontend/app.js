@@ -1099,7 +1099,7 @@
         button('Voltar ao inventário',()=>{$('profilesModal').hidden=true;},'soft-action'));
     }catch(err){toast(err.message);}
   }
-  // RECANTO 0.3.5 — verso do Card como protagonista, sem orbe nem resumo final.
+  // RECANTO 0.3.6 — frente sem textos sobrepostos; verso sem glifo nem logotipo.
   // O servidor confirma primeiro; cada toque revela ou avança e o último fecha.
   let rewardOpening={source:null,busy:false,locked:false,confirmed:false};
   const reducedRevealMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1158,7 +1158,6 @@
     front.replaceChildren();const card=cards[index];
     front.className='flip-face flip-front tier-'+(card.rarity||'comum');
     front.append(frameCardArt(card,'recanto-pack-portrait'));
-    front.append(h('span','reveal-caption',card.name+' · '+(tierLabels[card.rarity]||card.rarity)));
     stage.disabled=false;stage.setAttribute('aria-label',`Revelar Card ${index+1} de ${cards.length}`);
     $('revealHint').textContent=cards.length>1?`CARD ${index+1} DE ${cards.length}`:'UM NOVO CARD!';
     $('revealCounter').textContent='Toque no verso do Card para revelar';
