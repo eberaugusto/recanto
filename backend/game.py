@@ -1,4 +1,4 @@
-"""Recanto 0.3.7. Economia e jogo executados inteiramente no servidor.
+"""Recanto 0.3.8. Economia e jogo executados inteiramente no servidor.
 
 Ações que alteram saldo/itens usam transações serializadas. O browser só pede
 operações; nunca escolhe resultado de sorteio, saldo, recompensa ou tempo.
@@ -358,6 +358,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         emoji: Mapped[str] = mapped_column(String(30), default='🏆')
         image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
         active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+        rarity: Mapped[str] = mapped_column(String(18), nullable=False, default='comum')
 
     class InventoryCollectible(Base):
         __tablename__ = 'inventory_collectibles'
@@ -365,6 +366,25 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         collectible_id: Mapped[int] = mapped_column(ForeignKey('collectibles.id'), primary_key=True)
         quantity: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
         acquired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    class CollectibleDeal(Base):
+        """Negociação de UM colecionável; só uma expedição gera itens novos.
+
+        swap: proponente oferece seu item e pede item do destinatário;
+        buy: proponente reserva moedas para adquirir item do destinatário;
+        sell: proponente oferece item e pede moedas do destinatário.
+        """
+        __tablename__ = 'collectible_deals'
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        sender_id: Mapped[str] = mapped_column(ForeignKey('users.id'), nullable=False)
+        receiver_id: Mapped[str] = mapped_column(ForeignKey('users.id'), nullable=False)
+        kind: Mapped[str] = mapped_column(String(12), nullable=False)
+        offered_item_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+        wanted_item_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+        amount: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+        status: Mapped[str] = mapped_column(String(20), default='pendente', nullable=False)
+        created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+        resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     class TradeReward(Base):
         __tablename__ = 'trade_rewards'
@@ -600,6 +620,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             'coin_min': 'INTEGER', 'coin_max': 'INTEGER',
             'enabled': 'BOOLEAN NOT NULL DEFAULT TRUE',
         },
+        'collectibles': {'rarity': "VARCHAR(18) NOT NULL DEFAULT 'comum'"},
         'pet_expeditions': {
             'cost_food': 'INTEGER', 'cost_happiness': 'INTEGER',
             'cost_health': 'INTEGER', 'display_name': 'VARCHAR(100)',
@@ -671,6 +692,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 for cls, key in ((ReservedCard, None), (VisitorCare, 'visitor_id'), (VisitorCare, 'owner_id'),
                                  (InventoryPack, 'user_id'), (InventoryTreat, 'user_id'),
                                  (FavoriteCard, 'user_id'), (Trade, 'sender_id'), (Trade, 'receiver_id'),
+                                 (CollectibleDeal,'sender_id'),(CollectibleDeal,'receiver_id'),
                                  (TradeReward, 'user_id'), (MissionProgress, 'user_id'), (MissionActionDaily,'user_id'), (RecantoMissionExtraProgress,'user_id'), (UserExperience,'user_id'), (ExperienceOnce,'user_id'), (ExperienceLog,'user_id'),
                                  (Claim, 'user_id'), (UserAchievement, 'user_id'),
                                  (AchievementProgress, 'user_id'), (DiscordActivityEvent, 'user_id'), (DiscordMessageRate, 'user_id'), (UserPet, 'user_id'),
@@ -1603,7 +1625,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
 
     def collectible_dict(obj, quantity=None, acquired_at=None):
         payload={'id':obj.id, 'name':obj.name, 'description':obj.description,
-                 'image_url':obj.image_url, 'emoji':obj.emoji}
+                 'image_url':obj.image_url, 'emoji':obj.emoji, 'rarity':obj.rarity or 'comum'}
         if quantity is not None:payload['quantity']=quantity
         if acquired_at is not None:payload['acquired_at']=naive_to_utc(acquired_at).isoformat()
         return payload
@@ -1774,7 +1796,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                           .join(Card, OwnedCard.card_id == Card.id)
                           .where(OwnedCard.user_id == u.id).order_by(Card.name)).all()
                 out.append({'key': u.id, 'name': u.username, 'cards': [
-                    {'owned_id': x[0], 'name': x[1], 'rarity': x[2], 'image_url': x[3]} for x in holdings]})
+                    {'owned_id': x[0], 'name': x[1], 'rarity': x[2], 'image_url': x[3]} for x in holdings],
+                    'collectibles':owned_collectibles(db,u.id)})
             return {'members': out}
 
     @app.get('/api/trades')
@@ -1922,6 +1945,145 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 wallet(db,offer.buyer_id).coins+=offer.amount
                 offer.status='cancelada' if action=='cancel' else ('recusada' if action=='reject' else 'expirada')
             return {'ok':True,'status':offer.status}
+
+    # 0.3.8 — trocas de colecionáveis de expedições (sem gerar itens).
+    # A transação writing() serializa mudanças no banco também em multiusuário.
+    def transferable_collectible(db, uid, collectible_id):
+        if not collectible_id:return 0
+        row=db.get(InventoryCollectible,(uid,collectible_id))
+        if not row:return 0
+        pet=db.get(UserPet,uid)
+        # A última unidade equipada não pode sair do inventário do Pet.
+        equipped=1 if pet and pet.equipped_collectible_id==collectible_id else 0
+        return max(0,int(row.quantity)-equipped)
+
+    def move_collectible(db, origin, destination, item_id):
+        if transferable_collectible(db,origin,item_id)<1:
+            raise HTTPException(409,detail='Colecionável indisponível ou única cópia equipada')
+        former=db.get(InventoryCollectible,(origin,item_id))
+        former.quantity-=1
+        receiver=db.get(InventoryCollectible,(destination,item_id))
+        if receiver:
+            receiver.quantity+=1
+            receiver.acquired_at=utcnow()
+        else:
+            db.add(InventoryCollectible(user_id=destination,collectible_id=item_id,quantity=1,acquired_at=utcnow()))
+
+    def item_for_feed(db,item_id):
+        item=db.get(Collectible,item_id)
+        return collectible_dict(item) if item else {'name':'Colecionável indisponível','rarity':'comum'}
+
+    def collectible_deal_dict(db,deal,uid):
+        names={x.id:x.username for x in db.scalars(select(User).where(User.id.in_([deal.sender_id,deal.receiver_id]))).all()}
+        return {'id':deal.id,'kind':deal.kind,'status':deal.status,'amount':deal.amount,
+                'sender_name':names.get(deal.sender_id,'Membro'),
+                'receiver_name':names.get(deal.receiver_id,'Membro'),
+                'offered':item_for_feed(db,deal.offered_item_id) if deal.offered_item_id else None,
+                'wanted':item_for_feed(db,deal.wanted_item_id) if deal.wanted_item_id else None,
+                'from_me':deal.sender_id==uid,
+                'can_accept':deal.status=='pendente' and deal.receiver_id==uid,
+                'can_cancel':deal.status=='pendente' and deal.sender_id==uid}
+
+    @app.get('/api/collectible-deals')
+    def list_collectible_deals(request:Request):
+        uid=me(request)
+        with SessionLocal() as db:
+            deals=db.scalars(select(CollectibleDeal).where(
+                (CollectibleDeal.sender_id==uid)|(CollectibleDeal.receiver_id==uid))
+                .order_by(CollectibleDeal.id.desc()).limit(100)).all()
+            return {'items':[collectible_deal_dict(db,row,uid) for row in deals],
+                    'minimums':COIN_OFFER_MIN}
+
+    @app.post('/api/collectible-deals')
+    async def create_collectible_deal(request:Request):
+        uid=me(request)
+        data=json_body(await request.json(),('to_user','kind'))
+        recipient=str(data['to_user']).strip()
+        kind=str(data['kind']).strip()
+        if kind not in ('swap','buy','sell') or recipient==uid:
+            raise HTTPException(422,detail='Tipo de negociação ou destinatário inválido')
+        for field in (('offered_item_id',) if kind=='sell' else ('wanted_item_id',) if kind=='buy' else ('offered_item_id','wanted_item_id')):
+            if field not in data:raise HTTPException(422,detail='Selecione o colecionável da proposta')
+        if kind in ('buy','sell') and 'amount' not in data:
+            raise HTTPException(422,detail='Informe a quantidade de moedas')
+        offered=integer(data['offered_item_id']) if kind in ('swap','sell') else None
+        wanted=integer(data['wanted_item_id']) if kind in ('swap','buy') else None
+        amount=integer(data['amount']) if kind in ('buy','sell') else 0
+        if (offered is not None and offered<1) or (wanted is not None and wanted<1) or (kind=='swap' and offered==wanted):
+            raise HTTPException(422,detail='Selecione dois itens diferentes e válidos')
+        with writing() as db:
+            if not db.get(User,recipient):raise HTTPException(404,detail='Membro não encontrado')
+            if offered and transferable_collectible(db,uid,offered)<1:
+                raise HTTPException(409,detail='Você não possui uma cópia disponível deste item')
+            if wanted and transferable_collectible(db,recipient,wanted)<1:
+                raise HTTPException(409,detail='O destinatário não possui uma cópia disponível deste item')
+            chosen=db.get(Collectible,offered if kind=='sell' else wanted)
+            if not chosen:raise HTTPException(404,detail='Colecionável não encontrado')
+            if kind in ('buy','sell') and not COIN_OFFER_MIN[chosen.rarity or 'comum']<=amount<=1000000:
+                raise HTTPException(422,detail='Oferta de moedas fora do mínimo por raridade ou acima do limite')
+            number=db.scalar(select(func.count(CollectibleDeal.id)).where(
+                CollectibleDeal.sender_id==uid,CollectibleDeal.status=='pendente')) or 0
+            if number>=25:raise HTTPException(429,detail='Limite de 25 propostas pendentes. Cancele propostas antigas.')
+            if kind=='buy':require_coins(db,uid,amount).coins-=amount
+            deal=CollectibleDeal(sender_id=uid,receiver_id=recipient,kind=kind,
+                offered_item_id=offered,wanted_item_id=wanted,amount=amount,status='pendente',created_at=utcnow())
+            db.add(deal);db.flush()
+            return {'ok':True,'id':deal.id,'escrowed':amount if kind=='buy' else 0}
+
+    @app.post('/api/collectible-deals/{deal_id}/decide')
+    async def decide_collectible_deal(deal_id:int,request:Request):
+        uid=me(request);data=json_body(await request.json(),('action',))
+        action=str(data['action'])
+        if action not in ('accept','reject','cancel'):raise HTTPException(422,detail='Ação inválida')
+        with writing() as db:
+            deal=db.get(CollectibleDeal,deal_id)
+            if not deal or deal.status!='pendente':raise HTTPException(409,detail='Proposta não está pendente')
+            if (action=='cancel' and deal.sender_id!=uid) or (action!='cancel' and deal.receiver_id!=uid):
+                raise HTTPException(403,detail='Você não pode responder a esta proposta')
+            if action=='accept':
+                sender,receiver=deal.sender_id,deal.receiver_id
+                if deal.kind=='swap':
+                    if transferable_collectible(db,sender,deal.offered_item_id)<1 or transferable_collectible(db,receiver,deal.wanted_item_id)<1:
+                        raise HTTPException(409,detail='Um dos itens não está mais disponível')
+                    move_collectible(db,sender,receiver,deal.offered_item_id)
+                    move_collectible(db,receiver,sender,deal.wanted_item_id)
+                    feed={'kind':'trade_collectibles','item_a':item_for_feed(db,deal.offered_item_id),
+                          'item_b':item_for_feed(db,deal.wanted_item_id)}
+                else:
+                    seller=receiver if deal.kind=='buy' else sender
+                    buyer=sender if deal.kind=='buy' else receiver
+                    target=deal.wanted_item_id if deal.kind=='buy' else deal.offered_item_id
+                    if transferable_collectible(db,seller,target)<1:
+                        raise HTTPException(409,detail='O item não está mais disponível')
+                    if deal.kind=='sell':require_coins(db,buyer,deal.amount).coins-=deal.amount
+                    move_collectible(db,seller,buyer,target)
+                    wallet(db,seller).coins+=deal.amount
+                    if deal.kind=='buy':xp_spend(db,buyer,deal.amount)
+                    feed={'kind':'trade_collectible_coins','item':item_for_feed(db,target),'coins':deal.amount}
+                deal.status='aceita'
+                for member in (sender,receiver):
+                    progress(db,member,'trade');achievement_event(db,member,'trade')
+                    xp_action(db,member,'trade_cards' if deal.kind=='swap' else 'trade_coins',
+                              'troca_de_colecionaveis')
+                publish_feed(db,sender,feed.pop('kind'),other=db.get(User,receiver).username,**feed)
+                # Uma cópia não pode ser vendida várias vezes; devolver moedas de propostas
+                # concorrentes somente quando todas as cópias negociáveis se esgotarem.
+                if deal.kind in ('buy','sell'):
+                    target=deal.wanted_item_id if deal.kind=='buy' else deal.offered_item_id
+                    seller=receiver if deal.kind=='buy' else sender
+                    if transferable_collectible(db,seller,target)==0:
+                        other=db.scalars(select(CollectibleDeal).where(
+                            CollectibleDeal.status=='pendente',CollectibleDeal.id!=deal.id,
+                            ((CollectibleDeal.kind=='buy') & (CollectibleDeal.receiver_id==seller) & (CollectibleDeal.wanted_item_id==target))|
+                            ((CollectibleDeal.kind=='sell') & (CollectibleDeal.sender_id==seller) & (CollectibleDeal.offered_item_id==target)))).all()
+                        for duplicate in other:
+                            if duplicate.kind=='buy':wallet(db,duplicate.sender_id).coins+=duplicate.amount
+                            duplicate.status='expirada';duplicate.resolved_at=utcnow()
+            else:
+                if deal.kind=='buy':wallet(db,deal.sender_id).coins+=deal.amount
+                deal.status='cancelada' if action=='cancel' else 'recusada'
+            deal.resolved_at=utcnow()
+            return {'ok':True,'status':deal.status}
 
     @app.get('/api/card-economy')
     def card_economy(request:Request):
@@ -3265,6 +3427,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if len(description)>300:raise HTTPException(422,detail='Descrição muito longa')
         emoji=str(data.get('emoji') or '🏆')[:30]
         picture=safe_artwork(data.get('image_url'))
+        rarity=str(data.get('rarity') or 'comum').strip().lower()
+        if rarity not in TIERS:raise HTTPException(422,detail='Raridade deve ser Comum, Raro, Lendário ou Prismático')
         item_id=data.get('id') or None
         if item_id is not None:item_id=integer(item_id)
         with writing() as db:
@@ -3273,7 +3437,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 if not item:raise HTTPException(404,detail='Colecionável não encontrado')
             else:
                 item=Collectible();db.add(item)
-            item.name=name;item.description=description;item.emoji=emoji;item.image_url=picture
+            item.name=name;item.description=description;item.emoji=emoji;item.image_url=picture;item.rarity=rarity
             if 'active' in data:
                 if type(data['active']) is not bool:raise HTTPException(422,detail='Ativo precisa ser verdadeiro ou falso')
                 item.active=data['active']
@@ -3897,6 +4061,17 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         with writing() as db:
             if target and db.get(User,target) is None:
                 raise HTTPException(404,detail='Membro não encontrado no Recanto')
+            if 'pets' in selected or 'economy' in selected:
+                # Propostas de itens pendentes não podem sobreviver à limpeza de itens/saldo.
+                # Reembolsar escrow quando só parte dos dados é removida.
+                affected=db.scalars(select(CollectibleDeal).where(
+                    ((CollectibleDeal.sender_id==target)|(CollectibleDeal.receiver_id==target))
+                    if target else True)).all()
+                for deal in affected:
+                    if deal.status=='pendente' and deal.kind=='buy' and 'economy' not in selected:
+                        wallet(db,deal.sender_id).coins+=deal.amount
+                    db.delete(deal)
+                db.flush()
             if 'cards' in selected:
                 owned_ids=select(OwnedCard.id).where(OwnedCard.user_id==target) if target else None
                 pack_ids=select(InventoryPack.id).where(InventoryPack.user_id==target) if target else None
@@ -4010,7 +4185,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             raise HTTPException(422, detail='Confirme digitando LIMPAR TUDO')
         with writing() as db:
             for table in (MissionActionDaily,RecantoMissionExtraProgress,VisitorCare, FavoriteCard, ReservedCard, InventoryPack, InventoryTreat, InventoryCollectible,
-                          CoinOffer, CardCooldown, PetExpedition, FavoriteGame, FavoriteChampion, TradeReward, Trade, MissionProgress, Claim, UserAchievement,
+                          CollectibleDeal,CoinOffer, CardCooldown, PetExpedition, FavoriteGame, FavoriteChampion, TradeReward, Trade, MissionProgress, Claim, UserAchievement,
                           AchievementProgress, UserPet, OwnedCard):
                 db.execute(delete(table))
             # 0.3.1: limpeza local completa também reinicia nível, EXP, Feed

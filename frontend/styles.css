@@ -3605,3 +3605,21 @@ body.recanto-reward-open{overscroll-behavior:none}
 /* 0.3.7 — interação instantânea com o verso sem cursor de carregamento. */
 #packReveal[data-phase="ready"] .flip-stage {cursor:pointer}
 #packReveal[data-phase="ready"] .flip-stage:active {filter:brightness(1.15)}
+
+/* Recanto 0.3.8 — raridade de itens colecionáveis e mercado seguro. */
+.collectible-item {border:2px solid transparent;}
+.collectible-item[data-rarity="comum"] {border-color:#8f9caa;}
+.collectible-item[data-rarity="raro"] {border-color:#4c87f2;}
+.collectible-item[data-rarity="lendário"] {border-color:#e5aa39;}
+.collectible-item[data-rarity="prismático"] {border-color:#ad62e9;}
+.collectible-rarity {font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border-radius:99px;padding:5px 12px;color:#fff;background:#77859c;}
+[data-rarity="raro"] .collectible-rarity {background:#386cce;}
+[data-rarity="lendário"] .collectible-rarity {background:#996219;}
+[data-rarity="prismático"] .collectible-rarity {background:linear-gradient(115deg,#6b42e5,#d35bab,#3b9ccf);}
+.collectible-trade-section {margin-top:22px;}
+.collectible-deal-modes {display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;}
+.collectible-deal-modes button {white-space:normal;flex:1 1 130px;}
+.collectible-deal-forms {display:grid;gap:8px;margin:12px 0 20px;}
+.collectible-deal-forms label {font-size:12px;font-weight:700;}
+.collectible-deal-row {margin-top:10px;}
+.collectible-deal-row button {margin:4px 6px 0 0;}

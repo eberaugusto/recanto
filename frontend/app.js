@@ -328,7 +328,7 @@
       }
       if(item.available===false)pane.append(h('p','profile-info-note','A integração de voz/mensagens do Discord precisa ser ativada pelo administrador.'));
     }else if(isCollectible){
-      pane.append(h('p','profile-info-status','Colecionável do Pet'));
+      pane.append(h('p','profile-info-status',`Colecionável · ${tierLabels[item.rarity]||'Comum'} · Encontrado em expedições`));
       if(item.description)pane.append(h('p','profile-info-description',poroLegacyText(item.description)));
       if(item.acquired_at){const d=new Date(item.acquired_at);if(!Number.isNaN(d.getTime()))pane.append(h('p','profile-info-note','Adquirido em: '+d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})));}
       if(item.quantity!=null)pane.append(h('p','profile-info-note',`Quantidade na coleção: ${item.quantity}`));
@@ -441,6 +441,8 @@
     else if(item.kind==='expedition_card'){add(' teve seu Pet ');pet(d.pet);add(' retornando da Expedição com ');card(d.card);add('.');}
     else if(item.kind==='trade_cards'){add(' trocou ');card(d.card_a);add(' por ');card(d.card_b);add(' com '+(d.other||'outro membro')+'.');}
     else if(item.kind==='trade_coins'){add(' trocou ');card(d.card);add(' por '+(Number(d.coins)||0)+' moedas com '+(d.other||'outro membro')+'.');}
+    else if(item.kind==='trade_collectibles'){add(' trocou o colecionável '+(d.item_a?.name||'Item')+' por '+(d.item_b?.name||'Item')+' com '+(d.other||'outro membro')+'.');}
+    else if(item.kind==='trade_collectible_coins'){add(' negociou o colecionável '+(d.item?.name||'Item')+' por '+money(d.coins)+' moedas com '+(d.other||'outro membro')+'.');}
     else if(item.kind==='badge'){add(' conquistou o selo ');if(d.badge?.icon)add(d.badge.icon+' ');feedImageText(row,{name:d.badge?.name,image_url:d.badge?.image_url},'pet');add('!');}
     else if(item.kind==='visitor_pet_care'){
       add(d.action==='feed'?' alimentou ':' acariciou ');pet(d.pet);
@@ -1051,7 +1053,77 @@
       publicTrade.append(button('Criar proposta pública',openFeedTradeComposer),
         button('Ver conversas no Feed',()=>chooseTab('feed'),'soft-action'));
       p.append(publicTrade,tradeColumns);
+      await renderCollectibleTrading(p,community,requestId);
     }
+  }
+
+  // Colecionáveis só entram na economia através das expedições; negociações não criam cópias.
+  async function renderCollectibleTrading(parent,community,requestId){
+    const [inventory,deals]=await Promise.all([API('/api/inventory'),API('/api/collectible-deals')]);
+    if(requestId!==currentCardPaneRequest||state.cardTab!=='trocas')return;
+    const section=block('🏆 Trocas de Colecionáveis','Colecionáveis Comum, Raro, Lendário ou Prismático são encontrados exclusivamente em expedições. Troque uma cópia por outro item ou negocie por moedas.');
+    section.classList.add('collectible-trade-section');
+    const mine=(inventory.collectibles||[]).filter(c=>Number(c.quantity)>0);
+    const members=(community.members||[]).filter(m=>(m.collectibles||[]).some(c=>Number(c.quantity)>0));
+    const memberOptions=(select,records)=>{select.replaceChildren();for(const record of records){const option=h('option','',record.name);option.value=record.key;select.append(option);}};
+    const fillItems=(select,items)=>{select.replaceChildren();for(const item of items){const option=h('option','',`${item.name} · ${tierLabels[item.rarity]||'Comum'} (×${item.quantity})`);option.value=String(item.id);option.dataset.rarity=item.rarity||'comum';select.append(option);}};
+    const submit=async(endpoint,payload,message)=>{
+      const result=await safeRun(()=>API(endpoint,payload),message);
+      if(result){await cardPane('trocas');}
+    };
+    const chooseKind=h('div','mini-tabs collectible-deal-modes');
+    const forms=h('div','collectible-deal-forms');
+    const modes=[['swap','Item por item'],['buy','Comprar por moedas'],['sell','Vender por moedas']];
+    const renderMode=(kind)=>{
+      forms.replaceChildren();
+      for(const b of chooseKind.querySelectorAll('button'))b.classList.toggle('mini-active',b.dataset.kind===kind);
+      if((kind!=='sell'&&!members.length)||(kind==='sell'&&!(community.members||[]).length)){
+        forms.append(h('p','', kind==='sell'?'Não há outros membros cadastrados.':'Nenhum outro membro tem colecionáveis para negociar.'));return;}
+      if(kind!=='buy'&&!mine.length){forms.append(h('p','','Encontre um colecionável em uma expedição para oferecer.'));return;}
+      const sellerList=kind==='sell'?community.members||[]:members;
+      if(!sellerList.length){forms.append(h('p','','Não há membros disponíveis para esta proposta.'));return;}
+      const who=h('select','select-input');memberOptions(who,sellerList);
+      const other=h('select','select-input'),own=h('select','select-input');
+      fillItems(own,mine);
+      const refresh=()=>{const u=sellerList.find(m=>m.key===who.value);fillItems(other,u?.collectibles||[]);};
+      who.addEventListener('change',refresh);refresh();
+      forms.append(h('label','','Negociar com'),who);
+      if(kind!=='buy')forms.append(h('label','','Seu colecionável'),own);
+      if(kind!=='sell')forms.append(h('label','','Colecionável desejado'),other);
+      let coins=null;
+      if(kind!=='swap'){
+        coins=h('input','text-input');coins.type='number';coins.step='1';coins.min='1';coins.max='1000000';
+        const minUpdate=()=>{
+          const tier=(kind==='buy'?other:own).selectedOptions[0]?.dataset.rarity||'comum';
+          const min=Number(deals.minimums?.[tier]||35);
+          coins.min=String(min);coins.value=String(min);
+        };
+        (kind==='buy'?other:own).addEventListener('change',minUpdate);who.addEventListener('change',minUpdate);minUpdate();
+        forms.append(h('label','',kind==='buy'?'Moedas oferecidas (reservadas até a resposta)':'Moedas solicitadas'),coins);
+      }
+      forms.append(button(kind==='swap'?'Enviar proposta de troca':kind==='buy'?'Oferecer moedas pelo item':'Oferecer item por moedas',()=>{
+        if(!who.value || (kind!=='buy'&&!own.value) || (kind!=='sell'&&!other.value)){toast('Selecione os itens e o membro.');return;}
+        const payload={kind,to_user:who.value};
+        if(kind!=='buy')payload.offered_item_id=Number(own.value);
+        if(kind!=='sell')payload.wanted_item_id=Number(other.value);
+        if(coins)payload.amount=Number(coins.value);
+        submit('/api/collectible-deals',payload,'Proposta de colecionável enviada!');
+      }));
+    };
+    for(const [kind,title] of modes){const btn=button(title,()=>renderMode(kind),'soft-action');btn.dataset.kind=kind;chooseKind.append(btn);}
+    section.append(chooseKind,forms);renderMode('swap');
+    const history=h('div','trade-history-group');history.append(h('h3','section-heading','Propostas de colecionáveis'));
+    if(!deals.items.length)history.append(h('p','','Nenhuma negociação de colecionáveis por enquanto.'));
+    for(const deal of deals.items){
+      const left=deal.offered?`${deal.offered.name} · ${tierLabels[deal.offered.rarity]||'Comum'}`:'';
+      const right=deal.wanted?`${deal.wanted.name} · ${tierLabels[deal.wanted.rarity]||'Comum'}`:'';
+      const detail=deal.kind==='swap'?`${left} ↔ ${right}`:deal.kind==='buy'?`${right} por ${money(deal.amount)} moedas`:`${left} por ${money(deal.amount)} moedas`;
+      const row=block(`${deal.sender_name} → ${deal.receiver_name}`,`${detail} · ${deal.status}`);row.classList.add('collectible-deal-row');
+      if(deal.can_accept){row.append(button('Aceitar',()=>submit(`/api/collectible-deals/${deal.id}/decide`,{action:'accept'},'Negociação concluída!')));row.append(button('Recusar',()=>submit(`/api/collectible-deals/${deal.id}/decide`,{action:'reject'},'Proposta recusada.'),'soft-action'));}
+      if(deal.can_cancel)row.append(button('Cancelar',()=>submit(`/api/collectible-deals/${deal.id}/decide`,{action:'cancel'},'Proposta cancelada.'),'soft-action'));
+      history.append(row);
+    }
+    section.append(history);parent.append(section);
   }
     async function decideCoinOffer(id,action){await safeRun(()=>API(`/api/coin-offers/${id}/decide`,{action}),'Oferta atualizada!');}
     async function actTrade(id,action){await safeRun(()=>API(`/api/trades/${id}/decide`,{action}),action==='accept'?'Troca concluída!':'Proposta atualizada.');}
@@ -1079,13 +1151,13 @@
     }else if(tab==='colecionaveis'){
       if(!d.collectibles?.length)pane.append(block('Nenhum colecionável','Itens especiais encontrados nas expedições aparecerão aqui.'));
       const grid=h('div','collectible-grid');
-      for(const item of d.collectibles||[]){const tile=h('article','collectible-item');tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'),h('strong','',item.name),h('small','',`Quantidade: ${item.quantity}`));
+      for(const item of d.collectibles||[]){const tile=h('article','collectible-item');tile.dataset.rarity=item.rarity||'comum';tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'),h('strong','',item.name),h('span','collectible-rarity',tierLabels[item.rarity]||'Comum'),h('small','',`Quantidade: ${item.quantity}`));
         if(item.description)tile.append(h('p','',item.description));
         const controls=h('div','collectible-actions');
         controls.append(button('Ver detalhes',()=>showProfileItemDetail(item,'collectible'),'soft-action'));
         controls.append(button('Equipar no Pet',()=>safeRun(()=>API('/api/pets/equip-collectible',{collectible_id:item.id}),'Item equipado no seu Pet!')));
         tile.append(controls);grid.append(tile);}
-      pane.append(grid);
+      pane.append(grid,button('🔄 Trocar ou negociar colecionáveis',()=>{state.cardTab='trocas';chooseTab('cards');},'soft-action'));
     }
   }
   async function giftDialog(item){
@@ -1356,7 +1428,7 @@
       if(d.collectibles?.length){
         const found=block('🏆 Colecionáveis');found.classList.add('public-section','public-collectibles');
         const grid=h('div','collectible-grid');
-        for(const item of d.collectibles){const tile=h('article','collectible-item');tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'));tile.append(h('strong','',item.name),h('small','',`×${item.quantity}`));if(item.description)tile.title=item.description;grid.append(tile);}
+        for(const item of d.collectibles){const tile=h('article','collectible-item');tile.dataset.rarity=item.rarity||'comum';tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'));tile.append(h('span','collectible-rarity',tierLabels[item.rarity]||'Comum'),h('strong','',item.name),h('small','',`×${item.quantity}`));if(item.description)tile.title=item.description;grid.append(tile);}
         found.append(grid);main.append(found);
       }
       aside.append(publicPetCard(d,items),publicMemberCardsSection(d));
@@ -1836,7 +1908,7 @@
     if(collectibles.length){
       const selector=h('select','select-input');selector.setAttribute('aria-label','Selecionar colecionável para o Pet');
       const none=h('option','','Nenhum item');none.value='';selector.append(none);
-      for(const item of collectibles){const op=h('option','',item.name+' (×'+item.quantity+')');op.value=String(item.id);selector.append(op);}
+      for(const item of collectibles){const op=h('option','',`${item.name} · ${tierLabels[item.rarity]||'Comum'} (×${item.quantity})`);op.value=String(item.id);selector.append(op);}
       selector.value=pet.equipped_collectible?String(pet.equipped_collectible.id):'';
       equipmentRow.append(selector,button('Equipar',()=>safeRun(()=>API('/api/pets/equip-collectible',{collectible_id:selector.value?Number(selector.value):null}),'Item equipado atualizado!')));
     }else equipmentRow.append(h('p','poro-item-empty','Colecionáveis ganhos em expedições aparecerão aqui.'));
@@ -2484,7 +2556,7 @@
     pane.append(petScenery);
 
     // 0.1.21 — Colecionáveis estáticos e resultados das expedições.
-    const collectibleBlock=block('Gerenciar Colecionáveis','Itens colecionáveis estáticos que podem ser encontrados nas expedições. Arquivar preserva o inventário existente.');
+    const collectibleBlock=block('Gerenciar Colecionáveis','Defina a raridade (Comum, Raro, Lendário ou Prismático). Itens novos são obtidos exclusivamente nas expedições; os já obtidos podem ser negociados. Arquivar preserva os inventários.');
     const currentCollectibles=(await API('/api/admin/collectibles')).items||[];
     const collectiblesChoice=h('select','select-input');
     const refreshCollectibles=()=>{collectiblesChoice.replaceChildren();const empty=h('option','','+ Novo colecionável');empty.value='';collectiblesChoice.append(empty);
@@ -2493,17 +2565,19 @@
     const [collectName,collectNameInput]=adminField('Nome','');
     const [collectInfo,collectInfoInput]=adminField('Descrição','');
     const [collectEmoji,collectEmojiInput]=adminField('Emoji caso não tenha imagem','🏆');
+    const collectRarity=h('select','select-input');
+    for(const [key,label] of Object.entries(tierLabels)){const option=h('option','',label);option.value=key;collectRarity.append(option);}
     const [collectCover,collectCoverInput]=adminField('URL HTTPS da imagem (opcional)','');
     const collectFile=h('input','text-input');collectFile.type='file';collectFile.accept='image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif';
     const collectEnabled=h('input');collectEnabled.type='checkbox';collectEnabled.checked=true;
     collectiblesChoice.onchange=()=>{const obj=currentCollectibles.find(x=>String(x.id)===collectiblesChoice.value);
       collectNameInput.value=obj?.name||'';collectInfoInput.value=obj?.description||'';collectEmojiInput.value=obj?.emoji||'🏆';
-      collectCoverInput.value=obj?.image_url||'';collectEnabled.checked=obj?.active!==false;collectFile.value='';};
+      collectCoverInput.value=obj?.image_url||'';collectRarity.value=obj?.rarity||'comum';collectEnabled.checked=obj?.active!==false;collectFile.value='';};
     const saveCollectibles=async()=>{const id=collectiblesChoice.value?Number(collectiblesChoice.value):null;
-      const payload={id,name:collectNameInput.value,description:collectInfoInput.value,emoji:collectEmojiInput.value,
+      const payload={id,name:collectNameInput.value,description:collectInfoInput.value,emoji:collectEmojiInput.value,rarity:collectRarity.value,
         image_url:collectFile.files.length?await uploadArtwork(collectFile.files[0]):collectCoverInput.value,active:collectEnabled.checked};
       return API('/api/admin/collectibles',payload);};
-    collectibleBlock.append(h('label','','Editar existente ou criar novo'),collectiblesChoice,collectName,collectInfo,collectEmoji,collectCover,
+    collectibleBlock.append(h('label','','Editar existente ou criar novo'),collectiblesChoice,collectName,collectInfo,collectEmoji,h('label','','Raridade do colecionável'),collectRarity,collectCover,
       h('label','','Ou enviar imagem'),collectFile,h('label','admin-check','Ativo'),collectEnabled,
       button('Salvar colecionável',async()=>{const result=await safeRun(saveCollectibles,'Colecionável salvo!');if(result){state.adminReady=false;state.adminGroup='Pets';await openAdmin(true);}}));
     pane.append(collectibleBlock);
