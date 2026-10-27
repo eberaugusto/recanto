@@ -144,7 +144,7 @@
       reconcileTimer=null;
       // Atualização na retaguarda: não fazer o usuário esperar /me e outra aba.
       refreshProfile().catch(()=>{});
-      if($('adminModal').hidden && !pendingFeedLikes.size)refreshActive(true).catch(()=>{});
+      if($('adminModal').hidden && !pendingFeedLikes.size && $('packReveal').hidden)refreshActive(true).catch(()=>{});
     },180);
   }
   const safeRun=async(action,success,onConfirmed=null)=>{
@@ -1099,44 +1099,119 @@
         button('Voltar ao inventário',()=>{$('profilesModal').hidden=true;},'soft-action'));
     }catch(err){toast(err.message);}
   }
+  // RECANTO 0.3.4 — apresentação cinematográfica, sem atrasar a transação.
+  // A recompensa SÓ é mostrada como obtida depois da confirmação do servidor.
+  let rewardOpening={source:null,busy:false,locked:false,confirmed:false};
+  const reducedRevealMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function beginRewardOpening(source){
+    if(rewardOpening.busy)return false;
+    rewardOpening={source,busy:true,locked:true,confirmed:false};
+    state.reveal=null;state.revealIndex=0;state.revealFace=false;
+    const modal=$('packReveal');
+    modal.className='pack-reveal';modal.dataset.phase='loading';modal.hidden=false;
+    modal.setAttribute('aria-label',source==='daily'?'Resgate de Card':'Abertura de pacote');
+    $('revealOrb').hidden=false;$('revealOrb').disabled=true;$('flipStage').hidden=true;$('revealSummary').hidden=true;
+    $('revealExit').hidden=true;$('revealNext').hidden=false;
+    $('revealNext').disabled=true;$('revealNext').textContent='Preparando recompensa…';
+    $('revealHint').textContent='✨ Sua recompensa está chegando';
+    $('revealCounter').textContent='Conectando ao Recanto…';
+    document.body.classList.add('recanto-reward-open');
+    modal.focus({preventScroll:true});
+    return true;
+  }
+  function closeRewardOpening(){
+    const source=rewardOpening.source;
+    $('packReveal').hidden=true;
+    document.body.classList.remove('recanto-reward-open');
+    rewardOpening={source:null,busy:false,locked:false,confirmed:false};
+    state.reveal=null;state.revealFace=false;
+    if(source==='pack')chooseTab('inventario').catch(err=>toast(err.message));
+    else if(source==='daily')$('dailyCard')?.focus({preventScroll:true});
+    resetCachedData();reconcileAfterAction();
+  }
+  function receiveRewardOpening(cards,total){
+    if(!rewardOpening.busy)return;
+    if(!Array.isArray(cards)||!cards.length){closeRewardOpening();toast('⚠ O servidor não retornou um Card. Confira seu inventário.');return;}
+    state.reveal=cards;state.revealBonus=Number(total||0);state.revealIndex=0;
+    rewardOpening.confirmed=true;
+    showRevealStep();
+  }
   async function openPack(id){
-    // O servidor concede as moedas de TODOS os cards em uma única transação.
-    // A confirmação do saldo não espera pela animação de revelação do pack.
-    const result=await safeRun(()=>API('/api/inventory/packs/'+id+'/open',{}),null,
-      response=>applyConfirmedCoins({coins_balance:response.coins_balance,coins_gained:response.bonus_coins}));
-    if(!result)return;
-    state.reveal=result.cards;state.revealBonus=result.bonus_coins;state.revealIndex=0;state.revealFace=false;
-    $('packReveal').hidden=false;showRevealStep();
+    // A tela reage imediatamente. A API continua sendo a única fonte da recompensa.
+    if(!beginRewardOpening('pack'))return;
+    try{
+      const response=await API('/api/inventory/packs/'+id+'/open',{});
+      applyConfirmedCoins({coins_balance:response.coins_balance,coins_gained:response.bonus_coins});
+      receiveRewardOpening(response.cards,response.bonus_coins);
+    }catch(err){
+      closeRewardOpening();
+      toast('⚠ '+(err?.message||'Não foi possível confirmar a abertura.')+' Confira o inventário antes de tentar novamente.');
+    }
+  }
+  function showRewardSummary(){
+    const cards=state.reveal||[];const modal=$('packReveal');
+    rewardOpening.locked=false;modal.dataset.phase='summary';
+    $('revealOrb').hidden=true;$('flipStage').hidden=true;
+    $('revealNext').hidden=true;$('revealExit').hidden=false;
+    $('revealSummary').hidden=false;
+    const total=Number(state.revealBonus??cards.reduce((sum,c)=>sum+Number(c.bonus_coins||0),0));
+    $('revealHint').textContent=cards.length===1?'RECOMPENSA RECEBIDA!':'RECOMPENSAS RECEBIDAS!';
+    $('revealCounter').textContent=`🪙 +${money(total)} moedas em bônus`;
+    const summary=$('revealSummary');summary.replaceChildren();
+    for(const card of cards){
+      const item=h('div','recanto-reward-mini tier-'+(card.rarity||'comum'));
+      item.append(frameCardArt(card,'recanto-reward-mini-art'));
+      item.append(h('span','',card.name||'Card'));
+      summary.append(item);
+    }
+    $('revealExit').textContent='Concluir';
+    $('revealExit').focus({preventScroll:true});
   }
   function showRevealStep(){
-    const cards=state.reveal||[];const index=state.revealIndex;
-    const modal=$('packReveal');const flip=$('flipCard');const front=$('flipFront');
-    flip.classList.remove('is-revealed');modal.className='pack-reveal';state.revealFace=false;
-    $('revealExit').hidden=true;
-    if(index>=cards.length){$('flipStage').hidden=true;$('revealHint').textContent='Pacote completo!';
-      const total=cards.reduce((sum,c)=>sum+Number(c.bonus_coins||0),0);
-      $('revealCounter').textContent=`🪙 +${money(total)} moedas no total · `+cards.map(c=>`${c.name} (+${money(c.bonus_coins||0)})`).join(' · ');
-      $('revealNext').hidden=true;$('revealExit').hidden=false;return;}
-    $('flipStage').hidden=false;$('revealNext').hidden=false;
-    front.replaceChildren();const c=cards[index];
-    front.className='flip-face flip-front recanto-framed-art tier-'+c.rarity;
-    front.dataset.collection=c.collection||'Recanto Original';
-    const face=frameCardArt(c,'recanto-pack-portrait');
-    // A camada externa do Card aberto acompanha a moldura e o emblema personalizados.
-    front.append(face);
-    front.append(h('span','reveal-caption',c.name+' · '+(tierLabels[c.rarity]||c.rarity)));
-    // Somente a camada interna exibe o emblema: evita dois círculos sobrepostos.
-    front.classList.remove('recanto-framed-art');
-    $('revealHint').textContent='Card '+(index+1)+' de '+cards.length;
-    $('revealCounter').textContent='Toque para revelar';$('revealNext').textContent='Revelar card';
-    requestAnimationFrame(()=>{flip.classList.remove('is-revealed');});
+    const cards=state.reveal||[],index=state.revealIndex;
+    const modal=$('packReveal'),flip=$('flipCard'),front=$('flipFront');
+    if(index>=cards.length){showRewardSummary();return;}
+    rewardOpening.locked=false;state.revealFace=false;
+    modal.className='pack-reveal';modal.dataset.phase='ready';
+    flip.classList.remove('is-revealed');
+    $('revealSummary').hidden=true;$('revealExit').hidden=true;
+    $('revealOrb').hidden=false;$('revealOrb').disabled=false;$('flipStage').hidden=true;
+    $('revealNext').hidden=false;$('revealNext').disabled=false;
+    // Prepara a imagem por trás do orbe, sem revelar a raridade antes do toque.
+    front.replaceChildren();const card=cards[index];
+    front.className='flip-face flip-front tier-'+(card.rarity||'comum');
+    front.append(frameCardArt(card,'recanto-pack-portrait'));
+    front.append(h('span','reveal-caption',card.name+' · '+(tierLabels[card.rarity]||card.rarity)));
+    $('revealHint').textContent=cards.length>1?`RECOMPENSA ${index+1} DE ${cards.length}`:'UMA RECOMPENSA ESPECIAL!';
+    $('revealCounter').textContent='Toque no orbe para descobrir seu Card';
+    $('revealNext').textContent='✨ Revelar recompensa';
   }
-  function revealNext(){const cards=state.reveal;if(!cards||!cards.length)return;
+  function revealNext(){
+    const cards=state.reveal;if(!rewardOpening.confirmed||!cards||!cards.length||rewardOpening.locked)return;
+    const modal=$('packReveal');
+    if(state.revealFace){state.revealIndex++;showRevealStep();return;}
     const card=cards[state.revealIndex];if(!card)return;
-    if(!state.revealFace){state.revealFace=true;$('packReveal').className='pack-reveal tier-'+card.rarity;
-      $('flipCard').classList.add('is-revealed');$('revealCounter').textContent=(tierLabels[card.rarity]||card.rarity)+` · 🪙 +${money(card.bonus_coins||0)} moeda(s)`;
-      $('revealNext').textContent=state.revealIndex===cards.length-1?'Ver resumo':'Próximo card';
-    }else{state.revealIndex++;showRevealStep();}
+    rewardOpening.locked=true;state.revealFace=true;
+    modal.className='pack-reveal tier-'+(card.rarity||'comum');
+    modal.dataset.phase='burst';
+    $('revealNext').disabled=true;
+    $('revealHint').textContent=(tierLabels[card.rarity]||card.rarity).toUpperCase()+'!';
+    $('revealCounter').textContent='✦ '+card.name+' · 🪙 +'+money(card.bonus_coins||0)+' moedas';
+    // Orbe se abre, feixes surgem, card ganha escala e gira.
+    const burstDelay=reducedRevealMotion()?0:300;
+    setTimeout(()=>{
+      if(modal.hidden)return;
+      $('revealOrb').hidden=true;$('flipStage').hidden=false;
+      modal.dataset.phase='revealed';
+      requestAnimationFrame(()=>requestAnimationFrame(()=>$('flipCard').classList.add('is-revealed')));
+      const unlockDelay=reducedRevealMotion()?0:860;
+      setTimeout(()=>{
+        if(modal.hidden)return;
+        rewardOpening.locked=false;
+        $('revealNext').disabled=false;
+        $('revealNext').textContent=state.revealIndex===cards.length-1?'Ver recompensas':'Próximo Card ✨';
+      },unlockDelay);
+    },burstDelay);
   }
   function openDiscordOnlyMember(member){
     $('profilesModal').hidden=true;
@@ -3031,7 +3106,13 @@
   document.querySelectorAll('[data-inventory-tab]').forEach(btn=>btn.addEventListener('click',()=>inventoryPane(btn.dataset.inventoryTab).catch(err=>toast(err.message))));
   $('revealNext').onclick=revealNext;
   $('flipStage').onclick=revealNext;
-  $('revealExit').onclick=()=>{$('packReveal').hidden=true;state.reveal=null;chooseTab('inventario');};
+  $('revealOrb').onclick=revealNext;
+  $('revealExit').onclick=closeRewardOpening;
+  $('packReveal').addEventListener('keydown',e=>{
+    if((e.key==='Enter'||e.key===' ')&&e.target===$('packReveal')){e.preventDefault();revealNext();}
+    // Escape só fecha depois da confirmação e da revelação: não interromper a espera do servidor.
+    if(e.key==='Escape'){e.stopPropagation();if(rewardOpening.confirmed && state.revealFace && !rewardOpening.locked)closeRewardOpening();}
+  });
 
   $('dailyCoins').onclick=async()=>{
     const el=$('dailyCoins');if(state.dailyClaimInFlight||el.disabled)return;
@@ -3059,17 +3140,40 @@
       state.dailyClaimInFlight=false;el.classList.remove('action-pending');el.removeAttribute('aria-busy');
     }
   };
+  let dailyCardClaimInFlight=false;
   $('dailyCard').onclick=async()=>{
-    const result=await safeRun(()=>API('/api/daily/card',{}),r=>(r.cards?.length||1)>1?'🎉 Evento: você recebeu 2 Cards!':'Card recebido!',r=>{
-      applyConfirmedCoins({coins_balance:r.coins_balance});state.cardReset=r.next_at;
-      $('dailyCard').disabled=true;$('dailyCard').textContent=`⏳ Aguardar ${claimDurationText(state.claimMinutes)}`;
-    });
-    if(result?.card){
-      const list=result.cards||[result.card];
-      showCard(list[0],list.length>1?`✨ Evento: primeiro de 2 Cards! · +${result.bonus_coins||0} moedas no total`:`+${result.bonus_coins??result.card.bonus_coins??0} moedas pelo Card!`);
-      if(list.length>1){const actions=$('cardDetail').querySelector('.detail-actions');
-        if(actions)actions.append(button('Ver 2º Card →',()=>showCard(list[1],'✨ Segundo Card do resgate duplo!')));
-      }
+    const el=$('dailyCard');
+    if(dailyCardClaimInFlight||el.disabled||!beginRewardOpening('daily'))return;
+    dailyCardClaimInFlight=true;
+    const original=el.textContent;
+    el.disabled=true;el.classList.add('action-pending');el.setAttribute('aria-busy','true');
+    el.textContent='Preparando Card…';
+    try{
+      // Nenhum GET adicional antes do POST; o orbe já está animado enquanto a API trabalha.
+      const result=await API('/api/daily/card',{});
+      const cards=Array.isArray(result.cards)&&result.cards.length?result.cards:[result.card].filter(Boolean);
+      if(!cards.length)throw Error('O servidor não informou os Cards recebidos.');
+      applyConfirmedCoins({coins_balance:result.coins_balance,coins_gained:result.bonus_coins});
+      state.cardReset=result.next_at;
+      el.textContent=`⏳ Aguardar ${claimDurationText(state.claimMinutes)}`;
+      $('dailyCardIcon').classList.remove('card-icon-available');
+      receiveRewardOpening(cards,result.bonus_coins);
+      resetCachedData();
+      updateCountdowns();
+    }catch(err){
+      closeRewardOpening();
+      el.textContent='Conferindo resgate…';
+      toast('⚠ '+(err?.message||'Não foi possível confirmar o Card.')+' Verifique seu inventário antes de tentar novamente.');
+      // Evita reenvio duplo se o servidor concluiu a operação mas a resposta se perdeu.
+      fetchJson('/api/daily/status').then(d=>{
+        state.cardReset=d.card_next_at;state.claimMinutes=d.card_claim_minutes||state.claimMinutes;
+        el.disabled=!!d.card_claimed;
+        el.textContent=d.card_claimed?`⏳ Aguardar ${claimDurationText(state.claimMinutes)}`:'Resgatar card';
+        updateCountdowns();
+      }).catch(()=>{el.disabled=true;el.textContent='Atualize a página para conferir';});
+    }finally{
+      dailyCardClaimInFlight=false;
+      el.classList.remove('action-pending');el.removeAttribute('aria-busy');
     }
   };
   document.querySelectorAll('[data-tab]').forEach(btn=>btn.addEventListener('click',()=>chooseTab(btn.dataset.tab)));

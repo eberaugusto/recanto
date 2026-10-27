@@ -3498,3 +3498,139 @@ body.dark-mode .recanto-shop-discount{color:#abebc9}
   /* O cabeçalho e o banner precedem o resumo, sem se sobrepor ao Avatar. */
   #profileContent .desktop-left-column:has(.recanto-event-banners-mobile:not([hidden])) > .desktop-profile-hero{margin-top:clamp(105px,13dvh,160px)}
 }
+
+/* RECANTO 0.3.4 — abertura de recompensa inspirada em jogos de orbes/caixas.
+   CSS e DOM locais, sem novos assets e sem processamento pesado por frame. */
+#packReveal.pack-reveal:not([hidden]){
+  position:fixed!important;inset:0!important;z-index:100001!important;
+  width:100vw!important;height:100dvh!important;max-width:none!important;
+  overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-items:center;
+  gap:clamp(13px,2.6dvh,25px);padding:calc(env(safe-area-inset-top,0px) + 18px) 18px calc(env(safe-area-inset-bottom,0px) + 18px);
+  box-sizing:border-box;color:#fff;text-align:center;
+  background:radial-gradient(ellipse at 50% 42%,#819bff 0%,#4553c9 48%,#18215b 100%)!important;
+  isolation:isolate;overscroll-behavior:contain;touch-action:manipulation;
+  --reward-glow:#a7c0ff;--reward-ray:#e8f3ff;
+}
+#packReveal.pack-reveal.tier-comum{background:radial-gradient(ellipse at 50% 40%,#acdbff,#4c7a9c 52%,#1c324e 100%)!important;--reward-glow:#e1f4ff;--reward-ray:#cceaff}
+#packReveal.pack-reveal.tier-raro{background:radial-gradient(ellipse at 50% 40%,#a3b3ff,#4a55dc 51%,#171d77 100%)!important;--reward-glow:#cad2ff;--reward-ray:#93b7ff}
+#packReveal.pack-reveal.tier-lendário{background:radial-gradient(ellipse at 50% 40%,#ffe2a0,#c58420 49%,#663514 100%)!important;--reward-glow:#ffe7a1;--reward-ray:#ffe3a0}
+#packReveal.pack-reveal.tier-prismático{background:radial-gradient(ellipse at 35% 30%,#ffb8ea,#a565df 34%,#398ec0 68%,#183864 100%)!important;--reward-glow:#f1d0ff;--reward-ray:#adffef}
+#packReveal .recanto-reward-light{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:-1}
+#packReveal .recanto-reward-rays{
+  position:absolute;left:50%;top:47%;width:105vmax;height:105vmax;
+  translate:-50% -50%;border-radius:50%;opacity:.42;
+  background:repeating-conic-gradient(from -10deg,transparent 0deg,transparent 18deg,color-mix(in srgb,var(--reward-ray) 22%,transparent) 20deg,transparent 27deg);
+  animation:recanto-reward-rotate 28s linear infinite;
+}
+#packReveal .recanto-reward-halo{
+  position:absolute;left:50%;top:45%;translate:-50% -50%;
+  width:min(95vw,650px);aspect-ratio:1;border-radius:50%;
+  background:radial-gradient(circle,var(--reward-glow) 0%,transparent 66%);
+  opacity:.22;animation:recanto-reward-halo 2.6s ease-in-out infinite;
+}
+#packReveal .recanto-reward-particles{
+  position:absolute;left:50%;top:45%;translate:-50% -50%;width:min(95vw,650px);
+  color:#fff1af;font-size:clamp(18px,3.5vw,30px);letter-spacing:clamp(9px,3vw,33px);
+  line-height:15;opacity:.55;user-select:none;
+  animation:recanto-reward-particles 5s ease-in-out infinite alternate;
+}
+#packReveal .reveal-hint{position:relative;z-index:4;max-width:min(90vw,520px);font-size:clamp(19px,4vw,28px);line-height:1.2;letter-spacing:.055em;font-weight:900;color:#fff;text-shadow:0 3px 14px #10184b99;flex-shrink:0}
+#packReveal .recanto-reward-orb{
+  appearance:none;border:0;background:none;outline-offset:10px;color:inherit;
+  width:clamp(205px,36vmin,332px);height:clamp(205px,36vmin,332px);
+  display:grid;place-items:center;cursor:pointer;position:relative;z-index:3;flex:none;
+  transition:transform .18s ease;touch-action:manipulation;
+}
+#packReveal .recanto-reward-orb:disabled{cursor:progress}
+#packReveal .recanto-reward-orb:not(:disabled):active{transform:scale(.93)}
+#packReveal .recanto-orb-outer{
+  width:100%;height:100%;display:grid;place-items:center;border-radius:50%;
+  position:relative;isolation:isolate;
+  background:radial-gradient(circle at 29% 21%,#ffffff 0%,#d6edff 12%,#81a0ff 31%,#3546dd 59%,#1b247c 78%,#0d145a 100%);
+  border:clamp(5px,1.1vmin,10px) solid #ddf1ff;
+  box-shadow:inset 0 0 28px 6px #ffffff94,inset -18px -26px 38px #09195b99,0 0 0 7px #e9eeff36,0 0 50px 15px #b0e8ff8f,0 14px 55px #0b134a9c;
+  animation:recanto-orb-hover 2.4s ease-in-out infinite;
+}
+#packReveal .recanto-orb-outer::before{
+  content:'';position:absolute;inset:7%;border-radius:50%;border:2px solid #f1f9ff79;
+  transform:rotate(-26deg) scaleX(.72);box-shadow:0 0 16px #ffffff91;
+}
+#packReveal .recanto-orb-outer::after{
+  content:'';position:absolute;left:14%;top:11%;width:39%;height:22%;border-radius:50%;transform:rotate(-34deg);
+  background:radial-gradient(ellipse,#ffffffef,transparent 75%);filter:blur(5px)
+}
+#packReveal .recanto-orb-core{
+  font-size:clamp(95px,16vmin,164px);line-height:1;color:#fef7c9;
+  text-shadow:0 0 10px #fff,0 0 37px #ffffcc,0 0 65px #d1f4ff;
+  animation:recanto-orb-core 1.8s ease-in-out infinite;filter:drop-shadow(0 0 3px white);
+}
+#packReveal .recanto-orb-crack{position:absolute;inset:10%;border-radius:50%;opacity:0;
+  background:linear-gradient(118deg,transparent 45%,#fff 47%,transparent 50%) center/100% 100%;pointer-events:none}
+#packReveal[data-phase="burst"] .recanto-reward-orb{animation:recanto-orb-burst .3s cubic-bezier(.1,.8,.1,1) both}
+#packReveal[data-phase="burst"] .recanto-orb-crack{opacity:1}
+#packReveal[data-phase="burst"] .recanto-reward-halo{opacity:.85;transform:scale(1.4)}
+#packReveal[data-phase="revealed"] .recanto-reward-rays{opacity:.66}
+#packReveal .flip-stage{
+  position:relative;z-index:4;width:min(72vw,clamp(215px,27vw,345px));
+  max-height:min(66dvh,550px);aspect-ratio:2/3;flex:none;perspective:1400px;
+  animation:recanto-reward-card-entrance .36s cubic-bezier(.2,.75,.15,1) both;
+}
+#packReveal .flip-card{width:100%;height:100%;will-change:transform;transform-style:preserve-3d;
+  transition:transform .82s cubic-bezier(.18,.74,.18,1)}
+#packReveal .flip-card.is-revealed{transform:rotateY(180deg)}
+#packReveal .flip-face{border-radius:16px;box-shadow:0 18px 48px #0b11458c;}
+#packReveal .flip-face.flip-front{background:transparent;overflow:hidden}
+#packReveal .flip-front>.recanto-pack-portrait{width:100%;height:100%;aspect-ratio:auto;max-width:100%;max-height:100%;}
+#packReveal .reveal-caption{z-index:2;font-size:clamp(12px,2.5vw,17px)}
+#packReveal .reveal-counter{position:relative;z-index:4;font-size:clamp(12px,2.4vw,16px);line-height:1.5;
+  font-weight:700;max-width:min(90vw,560px);min-height:1.5em;color:#fff;text-shadow:0 2px 12px #0009}
+#packReveal .reveal-next,#packReveal .reveal-exit{
+  position:relative;z-index:4;max-width:min(90vw,340px);width:min(90vw,340px);min-height:51px;
+  border:2px solid #fff9;border-radius:999px;color:#293eaa;background:linear-gradient(180deg,#fff,#e4edff);
+  box-shadow:0 8px 0 #0c19685c,0 10px 35px #07135770;
+  font-family:inherit;font-size:clamp(14px,2.8vw,18px);font-weight:900;letter-spacing:.01em;
+  padding:10px 20px;cursor:pointer;transition:transform .14s ease,filter .14s ease;
+}
+#packReveal .reveal-next:disabled{opacity:.72;cursor:progress;box-shadow:0 4px 0 #0c196847}
+#packReveal .reveal-next:not(:disabled):active,#packReveal .reveal-exit:active{transform:translateY(4px);box-shadow:0 4px 0 #0c19685c}
+#packReveal .reveal-exit{background:linear-gradient(180deg,#ffefa8,#ffd15b);color:#58411b;border-color:#fffe}
+#packReveal .recanto-reward-summary{position:relative;z-index:5;display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));
+  gap:12px;justify-content:center;align-content:center;width:min(92vw,620px);max-height:54dvh;overflow:auto;padding:12px}
+#packReveal .recanto-reward-mini{display:flex;flex-direction:column;align-items:center;min-width:0;gap:6px;
+  font-size:12px;font-weight:800;text-shadow:0 1px 5px #000a}
+#packReveal .recanto-reward-mini-art{width:clamp(85px,12vw,145px);max-width:100%;aspect-ratio:2/3;}
+#packReveal .recanto-reward-mini span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#packReveal .recanto-reward-summary[hidden],#packReveal .flip-stage[hidden],#packReveal .recanto-reward-orb[hidden]{display:none!important}
+#packReveal[data-phase="ready"] .recanto-reward-orb:not(:disabled) .recanto-orb-outer{animation-duration:1.4s;box-shadow:inset 0 0 28px 6px #fff9,inset -18px -26px 38px #09195b99,0 0 0 7px #e9eeff36,0 0 75px 24px #b0e8ffff,0 14px 55px #0b134a9c}
+#packReveal[data-phase="summary"] .recanto-reward-halo{opacity:.32}
+body.recanto-reward-open{overscroll-behavior:none}
+.action-pending{position:relative;opacity:.8;cursor:progress!important}
+.action-pending::after{content:'';display:inline-block;width:12px;height:12px;margin-left:8px;
+ border:2px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:-1px;
+ animation:recanto-reward-rotate .7s linear infinite}
+@keyframes recanto-reward-rotate{to{transform:rotate(360deg)}}
+@keyframes recanto-reward-halo{50%{opacity:.42;scale:1.09}}
+@keyframes recanto-reward-particles{to{opacity:.95;rotate:14deg;scale:1.08}}
+@keyframes recanto-orb-hover{50%{transform:translateY(-8px) scale(1.035)}}
+@keyframes recanto-orb-core{50%{transform:scale(1.15) rotate(13deg)}}
+@keyframes recanto-orb-burst{0%{transform:scale(1)}55%{transform:scale(1.24)}100%{transform:scale(1.5);opacity:0}}
+@keyframes recanto-reward-card-entrance{0%{opacity:0;transform:translateY(36px) scale(.69)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:600px){
+ #packReveal.pack-reveal:not([hidden]){gap:clamp(12px,2.1dvh,24px);padding-left:14px;padding-right:14px}
+ #packReveal .flip-stage{width:min(66vw,310px);max-height:54dvh}
+ #packReveal .recanto-reward-summary{grid-template-columns:repeat(auto-fit,minmax(82px,1fr));gap:8px}
+}
+@media(max-height:640px){
+ #packReveal.pack-reveal:not([hidden]){gap:9px;padding-top:10px;padding-bottom:10px}
+ #packReveal .recanto-reward-orb{height:min(35dvh,240px);width:min(35dvh,240px)}
+ #packReveal .flip-stage{width:min(50vw,245px);max-height:49dvh}
+ #packReveal .reveal-next,#packReveal .reveal-exit{min-height:42px;padding:7px 16px}
+ #packReveal .reveal-hint{font-size:18px}
+}
+@media(prefers-reduced-motion:reduce){
+ #packReveal .recanto-reward-rays,#packReveal .recanto-reward-halo,#packReveal .recanto-reward-particles,
+ #packReveal .recanto-orb-outer,#packReveal .recanto-orb-core,#packReveal .recanto-reward-orb,
+ #packReveal .flip-stage,#packReveal .flip-card,#packReveal .reveal-next,#packReveal .reveal-exit{
+   animation:none!important;transition:none!important;
+ }
+}

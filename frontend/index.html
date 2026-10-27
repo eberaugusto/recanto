@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=0.3.3">
+  <link rel="stylesheet" href="/styles.css?v=0.3.4">
 </head>
 <body>
 <!-- Recanto 0.1.2 — layout responsivo e gestão com carregamento progressivo. -->
@@ -128,7 +128,16 @@
     </nav>
     <div class="modal-backdrop" id="profilesModal" hidden><section class="modal-panel profiles-dialog" role="dialog" aria-modal="true" aria-label="Perfis da comunidade"><header class="modal-header"><h2>Comunidade</h2><button class="modal-close" id="closeProfiles" aria-label="Fechar">✕</button></header><div id="profilesPane"></div></section></div>
     <section class="full-page public-profile-page" id="publicProfilePage" hidden aria-label="Perfil da comunidade"><header class="full-page-header"><div class="public-back-actions"><button type="button" class="soft-action" id="backToMyProfile">← Voltar ao meu perfil</button><button type="button" class="soft-action public-back-search-top" id="backToSearchTop">← Voltar à busca</button></div><h2>Comunidade</h2></header><div class="public-profile-scroll" id="publicProfileContent"></div></section>
-    <div class="pack-reveal" id="packReveal" hidden role="dialog" aria-modal="true" aria-label="Abrir pacote"><div class="reveal-hint" id="revealHint">Toque para revelar</div><div class="flip-stage" id="flipStage"><div class="flip-card" id="flipCard"><div class="flip-face flip-back">✦<small>RECANTO</small></div><div class="flip-face flip-front" id="flipFront"></div></div></div><div class="reveal-counter" id="revealCounter"></div><button class="reveal-next" id="revealNext">Revelar card</button><button class="reveal-exit" id="revealExit" aria-label="Encerrar abertura" hidden>Concluir</button></div>
+    <div class="pack-reveal" id="packReveal" hidden tabindex="-1" role="dialog" aria-modal="true" aria-label="Revelação de recompensa" data-phase="loading">
+      <div class="recanto-reward-light" aria-hidden="true"><span class="recanto-reward-rays"></span><span class="recanto-reward-halo"></span><span class="recanto-reward-particles">✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧</span></div>
+      <div class="reveal-hint" id="revealHint">Sua recompensa está chegando</div>
+      <button type="button" class="recanto-reward-orb" id="revealOrb" aria-label="Toque para abrir o orbe" disabled><span class="recanto-orb-outer"><span class="recanto-orb-core">✦</span><span class="recanto-orb-crack"></span></span></button>
+      <div class="flip-stage" id="flipStage" hidden><div class="flip-card" id="flipCard"><div class="flip-face flip-back">✦<small>RECANTO</small></div><div class="flip-face flip-front" id="flipFront"></div></div></div>
+      <div class="recanto-reward-summary" id="revealSummary" hidden></div>
+      <div class="reveal-counter" id="revealCounter" role="status" aria-live="polite"></div>
+      <button type="button" class="reveal-next" id="revealNext">Revelar recompensa</button>
+      <button type="button" class="reveal-exit" id="revealExit" aria-label="Encerrar abertura" hidden>Concluir</button>
+    </div>
     <div class="modal-backdrop" id="cardModal" hidden><section class="modal-panel card-detail-dialog" role="dialog" aria-modal="true" aria-label="Detalhes do card"><button class="detail-x" id="closeCardDetail" aria-label="Fechar card">✕</button><div id="cardDetail"></div></section></div>
     <section class="full-page admin-page" id="adminModal" hidden aria-label="Gestão do Recanto"><div class="admin-dialog"><header class="modal-header"><h2>Gestão do Recanto</h2><div class="admin-header-actions"><button class="admin-refresh" type="button" id="refreshAdmin" title="Atualizar dados da gestão">↻ Atualizar</button><button class="modal-close" id="closeAdmin" aria-label="Fechar gestão">✕</button></div></header><div class="admin-scroll" id="adminContent"></div></div></section>
     <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
@@ -138,9 +147,9 @@
       <p class="notifications-status" id="notificationsStatus" role="status" aria-live="polite" hidden></p>
       <button type="button" class="soft-action settings-admin" id="settingsAdmin" hidden aria-label="Abrir Gestão do Recanto"><svg aria-hidden="true"><use href="#gear"/></svg><span>Gestão do Recanto</span></button>
       <button type="button" class="soft-action settings-update-check" id="checkUpdates"><svg aria-hidden="true"><use href="#missions"/></svg><span>Verificar atualizações</span></button>
-      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.3.3</p></section></div>
+      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.3.4</p></section></div>
   </main>
 </div>
-<script src="/app.js?v=0.3.3" defer></script>
+<script src="/app.js?v=0.3.4" defer></script>
 </body>
 </html>
