@@ -1882,7 +1882,7 @@
     const inv=await API('/api/inventory');
     const collectibles=inv.collectibles||[];
 
-    // Coluna direita: Nome → Cuidados → Status → Colecionável.
+    // Coluna direita: Nome → Cuidados → Status → Colecionável → Expedições.
     // Cuidados permanecem visíveis, porém indisponíveis, no veterinário/expedição.
     const careMessage=pet.status==='missao'
       ?'Cuidados indisponíveis enquanto seu Pet estiver em expedição.'
@@ -1954,9 +1954,9 @@
       const expedition=data.expedition;
       const mission=block('🗺️ Em missão',`Seu Pet está em ${expedition?.name||'uma aventura'} e não pode receber carinho nem comida.`);
       mission.classList.add('poro-mission-card');
-      care.append(mission);
-      const when=h('p','expedition-time',expedition?.ready?'Seu Pet voltou!':'Volta em: '+countdown(expedition?.ends_at));care.append(when);
-      if(expedition?.ready)care.append(button('Receber recompensas',async()=>{
+      adventures.append(mission);
+      const when=h('p','expedition-time',expedition?.ready?'Seu Pet voltou!':'Volta em: '+countdown(expedition?.ends_at));adventures.append(when);
+      if(expedition?.ready)adventures.append(button('Receber recompensas',async()=>{
         const result=await safeRun(()=>API('/api/pets/expedition/collect',{}),r=>`+${r.coins_gained} moedas${r.converted_coins?' (+'+r.converted_coins+' por card repetido)':''}${r.collectible?' e '+r.collectible.name:''}${r.card?' e um card!':''}`);
         if(result?.card)showCard(result.card,'Card encontrado pelo Pet!');
       },'main-action poro-mission-reward'));
@@ -1969,22 +1969,47 @@
       care.append(rescueCard);
       const lockedExpeditions=block('🗺️ Expedições','Resgate seu Pet no veterinário para voltar a explorar.');
       lockedExpeditions.classList.add('poro-expeditions-disabled');
-      care.append(lockedExpeditions);
+      adventures.append(lockedExpeditions);
       return;
     }
 
-    const ex=block('🗺️ Expedições dos Pets','Envie seu Pet em uma aventura. Ele não poderá receber cuidados durante a missão e voltará com fome.');
+    const ex=block('🗺️ Expedições dos Pets','Escolha uma aventura para seu Pet. Durante a missão ele não poderá receber cuidados e voltará com fome.');
+    ex.classList.add('poro-expedition-card');
     for(const option of data.expedition_options||[]){
       const row=h('div','expedition-choice');
       const expInfo=h('div','expedition-info');
-      expInfo.append(h('strong','',option.name),h('small','',`${(option.effective_minutes??option.minutes)%60===0?(option.effective_minutes??option.minutes)/60+'h':Math.floor((option.effective_minutes??option.minutes)/60)+'h '+(option.effective_minutes??option.minutes)%60+'min'}${option.effective_minutes<option.minutes?' ⚡ evento':''} • -${option.food} fome • -${option.happiness} felicidade • -${option.health} saúde • ${option.coins[0]}–${option.coins[1]} moedas • ${option.card_chance}% chance de Card${option.collectible_chance?' • '+option.collectible_chance+'% colecionável':''}`));
-      expInfo.append(button('Enviar',()=>safeRun(()=>API('/api/pets/expedition/start',{mission:option.id}),'Seu Pet iniciou a missão!'),'soft-action'));
+      const totalMinutes=Math.max(0,Number(option.effective_minutes??option.minutes)||0);
+      const hours=Math.floor(totalMinutes/60),minutes=totalMinutes%60;
+      const duration=hours?(hours+'h'+(minutes?' '+minutes+'min':'')):(minutes+'min');
+      const header=h('div','expedition-heading');
+      header.append(h('strong','expedition-title',option.name));
+      const timing=h('div','expedition-timing');
+      timing.append(h('span','expedition-duration','🕒 '+duration));
+      if(Number(option.effective_minutes)<Number(option.minutes))timing.append(h('span','expedition-event-badge','⚡ Evento ativo'));
+      header.append(timing);
+      expInfo.append(header);
+
+      // Agrupar valores por finalidade evita um parágrafo longo e facilita
+      // comparar custos e recompensas no celular ou nas colunas do PC.
+      const expeditionGroup=(label,values)=>{
+        const group=h('div','expedition-section');
+        group.append(h('span','expedition-section-label',label));
+        const tags=h('div','expedition-tags');
+        for(const value of values)tags.append(h('span','expedition-tag',value));
+        group.append(tags);
+        return group;
+      };
+      const costs=[`🍖 −${option.food} de fome`,`💗 −${option.happiness} de felicidade`,Number(option.health)>0?`❤️ −${option.health} de saúde`:'❤️ Saúde preservada'];
+      const coins=Array.isArray(option.coins)?option.coins:[0,0];
+      const rewards=[`🪙 ${coins[0]}–${coins[1]} moedas`,`🃏 Card: ${option.card_chance}% de chance`];
+      if(Number(option.collectible_chance)>0)rewards.push(`🏆 Colecionável: ${option.collectible_chance}% de chance`);
+      expInfo.append(expeditionGroup('Custos da missão',costs),expeditionGroup('Recompensas possíveis',rewards));
+      expInfo.append(button('Enviar Pet',()=>safeRun(()=>API('/api/pets/expedition/start',{mission:option.id}),'Seu Pet iniciou a missão!'),'soft-action expedition-send'));
       const expeditionEmoji={passeio:'🌲',exploracao:'🏛️',jornada:'🧭'}[option.id]||'🗺️';
       row.append(mediaCover(option.image_url,expeditionEmoji,option.name,'expedition-cover'),expInfo);
       ex.append(row);
     }
-    ex.classList.add('poro-expedition-card');
-    care.append(ex);
+    adventures.append(ex);
   }
   // Exibe sempre a arte cadastrada. O emoji e usado apenas se nao houver
   // imagem ou se o endereco da imagem deixar de funcionar.

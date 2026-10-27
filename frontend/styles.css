@@ -2717,8 +2717,8 @@ body.dark-mode .poro-stat-header{color:#eaf0ff;}
 
 /* RECANTO 0.2.14 — Pets: estrutura solicitada para PC e sequência útil no celular. */
 @media(min-width:768px){
-  /* A coluna da esquerda contém retrato, troca e expedições.
-     A da direita contém nome, cuidados, status e colecionável. */
+  /* A coluna da esquerda contém retrato e troca de Pet.
+     A da direita contém nome, cuidados, status, colecionável e expedições. */
   #petPane .poro-layout{
     display:grid!important;
     grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
@@ -3623,3 +3623,81 @@ body.recanto-reward-open{overscroll-behavior:none}
 .collectible-deal-forms label {font-size:12px;font-weight:700;}
 .collectible-deal-row {margin-top:10px;}
 .collectible-deal-row button {margin:4px 6px 0 0;}
+
+
+/* RECANTO 0.3.9 — Expedições na coluna direita e informações separadas. */
+#petPane .poro-expedition-card {container-type:inline-size;}
+#petPane .poro-expedition-card .expedition-choice {
+  display:grid!important;grid-template-columns:minmax(145px,34%) minmax(0,1fr)!important;
+  align-items:start!important;gap:16px!important;
+  margin:13px 0 0;padding:14px!important;
+  border:1px solid #dce3f9;border-radius:16px;background:#f7f9ff;
+  min-width:0;
+}
+#petPane .poro-expedition-card .expedition-choice + .expedition-choice{margin-top:14px;}
+#petPane .poro-expedition-card .expedition-cover {
+  grid-column:1!important;width:100%!important;height:100%!important;
+  min-height:180px;max-height:280px;aspect-ratio:4/5;
+  object-fit:cover;align-self:start!important;
+}
+#petPane .poro-expedition-card .expedition-cover img{object-fit:cover;}
+#petPane .poro-expedition-card .expedition-info {
+  grid-column:2!important;display:flex;flex-direction:column;align-items:stretch;
+  gap:12px!important;min-width:0;overflow-wrap:normal;
+}
+#petPane .expedition-heading{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-width:0;}
+#petPane .expedition-heading .expedition-title {
+  font-size:clamp(16px,1.25vw,19px);line-height:1.3;font-weight:800;overflow-wrap:anywhere;
+}
+#petPane .expedition-timing{display:flex;align-items:center;flex-wrap:wrap;gap:7px;}
+#petPane .expedition-duration,#petPane .expedition-event-badge{
+  display:inline-flex;align-items:center;padding:5px 10px;border-radius:9px;
+  background:#e8edff;color:#334b95;font-size:12px;font-weight:750;line-height:1.35;
+}
+#petPane .expedition-event-badge{background:#fff0d7;color:#865219;}
+#petPane .expedition-section{display:flex;flex-direction:column;gap:6px;min-width:0;}
+#petPane .expedition-section-label{
+  color:#4e5c91;letter-spacing:.05em;text-transform:uppercase;
+  font-size:11px;font-weight:800;line-height:1.3;
+}
+#petPane .expedition-tags{display:flex;flex-wrap:wrap;gap:6px;min-width:0;}
+#petPane .expedition-tag{
+  display:inline-flex;align-items:center;max-width:100%;padding:6px 9px;
+  border:1px solid #e0e6f7;border-radius:9px;background:#fff;
+  color:#364780;font-size:12px;font-weight:650;line-height:1.35;
+  overflow-wrap:anywhere;
+}
+#petPane .poro-expedition-card .expedition-send{
+  align-self:flex-start;margin-top:4px;min-height:38px;padding:9px 17px;
+}
+/* Uma coluna de expedições não deve comprimir a arte ou os dados. */
+@container (max-width:540px){
+  #petPane .poro-expedition-card .expedition-choice{
+    display:flex!important;flex-direction:column!important;align-items:stretch!important;
+  }
+  #petPane .poro-expedition-card .expedition-cover{
+    height:clamp(165px,38vw,205px)!important;min-height:0;max-height:none;
+    aspect-ratio:auto;
+  }
+  #petPane .poro-expedition-card .expedition-info{width:100%;}
+}
+@media(max-width:767px){
+  #petPane .poro-expedition-card .expedition-choice{
+    display:flex!important;flex-direction:column!important;align-items:stretch!important;
+  }
+  #petPane .poro-expedition-card .expedition-cover{
+    height:clamp(165px,46vw,225px)!important;min-height:0;max-height:none;aspect-ratio:auto;
+  }
+  #petPane .poro-expedition-card .expedition-info{width:100%;}
+}
+body.dark-mode #petPane .poro-expedition-card .expedition-choice{
+  background:#1f2e50!important;border-color:#40527a!important;
+}
+body.dark-mode #petPane .expedition-section-label{color:#c0d0f4!important;}
+body.dark-mode #petPane .expedition-duration{
+  background:#364e85!important;color:#f0f3ff!important;
+}
+body.dark-mode #petPane .expedition-event-badge{background:#6b4b2e!important;color:#ffe4ab!important;}
+body.dark-mode #petPane .expedition-tag{
+  background:#2d4067!important;border-color:#4c6090!important;color:#f5f7ff!important;
+}
