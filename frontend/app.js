@@ -1099,21 +1099,22 @@
         button('Voltar ao inventário',()=>{$('profilesModal').hidden=true;},'soft-action'));
     }catch(err){toast(err.message);}
   }
-  // RECANTO 0.3.6 — frente sem textos sobrepostos; verso sem glifo nem logotipo.
-  // O servidor confirma primeiro; cada toque revela ou avança e o último fecha.
-  let rewardOpening={source:null,busy:false,locked:false,confirmed:false};
+  // RECANTO 0.3.7 — verso instantâneo e toque antecipado enfileirado.
+  // O sorteio e a gravação permanecem no servidor. Nunca exibir raridade/cartas antes do POST.
+  let rewardOpening={source:null,busy:false,locked:false,confirmed:false,queuedReveal:false};
   const reducedRevealMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
   function beginRewardOpening(source){
     if(rewardOpening.busy)return false;
-    rewardOpening={source,busy:true,locked:true,confirmed:false};
+    rewardOpening={source,busy:true,locked:false,confirmed:false,queuedReveal:false};
     state.reveal=null;state.revealIndex=0;state.revealFace=false;
     const modal=$('packReveal'),stage=$('flipStage'),flip=$('flipCard');
-    modal.className='pack-reveal';modal.dataset.phase='loading';modal.hidden=false;
+    modal.className='pack-reveal';modal.dataset.phase='ready';modal.hidden=false;
     modal.setAttribute('aria-label',source==='daily'?'Resgate de Card':'Abertura de pacote');
-    stage.disabled=true;stage.setAttribute('aria-label','Preparando o Card');
+    // O verso aceita toque imediatamente; se a resposta ainda não chegou, o toque fica na fila.
+    stage.disabled=false;stage.setAttribute('aria-label','Toque para revelar o Card');
     flip.classList.remove('is-revealed');$('flipFront').replaceChildren();
-    $('revealHint').textContent='✨ Sua recompensa está chegando';
-    $('revealCounter').textContent='Aguardando a confirmação do Recanto…';
+    $('revealHint').textContent=source==='pack'?'✨ SEU PACOTE DE CARDS':'✨ UM NOVO CARD!';
+    $('revealCounter').textContent='Toque no verso para revelar';
     document.body.classList.add('recanto-reward-open');
     modal.focus({preventScroll:true});
     return true;
@@ -1122,7 +1123,7 @@
     const source=rewardOpening.source;
     $('packReveal').hidden=true;
     document.body.classList.remove('recanto-reward-open');
-    rewardOpening={source:null,busy:false,locked:false,confirmed:false};
+    rewardOpening={source:null,busy:false,locked:false,confirmed:false,queuedReveal:false};
     state.reveal=null;state.revealFace=false;
     if(source==='pack')chooseTab('inventario').catch(err=>toast(err.message));
     else if(source==='daily')$('dailyCard')?.focus({preventScroll:true});
@@ -1132,8 +1133,15 @@
     if(!rewardOpening.busy)return;
     if(!Array.isArray(cards)||!cards.length){closeRewardOpening();toast('⚠ O servidor não retornou um Card. Confira seu inventário.');return;}
     state.reveal=cards;state.revealBonus=Number(total||0);state.revealIndex=0;
+    const opening=rewardOpening;
     rewardOpening.confirmed=true;
+    const queued=rewardOpening.queuedReveal;
+    rewardOpening.queuedReveal=false;
     showRevealStep();
+    // Se o usuário já tocou no verso, não exigir outro clique quando a API responder.
+    if(queued)requestAnimationFrame(()=>{
+      if(rewardOpening===opening && opening.confirmed && !state.revealFace && !opening.locked)revealNext();
+    });
   }
   async function openPack(id){
     // A tela reage imediatamente. A API continua sendo a única fonte da recompensa.
@@ -1163,8 +1171,18 @@
     $('revealCounter').textContent='Toque no verso do Card para revelar';
   }
   function revealNext(){
+    if(!rewardOpening.busy||rewardOpening.locked)return;
+    if(!rewardOpening.confirmed){
+      // Não há sorteio local: apenas guardamos o toque, aguardando a resposta do POST já iniciado.
+      if(!rewardOpening.queuedReveal){
+        rewardOpening.queuedReveal=true;
+        $('revealCounter').textContent='✨ O verso já está pronto para revelar';
+        $('flipStage').setAttribute('aria-label','Revelação preparada');
+      }
+      return;
+    }
     const cards=state.reveal;
-    if(!rewardOpening.confirmed||!cards?.length||rewardOpening.locked)return;
+    if(!cards?.length)return;
     if(state.revealFace){
       if(state.revealIndex===cards.length-1){closeRewardOpening();return;}
       state.revealIndex++;showRevealStep();return;

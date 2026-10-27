@@ -3498,7 +3498,7 @@ body.dark-mode .recanto-shop-discount{color:#abebc9}
   #profileContent .desktop-left-column:has(.recanto-event-banners-mobile:not([hidden])) > .desktop-profile-hero{margin-top:clamp(105px,13dvh,160px)}
 }
 
-/* RECANTO 0.3.6 — frente só com a arte e moldura, verso sem logo/estrela.
+/* RECANTO 0.3.7 — verso imediato, toque antecipado, frente só com a arte.
    Uma única carta em 3D: revelar com giro e luminosidade da raridade. */
 #packReveal.pack-reveal:not([hidden]){
   position:fixed!important;inset:0!important;z-index:100001!important;
@@ -3601,3 +3601,7 @@ body.recanto-reward-open{overscroll-behavior:none}
    animation:none!important;transition:none!important;
  }
 }
+
+/* 0.3.7 — interação instantânea com o verso sem cursor de carregamento. */
+#packReveal[data-phase="ready"] .flip-stage {cursor:pointer}
+#packReveal[data-phase="ready"] .flip-stage:active {filter:brightness(1.15)}

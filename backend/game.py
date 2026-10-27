@@ -1,4 +1,4 @@
-"""Recanto 0.3.3. Economia e jogo executados inteiramente no servidor.
+"""Recanto 0.3.7. Economia e jogo executados inteiramente no servidor.
 
 Ações que alteram saldo/itens usam transações serializadas. O browser só pede
 operações; nunca escolhe resultado de sorteio, saldo, recompensa ou tempo.
@@ -1069,17 +1069,21 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         progress(db,uid,kind)
         return True
 
-    def publish_feed(db, uid, kind, **payload):
-        # Somente ações confirmadas pelo servidor; propostas são anúncios, não transações.
-        entry = FeedEvent(user_id=uid, kind=kind, payload=json.dumps(payload, ensure_ascii=False), created_at=utcnow())
-        db.add(entry)
+    def trim_feed(db):
+        # Uma única consulta de limpeza por lote de cards em vez de uma por card.
         db.flush()
-        # Reter 100 publicações: conversas de negociação precisam durar mais que o feed antigo.
         old_ids = db.scalars(select(FeedEvent.id).order_by(FeedEvent.id.desc()).offset(100)).all()
         if old_ids:
             db.execute(delete(FeedReply).where(FeedReply.event_id.in_(old_ids)))
             db.execute(delete(FeedLike).where(FeedLike.event_id.in_(old_ids)))
             db.execute(delete(FeedEvent).where(FeedEvent.id.in_(old_ids)))
+
+    def publish_feed(db, uid, kind, *, defer_trim=False, **payload):
+        # Somente ações confirmadas pelo servidor; propostas são anúncios, não transações.
+        entry = FeedEvent(user_id=uid, kind=kind, payload=json.dumps(payload, ensure_ascii=False), created_at=utcnow())
+        db.add(entry)
+        if not defer_trim:
+            trim_feed(db)
 
     def feed_card(card):
         return {'name': card['name'], 'rarity': card.get('rarity', 'comum'), 'image_url': card.get('image_url')}
@@ -1712,8 +1716,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
     def daily_card(request: Request):
         uid = me(request)
         with writing() as db:
-            at=next_card_available(db,uid)
+            # Evita consultar os mesmos eventos duas vezes nesta solicitação.
             effects=event_effects(db)
+            cooldown=db.get(CardCooldown,uid)
+            at=(naive_to_utc(cooldown.last_claimed)+timedelta(minutes=effects['card_cooldown'])) if cooldown else None
             if at and at>utcnow():
                 raise HTTPException(409, detail=f'Aguarde {effects["card_cooldown"]} minutos entre resgates de cartas.')
             pool=stock(db)
@@ -1722,16 +1728,20 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 raise HTTPException(409,detail=f'Estoque insuficiente para resgatar {quantity} Cards neste evento.')
             obtained=[]
             reward=0
+            weights=card_claim_weights(db)
+            bonuses={}
             for _ in range(quantity):
-                chosen=random_card(pool,'diario',card_claim_weights(db))
+                chosen=random_card(pool,'diario',weights)
                 granted=grant_card(db,uid,chosen)
-                granted['bonus_coins']=card_bonus(db,granted['rarity'])
+                rarity=granted['rarity']
+                if rarity not in bonuses: bonuses[rarity]=card_bonus(db,rarity)
+                granted['bonus_coins']=bonuses[rarity]
                 reward+=granted['bonus_coins']
                 obtained.append(granted)
-                publish_feed(db,uid,'daily_card',card=feed_card(granted))
+                publish_feed(db,uid,'daily_card',card=feed_card(granted),defer_trim=True)
+            trim_feed(db)
             balance=wallet(db, uid)
             balance.coins += reward
-            cooldown=db.get(CardCooldown,uid)
             now=utcnow()
             if cooldown: cooldown.last_claimed=now
             else: db.add(CardCooldown(user_id=uid,last_claimed=now))
@@ -2226,11 +2236,13 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if len(reserved)!=quantity: raise HTTPException(409, detail='Pacote incompleto; contacte o administrador')
             result=[]
             bonus=0
+            bonuses={}
             for r in reserved:
                 card=db.get(Card,r.card_id)
                 if not card: raise HTTPException(409, detail='Card indisponível')
-                # Cada card do pack rende moedas segundo SUA raridade, sem teto de 5.
-                reward=card_bonus(db,card.rarity)
+                # Reutiliza o valor por raridade dentro da mesma transação.
+                if card.rarity not in bonuses: bonuses[card.rarity]=card_bonus(db,card.rarity)
+                reward=bonuses[card.rarity]
                 granted=grant_card(db,uid,{'id':card.id,'name':card.name,'rarity':card.rarity,'image_url':card.image_url,'collection':card.collection_name})
                 granted['bonus_coins']=reward
                 result.append(granted)
@@ -2240,7 +2252,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             balance.coins+=bonus
             coins_balance=balance.coins
             progress(db,uid,'pack')
-            for card in result:publish_feed(db,uid,'pack_card',card=feed_card(card),pack_size=(3 if pack.sku=='pack3' else 5))
+            for card in result:
+                publish_feed(db,uid,'pack_card',card=feed_card(card),pack_size=quantity,defer_trim=True)
+            trim_feed(db)
         return {'ok':True,'cards':result,'bonus_coins':bonus,'coins_balance':coins_balance}
 
     @app.get('/api/cards/favorite')
