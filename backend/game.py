@@ -1,4 +1,4 @@
-"""Recanto 0.3.8. Economia e jogo executados inteiramente no servidor.
+"""Recanto 0.3.13. Economia e jogo executados inteiramente no servidor.
 
 Ações que alteram saldo/itens usam transações serializadas. O browser só pede
 operações; nunca escolhe resultado de sorteio, saldo, recompensa ou tempo.
@@ -24,7 +24,7 @@ import uuid
 
 from fastapi import HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, and_, func, select, text, inspect, delete, update
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, and_, func, select, text, inspect, delete, update
 from sqlalchemy.orm import Mapped, mapped_column
 from PIL import Image
 
@@ -197,6 +197,15 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         selector: Mapped[str] = mapped_column(String(180), default='')
         mode: Mapped[str] = mapped_column(String(14), default='background')
         image_url: Mapped[str] = mapped_column(String(512), nullable=False)
+
+    class UiPersonalization(Base):
+        """Textos e cores por modo/resolução. Migração aditiva, sem tocar em dados existentes."""
+        __tablename__ = 'recanto_ui_personalization'
+        kind: Mapped[str] = mapped_column(String(12), primary_key=True)
+        scope: Mapped[str] = mapped_column(String(32), primary_key=True)
+        key: Mapped[str] = mapped_column(String(64), primary_key=True)
+        source: Mapped[str] = mapped_column(Text, nullable=False, default='')
+        value: Mapped[str] = mapped_column(Text, nullable=False, default='')
 
     class GameSetting(Base):
         __tablename__ = 'game_settings'
@@ -2170,6 +2179,60 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if not obj:db.add(FeaturedCollection(id=1,name=name,image_url=image))
             else:obj.name=name;obj.image_url=image
         return {'ok':True}
+
+    @app.get('/api/ui/personalization')
+    def public_ui_personalization():
+        # Configurações são públicas para a tela de login também; só admins editam.
+        with SessionLocal() as db:
+            rows=db.scalars(select(UiPersonalization)).all()
+            return {'texts':[{'source':row.source,'value':row.value}
+                             for row in rows if row.kind=='text'],
+                    'colors':[{'scope':row.scope,'token':row.key,'value':row.value}
+                              for row in rows if row.kind=='color']}
+
+    @app.post('/api/admin/ui/personalization')
+    async def save_ui_personalization(request: Request):
+        only_admin(request)
+        data=await request.json()
+        if not isinstance(data,dict):raise HTTPException(422,detail='Envie dados válidos')
+        kind=data.get('kind')
+        action=data.get('action','save')
+        if kind not in ('text','color') or action not in ('save','delete','reset'):
+            raise HTTPException(422,detail='Personalização inválida')
+        scope='global' if kind=='text' else str(data.get('scope',''))
+        if kind=='color' and scope not in ('light-mobile','light-desktop','dark-mobile','dark-desktop'):
+            raise HTTPException(422,detail='Selecione tema e dispositivo')
+        # Apagar tudo é sempre operação explícita, separada das demais mudanças.
+        if action=='reset':
+            with writing() as db:
+                db.execute(delete(UiPersonalization).where(UiPersonalization.kind==kind))
+            return {'ok':True,'action':'reset','kind':kind}
+        if kind=='text':
+            original=data.get('source','')
+            if not isinstance(original,str) or not 1<=len(original.strip())<=280:
+                raise HTTPException(422,detail='Informe o texto original (máximo 280 caracteres)')
+            original=original.strip()
+            key=hashlib.sha256(original.encode('utf-8')).hexdigest()
+            replacement=data.get('value','')
+            if action=='save' and (not isinstance(replacement,str) or len(replacement)>800):
+                raise HTTPException(422,detail='Novo texto inválido (máximo 800 caracteres)')
+        else:
+            key=str(data.get('token',''))
+            if not re.fullmatch(r'[a-f0-9]{10}',key):
+                raise HTTPException(422,detail='Identificador de cor inválido')
+            original=''
+            replacement=str(data.get('value','')).strip()
+            if action=='save' and not re.fullmatch(r'#[a-fA-F0-9]{6}(?:[a-fA-F0-9]{2})?',replacement):
+                raise HTTPException(422,detail='Cor inválida. Use #RRGGBB ou #RRGGBBAA')
+        with writing() as db:
+            row=db.get(UiPersonalization,(kind,scope,key))
+            if action=='delete':
+                if row:db.delete(row)
+            elif row:
+                row.source=original;row.value=replacement
+            else:
+                db.add(UiPersonalization(kind=kind,scope=scope,key=key,source=original,value=replacement))
+        return {'ok':True,'kind':kind,'scope':scope,'action':action}
 
     @app.get('/api/assets')
     def ui_assets(request: Request):
