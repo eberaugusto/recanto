@@ -374,6 +374,23 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   const getCache=new Map();
   const cacheable=url=>/^(\/api\/(game\/config|achievements|games\/preferences|champions\/preferences|shop|daily\/status|catalog|cards|inventory|pets|missions|collections\/featured|collections\/card-styles|assets))(\?|$|\/)/.test(url);
   function resetCachedData(){getCache.clear();for(const k of Object.keys(tabLoadedAt))delete tabLoadedAt[k];if(typeof state!=='undefined')state.petPreviewLoaded=false;}
+  const invalidateCached=(paths=[],tabs=[])=>{
+    for(const key of [...getCache.keys()])if(paths.some(path=>key===path||key.startsWith(path+'?')||key.startsWith(path+'/')))getCache.delete(key);
+    for(const tab of tabs)delete tabLoadedAt[tab];
+  };
+  function invalidateAfterMutation(url){
+    if(url==='/api/admin/management-layout')return;
+    if(url.startsWith('/api/admin/')){resetCachedData();return;}
+    if(url.startsWith('/api/shop/purchase')){invalidateCached(['/api/inventory','/api/me','/api/shop'],['inventario','perfil']);return;}
+    if(url.startsWith('/api/daily/')){invalidateCached(['/api/daily/status','/api/me','/api/inventory','/api/cards'],['cards','inventario','perfil']);return;}
+    if(url.startsWith('/api/inventory/packs/')){invalidateCached(['/api/inventory','/api/cards','/api/me'],['inventario','cards','perfil']);return;}
+    if(url.startsWith('/api/pets/')){invalidateCached(['/api/pets','/api/inventory','/api/me'],['pet','inventario','perfil']);return;}
+    if(url.startsWith('/api/inventory/gift')){invalidateCached(['/api/inventory','/api/me'],['inventario','perfil']);return;}
+    if(url.startsWith('/api/missions/')||url.startsWith('/api/recanto-extra-missions/')){invalidateCached(['/api/missions','/api/me'],['missoes','perfil']);return;}
+    if(url.startsWith('/api/feed/')){invalidateCached(['/api/me'],['feed','perfil']);return;}
+    // Outras transações mantêm a invalidação completa por segurança.
+    resetCachedData();
+  }
   const API = async (url, data) => {
     if(data===undefined && cacheable(url)){
       const prev=getCache.get(url);
@@ -383,7 +400,9 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       task.catch(()=>{if(getCache.get(url)?.promise===task)getCache.delete(url);});
       return task;
     }
-    return fetchJson(url,data);
+    const result=await fetchJson(url,data);
+    if(data!==undefined)invalidateAfterMutation(url);
+    return result;
   };
   const fetchJson=async (url, data) => {
     const options = { credentials: 'same-origin', cache:'no-store', headers: {Accept:'application/json'} };
@@ -483,7 +502,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       }
     });return b;
   };
-  const block=(title,body)=>{const div=h('div','game-box');if(title)div.append(h('h3','',title));if(body)div.append(h('p','',body));return div;};
+  const block=(title,body)=>{const div=h('div','game-box');div.dataset.adminTitleSource=String(title||'');if(title)div.append(h('h3','',title));if(body)div.append(h('p','',body));return div;};
   // A resposta do POST encerra a espera. GETs de reconciliação não bloqueiam a interface.
   let reconcileTimer=null;
   let profileRefreshGeneration=0;
@@ -504,19 +523,21 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     profileRefreshGeneration++; // Desconsiderar GET de /me iniciado antes da confirmação.
     paintCoins();
   }
+  let lastCommunityRefresh=0;
   function reconcileAfterAction(){
-    refreshCommunityEvents().catch(()=>{});
+    if(Date.now()-lastCommunityRefresh>30000){lastCommunityRefresh=Date.now();refreshCommunityEvents().catch(()=>{});}
     if(reconcileTimer)clearTimeout(reconcileTimer);
     reconcileTimer=setTimeout(()=>{
       reconcileTimer=null;
-      // Atualização na retaguarda: não fazer o usuário esperar /me e outra aba.
+      // O saldo confirmado pelo POST é exibido já; /me roda em segundo plano.
       refreshProfile().catch(()=>{});
-      if($('adminModal').hidden && !pendingFeedLikes.size && $('packReveal').hidden)refreshActive(true).catch(()=>{});
-    },180);
+      if($('adminModal').hidden && !pendingFeedLikes.size && $('packReveal').hidden &&
+         !tabLoadedAt[state.tab])refreshActive(true).catch(()=>{});
+    },950);
   }
   const safeRun=async(action,success,onConfirmed=null)=>{
     try{
-      const result=await action();resetCachedData();
+      const result=await action();
       if(onConfirmed)onConfirmed(result);
       if(success)toast(typeof success==='function'?success(result):success);
       reconcileAfterAction();return result;
@@ -1551,7 +1572,10 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       const num=h('input','text-input');num.type='number';num.min='1';num.max=String(item.quantity);num.value='1';
       const actions=h('div','gift-dialog-actions');
       actions.append(
-        button('Enviar presente',async()=>{const result=await safeRun(()=>API('/api/inventory/gift',{to_user:select.value,sku:item.sku,quantity:Number(num.value)}),'Presente enviado!');if(result){$('profilesModal').hidden=true;await loadInventory();}}),
+        button('Enviar presente',async()=>{const result=await safeRun(()=>API('/api/inventory/gift',{to_user:select.value,sku:item.sku,quantity:Number(num.value)}),'Presente enviado!');if(result){
+          if(state.account&&Number.isFinite(Number(result.treats_balance))){state.account.treats=Number(result.treats_balance);for(const id of ['valPetiscos','desktopTreats']){const el=$(id);if(el)el.textContent=money(state.account.treats);}}
+          $('profilesModal').hidden=true;await loadInventory();tabLoadedAt.inventario=Date.now();
+        }}),
         button('Voltar ao inventário',()=>{$('profilesModal').hidden=true;},'soft-action')
       );
       wrap.append(h('p','','Escolha quem receberá os itens de Pet no inventário.'),select,h('p','','Quantidade'),num,actions);
@@ -1585,12 +1609,17 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     state.reveal=null;state.revealFace=false;
     if(source==='pack')chooseTab('inventario').catch(err=>toast(err.message));
     else if(source==='daily')$('dailyCard')?.focus({preventScroll:true});
-    resetCachedData();reconcileAfterAction();
+    invalidateCached(['/api/me','/api/cards','/api/inventory','/api/daily/status'],['perfil','cards','inventario']);reconcileAfterAction();
   }
   function receiveRewardOpening(cards,total){
     if(!rewardOpening.busy)return;
     if(!Array.isArray(cards)||!cards.length){closeRewardOpening();toast('⚠ O servidor não retornou um Card. Confira seu inventário.');return;}
     state.reveal=cards;state.revealBonus=Number(total||0);state.revealIndex=0;
+    // Contador atualizado a partir das cartas efetivamente devolvidas pela API.
+    if(state.account){
+      state.account.cards=Math.max(0,Number(state.account.cards||0)+cards.length);
+      for(const id of ['valCards','desktopCards']){const el=$(id);if(el)el.textContent=money(state.account.cards);}
+    }
     const opening=rewardOpening;
     rewardOpening.confirmed=true;
     const queued=rewardOpening.queuedReveal;
@@ -2164,7 +2193,6 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     petReaction(action);
     try{
       const result=await API('/api/pets/care',{action,treat_sku:sku});
-      resetCachedData();
       // Atualização pontual: preserva o <model-viewer>, o vídeo Idle e a rolagem.
       if(result?.pet){
         state.activePet=result.pet;
@@ -2472,7 +2500,13 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const wrapper=h('div',cls);if(src){const img=h('img');img.src=src;img.alt=title;img.loading='lazy';img.onerror=()=>{img.remove();wrapper.textContent=emoji;};wrapper.append(img);}else wrapper.textContent=emoji;
     return wrapper;
   }
-  async function loadShop(){const [shop,me,daily]=await Promise.all([API('/api/shop'),API('/api/me'),API('/api/daily/status')]);$('shopWallet').textContent=`🪙 ${money(me.coins)}`;state.reset=daily.next_reset;state.dailyReward=Number(daily.reward||0);$('dailyCoins').disabled=daily.coins_claimed||state.dailyClaimInFlight;$('dailyCoins').textContent=state.dailyClaimInFlight?'Confirmando resgate…':daily.coins_claimed?'✓ Resgatado':`Resgatar ${money(daily.reward)} moedas`;updateCountdowns();const pane=$('shopPane');pane.replaceChildren();for(const s of shop.products){const box=block(s.name,s.description|| (s.kind==='cards'?`${s.amount} cartas aleatórias · guarda no Inventário`:s.treat_sku==='vacina'?`${s.amount} vacina(s) para Pets em recuperação`:`${s.amount} item(ns) de Pet · +${s.food||0} fome por unidade`));box.id='shop-'+s.sku;box.classList.add('product-card');if(s.original_price>s.price)box.append(h('p','recanto-shop-discount',`🏷️ Preço normal: 🪙 ${money(s.original_price)} · desconto de evento`));box.prepend(mediaCover(s.image_url,s.emoji||'🎁',s.name,'product-cover'));if(s.rates)box.append(h('p','rates',Object.entries(s.rates).map(([k,v])=>`${tierLabels[k]} ${v}%`).join(' · ')));box.append(button(`Comprar · 🪙 ${money(s.price)}`,()=>safeRun(()=>API('/api/shop/purchase',{sku:s.sku}),result=>result.pack_id?`Pacote guardado no Inventário!`:`${result.treats_gained} item(ns) adicionado(s) ao Inventário!`)));pane.append(box);}if(state.focusShop){const selected=$('shop-'+state.focusShop);state.focusShop=null;if(selected){selected.classList.add('shop-focus');selected.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});setTimeout(()=>selected.classList.remove('shop-focus'),1800);}}}
+  async function loadShop(){const [shop,daily]=await Promise.all([API('/api/shop'),API('/api/daily/status')]);paintCoins();state.reset=daily.next_reset;state.dailyReward=Number(daily.reward||0);$('dailyCoins').disabled=daily.coins_claimed||state.dailyClaimInFlight;$('dailyCoins').textContent=state.dailyClaimInFlight?'Confirmando resgate…':daily.coins_claimed?'✓ Resgatado':`Resgatar ${money(daily.reward)} moedas`;updateCountdowns();const pane=$('shopPane');pane.replaceChildren();for(const s of shop.products){const box=block(s.name,s.description|| (s.kind==='cards'?`${s.amount} cartas aleatórias · guarda no Inventário`:s.treat_sku==='vacina'?`${s.amount} vacina(s) para Pets em recuperação`:`${s.amount} item(ns) de Pet · +${s.food||0} fome por unidade`));box.id='shop-'+s.sku;box.classList.add('product-card');if(s.original_price>s.price)box.append(h('p','recanto-shop-discount',`🏷️ Preço normal: 🪙 ${money(s.original_price)} · desconto de evento`));box.prepend(mediaCover(s.image_url,s.emoji||'🎁',s.name,'product-cover'));if(s.rates)box.append(h('p','rates',Object.entries(s.rates).map(([k,v])=>`${tierLabels[k]} ${v}%`).join(' · ')));box.append(button(`Comprar · 🪙 ${money(s.price)}`,()=>safeRun(()=>API('/api/shop/purchase',{sku:s.sku}),result=>result.pack_id?`Pacote guardado no Inventário!`:`${result.treats_gained} item(ns) adicionado(s) ao Inventário!`,result=>{
+        applyConfirmedCoins(result);
+        if(state.account && Number.isFinite(Number(result.treats_balance))){
+          state.account.treats=Number(result.treats_balance);
+          for(const id of ['valPetiscos','desktopTreats']){const el=$(id);if(el)el.textContent=money(state.account.treats);}
+        }
+      })));pane.append(box);}if(state.focusShop){const selected=$('shop-'+state.focusShop);state.focusShop=null;if(selected){selected.classList.add('shop-focus');selected.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});setTimeout(()=>selected.classList.remove('shop-focus'),1800);}}}
   async function loadMissions(){
     const [data,extras]=await Promise.all([API('/api/missions'),API('/api/recanto-extra-missions').catch(()=>({items:[]}))]);
     data.items=[...(data.items||[]),...(extras.items||[])];
@@ -3635,7 +3669,8 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       }
     }).catch(()=>{});
     updateResetConfirmation();
-    const groups=['Geral','Loja','Economia','Cards','Pets','Missões','Eventos','Selos','Aparência','Textos','Cores','Feed','Níveis','Usuários','Integrações','Avançado'];
+    // V0.3.15 — Administração configurável sem apagar painéis.
+    const groupNames=['Geral','Loja','Economia','Cards','Pets','Missões','Eventos','Selos','Aparência','Textos','Cores','Feed','Níveis','Usuários','Integrações','Avançado'];
     const classify=(title)=>{
       const x=title.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
       if(x.includes('editor de textos'))return 'Textos';
@@ -3644,7 +3679,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       if(x.includes('recompensas por raridade')||x.includes('moedas recebidas por raridade')||x.includes('valores configuraveis')||x.includes('resgates e porcentagens'))return 'Economia';
       if(x.includes('cadastrar card')||x.includes('gerenciar cards')||x.includes('colecao')||x.includes('moldura')||x.includes('excluir todos os cards')||x.includes('alterar colecao'))return 'Cards';
       if(x.includes('cadastrar pet')||x.includes('gerenciar pets')||x.includes('fundos dos pets')||x.includes('colecionaveis')||x.includes('expedicoes'))return 'Pets';
-      if(x.includes('missao')&&!x.includes('capas'))return 'Missões';
+      if((x.includes('missao')||x.includes('missoes'))&&!x.includes('capas'))return 'Missões';
       if(x.includes('eventos da comunidade'))return 'Eventos';
       if(x.includes('selo'))return 'Selos';
       if(x.includes('central de assets')||x.includes('assets'))return 'Aparência';
@@ -3655,41 +3690,139 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       if(x.includes('ferramentas de teste')||x.includes('ferramentas administrativas'))return 'Avançado';
       return 'Geral';
     };
+    const slugName=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,76)||'editor';
+    const defaults=groupNames.map(name=>({id:slugName(name),name}));
+    const configured=await API('/api/admin/management-layout').catch(()=>({tabs:null,placements:{}}));
+    // Permanência garantida da aba Geral, mesmo que uma configuração antiga esteja incompleta.
+    let layoutTabs=Array.isArray(configured.tabs)&&configured.tabs.some(t=>t.id==='geral')
+      ?configured.tabs.map(t=>({id:String(t.id),name:String(t.name)}))
+      :defaults.map(t=>({...t}));
+    const geral=layoutTabs.find(t=>t.id==='geral');
+    layoutTabs=[geral,...layoutTabs.filter(t=>t.id!=='geral')];
+    const places={...(configured.placements||{})};
     window.RecantoCustomizer?.mount(pane);
     const boxes=[...pane.querySelectorAll(':scope > .game-box')];
-    for(const box of boxes)box.dataset.adminGroup=classify(box.querySelector('h3')?.textContent||'');
+    const registered=new Map();
+    for(const box of boxes){
+      const raw=box.dataset.adminTitleSource||box.querySelector('h3')?.textContent||'Editor';
+      const slug=slugName(raw);const duplicate=(registered.get(slug)||0)+1;
+      registered.set(slug,duplicate);
+      const key=slug+(duplicate>1?'-'+duplicate:'');
+      box.dataset.adminEditorId=key;
+      box.dataset.adminEditorTitle=raw;
+      const defaultGroup=slugName(classify(raw));
+      const wanted=places[key]||defaultGroup;
+      box.dataset.adminGroup=layoutTabs.some(t=>t.id===wanted)?wanted:'geral';
+      places[key]=box.dataset.adminGroup;
+    }
     const nav=h('div','admin-tabs');
-    // Colunas reais em vez de CSS multi-column: o scroll permanece vertical e
-    // o último painel de uma coluna não estica os outros (masonry compacto).
     const masonry=h('div','admin-masonry-grid');
-    pane.replaceChildren(masonry);
+    const manager=h('section','admin-layout-manager game-box');manager.hidden=true;
+    const managerHeading=h('h3','','⚙️ Organizar abas da Gestão');
+    const managerExplanation=h('p','','Crie, renomeie e exclua abas. Excluir uma aba envia seus editores para Geral, sem apagar configurações ou recursos. Use também o seletor de categoria dentro de cada editor.');
+    const tabEditor=h('div','admin-layout-categories');
+    const addCategory=h('div','admin-layout-add');
+    const newCategory=h('input','text-input');newCategory.placeholder='Nome da nova aba';newCategory.maxLength=42;
+    const managerNote=h('p','admin-layout-note','Suas alterações são compartilhadas com os demais administradores e salvas no servidor.');
+    manager.append(managerHeading,managerExplanation,tabEditor,addCategory,managerNote);
+    pane.replaceChildren(manager,masonry);
     let currentColumnCount=0;
+    let writeLayout=Promise.resolve();
+    const saveLayout=()=>{
+      const payload={tabs:layoutTabs.map(({id,name})=>({id,name})),placements:{...places}};
+      writeLayout=writeLayout.catch(()=>{}).then(()=>API('/api/admin/management-layout',payload))
+        .catch(err=>{managerNote.textContent='⚠ Não foi possível salvar: '+err.message;toast('⚠ Falha ao salvar organização da Gestão');});
+      return writeLayout;
+    };
     const countColumns=()=>matchMedia('(max-width:767px)').matches?1:matchMedia('(max-width:1129px)').matches?2:3;
     const showGroup=group=>{
-      state.adminGroup=group;
+      const selected=layoutTabs.some(t=>t.id===group)?group:'geral';
+      state.adminGroup=selected;
       const count=countColumns();currentColumnCount=count;
       const columns=Array.from({length:count},()=>h('div','admin-masonry-column'));
       masonry.replaceChildren(...columns);
-      // Cada novo painel entra na coluna mais curta medida no navegador.
-      // Nenhum painel é obrigado a ocupar a altura de um painel vizinho.
+      let countBoxes=0;
       for(const box of boxes){
-        if(box.dataset.adminGroup!==group)continue;
-        box.hidden=false;
+        if(box.dataset.adminGroup!==selected)continue;
+        box.hidden=false;countBoxes++;
         const target=columns.reduce((best,col)=>col.getBoundingClientRect().height<best.getBoundingClientRect().height?col:best,columns[0]);
         target.append(box);
       }
-      for(const btn of nav.querySelectorAll('button'))btn.classList.toggle('selected',btn.dataset.group===group);
+      if(!countBoxes){columns[0].append(h('div','admin-layout-empty','Esta aba ainda não possui editores. Você pode movê-los usando o seletor “Categoria” dos outros painéis.'));}
+      for(const btn of nav.querySelectorAll('[data-group]'))btn.classList.toggle('selected',btn.dataset.group===selected);
       pane.scrollTop=0;
     };
+    function rebuildNav(){
+      nav.replaceChildren();
+      for(const group of layoutTabs){
+        const btn=button(group.name,()=>showGroup(group.id),'admin-tab');
+        btn.dataset.group=group.id;
+        nav.append(btn);
+      }
+      nav.append(button('⚙ Organizar abas',()=>{
+        manager.hidden=!manager.hidden;
+        if(!manager.hidden){rebuildManager();manager.scrollIntoView({block:'nearest'});}
+      },'soft-action admin-layout-toggle'));
+    }
+    function rebuildAssignments(){
+      for(const box of boxes){
+        let row=box.querySelector(':scope > .admin-layout-assign');
+        if(!row){
+          row=h('div','admin-layout-assign');
+          const label=h('label','','Categoria');
+          const sel=h('select','select-input');sel.setAttribute('aria-label','Categoria do editor '+box.dataset.adminEditorTitle);
+          sel.addEventListener('change',()=>{
+            box.dataset.adminGroup=sel.value;places[box.dataset.adminEditorId]=sel.value;
+            saveLayout();showGroup(state.adminGroup);
+          });
+          row.append(label,sel);
+          const heading=box.querySelector(':scope > h3');if(heading)heading.after(row);else box.prepend(row);
+        }
+        const sel=row.querySelector('select');sel.replaceChildren();
+        for(const category of layoutTabs){const opt=h('option','',category.name);opt.value=category.id;sel.append(opt);}
+        sel.value=box.dataset.adminGroup;
+      }
+    }
+    function rebuildManager(){
+      tabEditor.replaceChildren();
+      for(const category of layoutTabs){
+        const line=h('div','admin-layout-category-row');
+        const field=h('input','text-input');field.value=category.name;field.maxLength=42;
+        field.setAttribute('aria-label','Nome da aba '+category.name);
+        const save=button('Renomear',()=>{
+          const name=field.value.trim();
+          if(!name||name.length>42||layoutTabs.some(t=>t.id!==category.id&&t.name.toLowerCase()===name.toLowerCase())){toast('⚠ Informe um nome único de até 42 caracteres');return;}
+          category.name=name;saveLayout();rebuildNav();rebuildAssignments();rebuildManager();showGroup(state.adminGroup);
+        },'soft-action');
+        line.append(field,save);
+        if(category.id!=='geral')line.append(button('Excluir aba',()=>{
+          if(!confirm(`Excluir a aba “${category.name}”? Todos os seus editores serão movidos para Geral; nenhum editor ou dado será apagado.`))return;
+          for(const box of boxes){if(box.dataset.adminGroup===category.id){box.dataset.adminGroup='geral';places[box.dataset.adminEditorId]='geral';}}
+          for(const key of Object.keys(places))if(places[key]===category.id)places[key]='geral';
+          layoutTabs=layoutTabs.filter(t=>t.id!==category.id);
+          if(state.adminGroup===category.id)state.adminGroup='geral';
+          saveLayout();rebuildNav();rebuildAssignments();rebuildManager();showGroup(state.adminGroup);
+        },'soft-action admin-layout-delete'));
+        else line.append(h('span','admin-layout-protected','Aba obrigatória'));
+        tabEditor.append(line);
+      }
+    }
+    addCategory.replaceChildren(newCategory,button('Criar aba',()=>{
+      const name=newCategory.value.trim();
+      if(!name||name.length>42||layoutTabs.some(t=>t.name.toLowerCase()===name.toLowerCase())){toast('⚠ Escolha um nome de aba único');return;}
+      let id=slugName(name).slice(0,48),suffix=2;
+      if(!/^[a-z]/.test(id))id='aba-'+id;
+      while(layoutTabs.some(t=>t.id===id))id=slugName(name).slice(0,43)+'-'+suffix++;
+      layoutTabs.push({id,name});newCategory.value='';saveLayout();rebuildNav();rebuildAssignments();rebuildManager();showGroup(id);
+    }));
     if(state.adminMasonryResize)window.removeEventListener('resize',state.adminMasonryResize);
-    state.adminMasonryResize=()=>{
-      if(!dialog.hidden&&countColumns()!==currentColumnCount)showGroup(state.adminGroup);
-    };
+    state.adminMasonryResize=()=>{if(!dialog.hidden&&countColumns()!==currentColumnCount)showGroup(state.adminGroup);};
     window.addEventListener('resize',state.adminMasonryResize);
-    for(const group of groups){const btn=button(group,()=>showGroup(group),'admin-tab');btn.dataset.group=group;nav.append(btn);}
+    rebuildNav();rebuildAssignments();
     const adminDialog=$('adminModal').querySelector('.admin-dialog');
     adminDialog.querySelector('.admin-tabs')?.remove();
-    adminDialog.insertBefore(nav,pane);showGroup(groups.includes(state.adminGroup)?state.adminGroup:'Loja');
+    adminDialog.insertBefore(nav,pane);
+    showGroup(layoutTabs.some(t=>t.id===state.adminGroup)?state.adminGroup:'loja');
     state.adminReady=true;pane.scrollTop=0;
     }catch(err){pane.replaceChildren(h('div','admin-loading','Não foi possível carregar a gestão: '+err.message));}
     finally{state.adminLoading=false;}
@@ -3760,7 +3893,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       applyConfirmedCoins(response,expected);
       el.textContent='✓ Resgatado';el.disabled=true;
       state.dailyClaimInFlight=false;state.reset=state.reset||null;
-      updateCountdowns();resetCachedData();toast(`+${money(response.coins_gained??expected)} moedas resgatadas!`);
+      updateCountdowns();toast(`+${money(response.coins_gained??expected)} moedas resgatadas!`);
       reconcileAfterAction();
     }catch(err){
       pendingCoinsPreview-=expected;paintCoins();
@@ -3789,7 +3922,6 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       el.textContent=`⏳ Aguardar ${claimDurationText(state.claimMinutes)}`;
       $('dailyCardIcon').classList.remove('card-icon-available');
       receiveRewardOpening(cards,result.bonus_coins);
-      resetCachedData();
       updateCountdowns();
     }catch(err){
       closeRewardOpening();

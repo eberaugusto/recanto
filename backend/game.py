@@ -1,4 +1,4 @@
-"""Recanto 0.3.14. Economia e jogo executados inteiramente no servidor.
+"""Recanto 0.3.15. Economia e jogo executados inteiramente no servidor.
 
 Ações que alteram saldo/itens usam transações serializadas. O browser só pede
 operações; nunca escolhe resultado de sorteio, saldo, recompensa ou tempo.
@@ -206,6 +206,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         key: Mapped[str] = mapped_column(String(64), primary_key=True)
         source: Mapped[str] = mapped_column(Text, nullable=False, default='')
         value: Mapped[str] = mapped_column(Text, nullable=False, default='')
+
+    class AdminLayout(Base):
+        __tablename__ = 'recanto_admin_layout'
+        id: Mapped[str] = mapped_column(String(20), primary_key=True)
+        payload: Mapped[str] = mapped_column(Text, nullable=False, default='{}')
 
     class GameSetting(Base):
         __tablename__ = 'game_settings'
@@ -2479,6 +2484,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 w.coins-=cost
                 xp_spend(db,uid,cost)
                 result={'ok':True,'pack_id':pack.id,'pack_amount':qty,'spent':cost}
+            # A resposta traz valores finais confirmados na transação.
+            result['coins_balance']=w.coins
+            result['treats_balance']=w.treats
         return result
 
     @app.get('/api/inventory')
@@ -2861,7 +2869,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             give_treat(db,uid,sku,-qty)
             give_treat(db,to_user,sku,qty)
             publish_feed(db,uid,'gift_pet_item',to_user=recipient.username,item=feed_pet_item(db,sku),quantity=qty)
-        return {'ok':True,'quantity':qty,'sku':sku}
+            treat_balance=wallet(db,uid).treats
+            remaining=treat_qty(db,uid,sku)
+        return {'ok':True,'quantity':qty,'sku':sku,'treats_balance':treat_balance,'remaining_quantity':remaining}
 
     @app.get('/api/pets')
     def pets(request: Request):
@@ -3258,6 +3268,48 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if not row:raise HTTPException(404,detail='Evento não encontrado')
             db.delete(row)
         return {'ok':True}
+
+    # Organização das abas da Gestão; independente das ferramentas e dos dados editados.
+    @app.get('/api/admin/management-layout')
+    def get_admin_layout(request:Request):
+        only_admin(request)
+        with SessionLocal() as db:
+            row=db.get(AdminLayout,'main')
+            if not row:return {'tabs':None,'placements':{}}
+            try:return json.loads(row.payload)
+            except (TypeError,ValueError):return {'tabs':None,'placements':{}}
+
+    @app.post('/api/admin/management-layout')
+    async def save_admin_layout(request:Request):
+        only_admin(request)
+        data=json_body(await request.json(),('tabs','placements'))
+        tabs=data['tabs'];places=data['placements']
+        if not isinstance(tabs,list) or not 1<=len(tabs)<=40 or not isinstance(places,dict) or len(places)>400:
+            raise HTTPException(422,detail='Organização da Gestão inválida')
+        clean=[];used_ids=set();used_names=set()
+        for entry in tabs:
+            if not isinstance(entry,dict):raise HTTPException(422,detail='Aba inválida')
+            ident=entry.get('id');name=entry.get('name')
+            if not isinstance(ident,str) or not re.fullmatch(r'[a-z][a-z0-9_-]{0,49}',ident):
+                raise HTTPException(422,detail='Identificador de aba inválido')
+            if not isinstance(name,str) or not 1<=len(name.strip())<=42 or any(ord(x)<32 for x in name):
+                raise HTTPException(422,detail='Nome de aba inválido')
+            if ident in used_ids or name.strip().casefold() in used_names:
+                raise HTTPException(422,detail='Não é possível repetir nomes ou identificadores de abas')
+            clean.append({'id':ident,'name':name.strip()});used_ids.add(ident);used_names.add(name.strip().casefold())
+        if not clean or clean[0]['id']!='geral':
+            raise HTTPException(422,detail='A aba Geral é obrigatória e deve permanecer na primeira posição')
+        fixed={}
+        for editor_id,group in places.items():
+            if not isinstance(editor_id,str) or not re.fullmatch(r'[a-z0-9_-]{1,100}',editor_id) or not isinstance(group,str):
+                raise HTTPException(422,detail='Editor ou categoria inválidos')
+            fixed[editor_id]=group if group in used_ids else 'geral'
+        result={'tabs':clean,'placements':fixed}
+        with writing() as db:
+            row=db.get(AdminLayout,'main')
+            if row:row.payload=json.dumps(result,ensure_ascii=False)
+            else:db.add(AdminLayout(id='main',payload=json.dumps(result,ensure_ascii=False)))
+        return {'ok':True,**result}
 
     @app.get('/api/admin/settings')
     def admin_settings(request: Request):

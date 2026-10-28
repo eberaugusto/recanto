@@ -3819,3 +3819,23 @@ body.dark-mode .rc-customizer .rc-custom-error{color:#ff91a7}
   #adminModal #adminContent .admin-masonry-grid{grid-template-columns:minmax(0,1fr)!important;gap:12px!important;}
   #adminModal #adminContent .admin-masonry-column{gap:12px!important;}
 }
+
+/* RECANTO 0.3.15 — abas editáveis e escolha de categoria por painel. */
+#adminModal #adminContent .admin-layout-manager{margin:0 0 16px!important;padding:18px;max-width:none!important;}
+#adminModal #adminContent .admin-layout-manager[hidden]{display:none!important;}
+#adminModal #adminContent .admin-layout-manager .admin-layout-categories{display:flex;flex-direction:column;gap:9px;}
+#adminModal .admin-layout-category-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+#adminModal .admin-layout-category-row>input{flex:1 1 180px;min-width:0;}
+#adminModal .admin-layout-category-row>button{flex:0 1 auto;min-width:90px;}
+#adminModal .admin-layout-add{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px;}
+#adminModal .admin-layout-add input{flex:1 1 180px;min-width:0;}
+#adminModal .admin-layout-add button{flex:0 0 auto;}
+#adminModal .admin-layout-note{margin-top:12px;font-size:12px;}
+#adminModal .admin-layout-protected{font-size:12px;color:#65719b;}
+#adminModal .admin-layout-toggle{flex:0 0 auto;white-space:nowrap;min-height:39px;padding:8px 14px;}
+#adminModal .admin-layout-assign{display:flex;align-items:center;gap:8px;margin:-2px 0 6px;padding:7px 9px;background:rgba(111,132,195,.08);border-radius:10px;}
+#adminModal .admin-layout-assign label{font-size:11px;font-weight:700;flex:0 0 auto;}
+#adminModal .admin-layout-assign select{min-width:0;flex:1 1 auto;margin:0;font-size:12px;}
+#adminModal .admin-layout-empty{padding:18px;border:1px dashed #8798b9;border-radius:12px;line-height:1.5;}
+body.dark-mode #adminModal .admin-layout-assign{background:rgba(127,148,217,.15);}
+@media(max-width:520px){#adminModal .admin-layout-category-row>input{flex:1 1 100%;}}
