@@ -3769,3 +3769,53 @@ body.dark-mode .rc-customizer .rc-custom-error{color:#ff91a7}
   #shopScreen #shopContent{margin-top:-12px;}
   #shopScreen #shopContent>.shop-daily-coins{min-height:70px!important;padding:10px 14px!important;}
 }
+
+/* RECANTO 0.3.14 — Gestão em colunas independentes, sem linhas de grade
+   com altura igual. A rolagem principal continua vertical. */
+#adminModal #adminContent.admin-scroll{
+  display:block!important;
+  grid-template-columns:none!important;
+  padding:12px 4px 32px!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+}
+#adminModal #adminContent .admin-masonry-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:16px!important;
+  align-items:start!important;
+  width:100%;min-width:0;
+}
+#adminModal #adminContent .admin-masonry-column{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  gap:16px!important;
+  min-width:0;width:100%;
+}
+#adminModal #adminContent .admin-masonry-column>.game-box{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  margin:0!important;
+  box-sizing:border-box!important;
+  gap:12px;
+}
+#adminModal #adminContent .admin-masonry-column>.game-box>*{min-width:0;max-width:100%;box-sizing:border-box;}
+#adminModal .admin-shop-fields{display:flex;flex-direction:column;align-items:stretch;gap:12px;margin-top:6px;}
+#adminModal .admin-shop-rates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+#adminModal .admin-shop-rates>strong,#adminModal .admin-shop-rates>small{grid-column:1/-1;}
+#adminModal .admin-shop-rates .is-invalid{color:#cd493c;font-weight:700;}
+#adminModal .admin-shop-editor>.soft-action{align-self:flex-start;}
+#adminModal .admin-shop-editor>.admin-entry-status{font-size:12px;}
+@media (min-width:768px) and (max-width:1129px){
+  #adminModal #adminContent .admin-masonry-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important;}
+  #adminModal #adminContent .admin-masonry-column{gap:14px!important;}
+}
+@media (max-width:767px){
+  #adminModal #adminContent .admin-masonry-grid{grid-template-columns:minmax(0,1fr)!important;gap:12px!important;}
+  #adminModal #adminContent .admin-masonry-column{gap:12px!important;}
+}

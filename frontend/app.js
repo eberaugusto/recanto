@@ -2472,7 +2472,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const wrapper=h('div',cls);if(src){const img=h('img');img.src=src;img.alt=title;img.loading='lazy';img.onerror=()=>{img.remove();wrapper.textContent=emoji;};wrapper.append(img);}else wrapper.textContent=emoji;
     return wrapper;
   }
-  async function loadShop(){const [shop,me,daily]=await Promise.all([API('/api/shop'),API('/api/me'),API('/api/daily/status')]);$('shopWallet').textContent=`🪙 ${money(me.coins)}`;state.reset=daily.next_reset;state.dailyReward=Number(daily.reward||0);$('dailyCoins').disabled=daily.coins_claimed||state.dailyClaimInFlight;$('dailyCoins').textContent=state.dailyClaimInFlight?'Confirmando resgate…':daily.coins_claimed?'✓ Resgatado':`Resgatar ${money(daily.reward)} moedas`;updateCountdowns();const pane=$('shopPane');pane.replaceChildren();for(const s of shop.products){const box=block(s.name,s.kind==='cards'?`${s.amount} cartas aleatórias · guarda no Inventário`:s.sku==='vaccine'?'1 vacina para Pets em recuperação':`${s.amount} petisco(s) · +${s.food||15} fome por unidade`);box.id='shop-'+s.sku;box.classList.add('product-card');if(s.original_price>s.price)box.append(h('p','recanto-shop-discount',`🏷️ Preço normal: 🪙 ${money(s.original_price)} · desconto de evento`));box.prepend(mediaCover(s.image_url,s.emoji||'🎁',s.name,'product-cover'));if(s.rates)box.append(h('p','rates',Object.entries(s.rates).map(([k,v])=>`${tierLabels[k]} ${v}%`).join(' · ')));box.append(button(`Comprar · 🪙 ${money(s.price)}`,()=>safeRun(()=>API('/api/shop/purchase',{sku:s.sku}),result=>result.pack_id?`Pacote guardado no Inventário!`:`${result.treats_gained} item(ns) adicionado(s) ao Inventário!`)));pane.append(box);}if(state.focusShop){const selected=$('shop-'+state.focusShop);state.focusShop=null;if(selected){selected.classList.add('shop-focus');selected.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});setTimeout(()=>selected.classList.remove('shop-focus'),1800);}}}
+  async function loadShop(){const [shop,me,daily]=await Promise.all([API('/api/shop'),API('/api/me'),API('/api/daily/status')]);$('shopWallet').textContent=`🪙 ${money(me.coins)}`;state.reset=daily.next_reset;state.dailyReward=Number(daily.reward||0);$('dailyCoins').disabled=daily.coins_claimed||state.dailyClaimInFlight;$('dailyCoins').textContent=state.dailyClaimInFlight?'Confirmando resgate…':daily.coins_claimed?'✓ Resgatado':`Resgatar ${money(daily.reward)} moedas`;updateCountdowns();const pane=$('shopPane');pane.replaceChildren();for(const s of shop.products){const box=block(s.name,s.description|| (s.kind==='cards'?`${s.amount} cartas aleatórias · guarda no Inventário`:s.treat_sku==='vacina'?`${s.amount} vacina(s) para Pets em recuperação`:`${s.amount} item(ns) de Pet · +${s.food||0} fome por unidade`));box.id='shop-'+s.sku;box.classList.add('product-card');if(s.original_price>s.price)box.append(h('p','recanto-shop-discount',`🏷️ Preço normal: 🪙 ${money(s.original_price)} · desconto de evento`));box.prepend(mediaCover(s.image_url,s.emoji||'🎁',s.name,'product-cover'));if(s.rates)box.append(h('p','rates',Object.entries(s.rates).map(([k,v])=>`${tierLabels[k]} ${v}%`).join(' · ')));box.append(button(`Comprar · 🪙 ${money(s.price)}`,()=>safeRun(()=>API('/api/shop/purchase',{sku:s.sku}),result=>result.pack_id?`Pacote guardado no Inventário!`:`${result.treats_gained} item(ns) adicionado(s) ao Inventário!`)));pane.append(box);}if(state.focusShop){const selected=$('shop-'+state.focusShop);state.focusShop=null;if(selected){selected.classList.add('shop-focus');selected.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});setTimeout(()=>selected.classList.remove('shop-focus'),1800);}}}
   async function loadMissions(){
     const [data,extras]=await Promise.all([API('/api/missions'),API('/api/recanto-extra-missions').catch(()=>({items:[]}))]);
     data.items=[...(data.items||[]),...(extras.items||[])];
@@ -2698,6 +2698,131 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     return box;
   }
 
+  // Editor de produtos integrado às compras reais. Um produto adicional pode
+  // entregar pacotes com 1–10 cards ou quantidades dos itens de Pet existentes.
+  function adminShopEditor(){
+    const panel=block('Produtos e pacotes da Loja',
+      'Edite nome, preço, imagem, descrição, quantidade e chances. Crie produtos adicionais para pacotes de Cards ou itens de Pet. Arquivar não apaga compras anteriores.');
+    panel.classList.add('admin-shop-editor');
+    const picker=h('select','select-input');
+    const form=h('div','admin-shop-fields');
+    const status=h('p','admin-entry-status','Carregando produtos...');
+    const newButton=button('＋ Criar novo produto',()=>{picker.value='';display();},'soft-action');
+    const setField=(text,type='text')=>{
+      const label=h('label','admin-field',text);
+      const input=h('input','text-input');input.type=type;
+      label.append(input);form.append(label);
+      return {label,input};
+    };
+    const name=setField('Nome do produto');
+    const kindRow=h('label','admin-field','Tipo de produto');
+    const kind=h('select','select-input');
+    for(const [id,label] of [['cards','Pacote de Cards'],['treats','Item de Pet (comida ou vacina)']]){
+      const option=h('option','',label);option.value=id;kind.append(option);
+    }
+    kindRow.append(kind);form.append(kindRow);
+    const price=setField('Preço (moedas)','number');
+    const amount=setField('Quantidade entregue','number');
+    const treatRow=h('label','admin-field','Recompensa de Pet');
+    const treat=h('select','select-input');
+    for(const [sku,label] of [['biscoito','Biscoito (+15 fome)'],['fruta','Frutinha (+30 fome)'],['banquete','Banquete (+55 fome)'],['vacina','Vacina (recuperação)']]){
+      const option=h('option','',label);option.value=sku;treat.append(option);
+    }
+    treatRow.append(treat);form.append(treatRow);
+    const description=setField('Descrição no card da Loja');
+    const emoji=setField('Emoji de reserva (sem imagem)');
+    const url=setField('URL da imagem (HTTPS ou /uploads/)');
+    const upload=h('label','admin-field','Ou enviar uma capa');
+    const file=h('input','text-input');file.type='file';file.accept='image/png,image/jpeg,image/webp,image/gif';
+    upload.append(file);form.append(upload);
+    attachArtworkPreview(url.input,url.label);
+    const chanceWrap=h('div','admin-shop-rates');
+    chanceWrap.append(h('strong','','Chances por raridade — total 100%'));
+    const chanceInputs={};
+    for(const [tier,label] of [['comum','Comum'],['raro','Raro'],['lendário','Lendário'],['prismático','Prismático']]){
+      const field=h('label','admin-field',label);
+      const input=h('input','text-input');input.type='number';input.min='0';input.max='100';input.step='1';
+      field.append(input);chanceWrap.append(field);chanceInputs[tier]=input;
+    }
+    const ratesSum=h('small','','');chanceWrap.append(ratesSum);form.append(chanceWrap);
+    const updateSum=()=>{
+      const total=Object.values(chanceInputs).reduce((n,x)=>n+(Number(x.value)||0),0);
+      ratesSum.textContent='Total das chances: '+total+'%'+(total===100?' ✓':' — ajuste para 100%');
+      ratesSum.classList.toggle('is-invalid',total!==100);
+    };
+    Object.values(chanceInputs).forEach(input=>input.addEventListener('input',updateSum));
+    const controls=h('div','admin-action-row');
+    const save=button('Salvar produto',async()=>{
+      const active=products.find(p=>p.sku===picker.value);
+      const amountValue=Number(amount.input.value),priceValue=Number(price.input.value);
+      if(!Number.isInteger(amountValue)||!Number.isInteger(priceValue)||priceValue<0){toast('Informe quantidade e preço válidos.');return;}
+      const rates=Object.fromEntries(Object.entries(chanceInputs).map(([k,v])=>[k,Number(v.value)]));
+      if(kind.value==='cards'&&Object.values(rates).reduce((a,b)=>a+b,0)!==100){toast('As chances devem somar 100%.');return;}
+      const payload={name:name.input.value.trim(),kind:kind.value,price:priceValue,amount:amountValue,
+        treat_sku:treat.value,description:description.input.value.trim(),emoji:emoji.input.value.trim(),
+        image_url:url.input.value.trim(),rates};
+      const result=await safeRun(async()=>{
+        if(file.files[0])payload.image_url=await uploadArtwork(file.files[0]);
+        return API('/api/admin/shop/products'+(active?'/'+encodeURIComponent(active.sku):''),payload);
+      },active?'Produto atualizado!':'Produto criado!');
+      if(result){resetCachedData();await refresh(result.sku);}
+    });
+    const archive=button('Arquivar produto',async()=>{
+      if(!picker.value)return;
+      if(!confirm('Arquivar este produto? Ele deixará de aparecer na Loja, mas as compras anteriores serão preservadas.'))return;
+      if(await safeRun(()=>API('/api/admin/shop/products/'+encodeURIComponent(picker.value),{action:'archive'}),'Produto arquivado!'))await refresh(picker.value);
+    },'danger-action');
+    const restore=button('Restaurar produto',async()=>{
+      if(!picker.value)return;
+      if(await safeRun(()=>API('/api/admin/shop/products/'+encodeURIComponent(picker.value),{action:'restore'}),'Produto restaurado!'))await refresh(picker.value);
+    },'soft-action');
+    controls.append(save,archive,restore);
+    form.append(controls);
+    panel.append(h('label','','Produto cadastrado'),picker,newButton,status,form);
+    let products=[];
+    const display=()=>{
+      const selected=products.find(p=>p.sku===picker.value);
+      name.input.value=selected?.name||'';
+      kind.value=selected?.kind||'cards';
+      kind.disabled=!!selected;
+      price.input.value=selected?.original_price??550;
+      amount.input.value=selected?.amount??3;
+      description.input.value=selected?.description||'';
+      emoji.input.value=selected?.emoji||(kind.value==='cards'?'🎴':'🍪');
+      url.input.value=selected?.image_url||'';
+      url.input.dispatchEvent(new Event('change'));
+      file.value='';
+      treat.value=selected?.treat_sku||'biscoito';
+      for(const [tier,input] of Object.entries(chanceInputs))input.value=selected?.rates?.[tier]??({comum:65,raro:25,'lendário':9,'prismático':1})[tier];
+      updateSum();
+      kindRow.hidden=false;
+      const updateMode=()=>{
+        treatRow.hidden=kind.value!=='treats';chanceWrap.hidden=kind.value!=='cards';
+        amount.input.max=kind.value==='cards'?'10':'100';
+      };
+      kind.onchange=updateMode;updateMode();
+      treat.disabled=!!selected?.is_default;
+      archive.hidden=!selected||!selected.active;
+      restore.hidden=!selected||!!selected.active;
+      save.textContent=selected?'Salvar alterações':'Criar produto';
+      status.textContent=selected?(selected.active?'● Produto ativo na Loja':'● Produto arquivado — compras anteriores continuam válidas'):
+        'Novo produto: escolha a categoria e configure sua recompensa. Colecionáveis continuam exclusivos de expedições.';
+    };
+    picker.addEventListener('change',display);
+    const refresh=async(sku)=>{
+      try{
+        products=(await API('/api/admin/shop/products')).products||[];
+        picker.replaceChildren();
+        const opt=h('option','','＋ Novo produto');opt.value='';picker.append(opt);
+        for(const p of products){const o=h('option','',p.name+' · '+p.sku+(p.active?'':' (arquivado)'));o.value=p.sku;picker.append(o);}
+        picker.value=sku&&products.some(p=>p.sku===sku)?sku:'';
+        display();
+      }catch(e){status.textContent='Falha ao carregar produtos: '+e.message;}
+    };
+    refresh().catch(()=>{});
+    return panel;
+  }
+
   async function openAdmin(force=false){
     const dialog=$('adminModal');
     dialog.hidden=false;document.body.classList.add('page-open');
@@ -2765,10 +2890,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       ['name','Nome','text'],['rarity','Raridade','select',Object.entries(tierLabels)],
       ['collection','Coleção','text'],['image_url','Imagem HTTPS ou /uploads/... (vazio remove)','text']
     ],existingCatalog));
-    pane.append(adminCatalogEditor('items','Gerenciar itens da Loja',[
-      ['name','Nome do produto','text'],['price','Preço em moedas','number'],
-      ['image_url','Imagem HTTPS ou /uploads/... (vazio remove)','text']
-    ],existingCatalog));
+    pane.append(adminShopEditor());
     pane.append(adminCatalogEditor('pets','Gerenciar Pets',[
       ['name','Nome','text'],['emoji','Emoji','text'],['image_url','Capa HTTPS (vazio remove)','text'],
       ['model_url','URL do modelo .glb OU embed Khada (vazio remove)','text'],
@@ -3513,36 +3635,61 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       }
     }).catch(()=>{});
     updateResetConfirmation();
-    const groups=['Geral','Textos','Cores','Feed','Economia','Eventos','Níveis','Cards','Loja','Pets','Missões','Selos','Assets','Usuários','Integrações'];
-    const classify=(name)=>{
-      const x=name.toLowerCase();
-      if(x.includes('limpar feed'))return 'Feed';
-      if(x.includes('níveis e rankings'))return 'Níveis';
-      if(x.includes('resgates e porcentagens'))return 'Economia';
-      if(x.includes('eventos da comunidade'))return 'Eventos';
-      if(x.includes('valores configuráveis'))return 'Economia';
-      if(x.includes('cadastrar card')||x.includes('gerenciar cards')||x.includes('coleção'))return 'Cards';
-      if(x.includes('gerenciar itens')||x.includes('capa'))return 'Loja';
-      if(x.includes('cadastrar poro')||x.includes('gerenciar poros')||x.includes('cadastrar pet')||x.includes('gerenciar pets')||x.includes('fundos dos pets')||x.includes('colecionáveis')||x.includes('expedições'))return 'Pets';
-      if(x.includes('missões do recanto'))return 'Missões';
-      if(x.includes('selo'))return 'Selos';
+    const groups=['Geral','Loja','Economia','Cards','Pets','Missões','Eventos','Selos','Aparência','Textos','Cores','Feed','Níveis','Usuários','Integrações','Avançado'];
+    const classify=(title)=>{
+      const x=title.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
       if(x.includes('editor de textos'))return 'Textos';
       if(x.includes('editor de cores'))return 'Cores';
-      if(x.includes('assets'))return 'Assets';
-      if(x.includes('administrador')||x.includes('ids autorizados')||x.includes('ajustar moedas')||x.includes('limpar dados dos usuários'))return 'Usuários';
-      if(x.includes('integrações'))return 'Integrações';
+      if(x.includes('produto')||x.includes('item da loja')||x.includes('capas da loja'))return 'Loja';
+      if(x.includes('recompensas por raridade')||x.includes('moedas recebidas por raridade')||x.includes('valores configuraveis')||x.includes('resgates e porcentagens'))return 'Economia';
+      if(x.includes('cadastrar card')||x.includes('gerenciar cards')||x.includes('colecao')||x.includes('moldura')||x.includes('excluir todos os cards')||x.includes('alterar colecao'))return 'Cards';
+      if(x.includes('cadastrar pet')||x.includes('gerenciar pets')||x.includes('fundos dos pets')||x.includes('colecionaveis')||x.includes('expedicoes'))return 'Pets';
+      if(x.includes('missao')&&!x.includes('capas'))return 'Missões';
+      if(x.includes('eventos da comunidade'))return 'Eventos';
+      if(x.includes('selo'))return 'Selos';
+      if(x.includes('central de assets')||x.includes('assets'))return 'Aparência';
+      if(x.includes('limpar feed'))return 'Feed';
+      if(x.includes('niveis e rankings'))return 'Níveis';
+      if(x.includes('administradores')||x.includes('moedas de um usuario')||x.includes('limpar dados dos usuarios'))return 'Usuários';
+      if(x.includes('integrac'))return 'Integrações';
+      if(x.includes('ferramentas de teste')||x.includes('ferramentas administrativas'))return 'Avançado';
       return 'Geral';
     };
     window.RecantoCustomizer?.mount(pane);
     const boxes=[...pane.querySelectorAll(':scope > .game-box')];
     for(const box of boxes)box.dataset.adminGroup=classify(box.querySelector('h3')?.textContent||'');
     const nav=h('div','admin-tabs');
-    const showGroup=group=>{state.adminGroup=group;for(const box of boxes)box.hidden=box.dataset.adminGroup!==group;
-      for(const btn of nav.querySelectorAll('button'))btn.classList.toggle('selected',btn.dataset.group===group);};
+    // Colunas reais em vez de CSS multi-column: o scroll permanece vertical e
+    // o último painel de uma coluna não estica os outros (masonry compacto).
+    const masonry=h('div','admin-masonry-grid');
+    pane.replaceChildren(masonry);
+    let currentColumnCount=0;
+    const countColumns=()=>matchMedia('(max-width:767px)').matches?1:matchMedia('(max-width:1129px)').matches?2:3;
+    const showGroup=group=>{
+      state.adminGroup=group;
+      const count=countColumns();currentColumnCount=count;
+      const columns=Array.from({length:count},()=>h('div','admin-masonry-column'));
+      masonry.replaceChildren(...columns);
+      // Cada novo painel entra na coluna mais curta medida no navegador.
+      // Nenhum painel é obrigado a ocupar a altura de um painel vizinho.
+      for(const box of boxes){
+        if(box.dataset.adminGroup!==group)continue;
+        box.hidden=false;
+        const target=columns.reduce((best,col)=>col.getBoundingClientRect().height<best.getBoundingClientRect().height?col:best,columns[0]);
+        target.append(box);
+      }
+      for(const btn of nav.querySelectorAll('button'))btn.classList.toggle('selected',btn.dataset.group===group);
+      pane.scrollTop=0;
+    };
+    if(state.adminMasonryResize)window.removeEventListener('resize',state.adminMasonryResize);
+    state.adminMasonryResize=()=>{
+      if(!dialog.hidden&&countColumns()!==currentColumnCount)showGroup(state.adminGroup);
+    };
+    window.addEventListener('resize',state.adminMasonryResize);
     for(const group of groups){const btn=button(group,()=>showGroup(group),'admin-tab');btn.dataset.group=group;nav.append(btn);}
     const adminDialog=$('adminModal').querySelector('.admin-dialog');
     adminDialog.querySelector('.admin-tabs')?.remove();
-    adminDialog.insertBefore(nav,pane);showGroup(state.adminGroup||'Geral');
+    adminDialog.insertBefore(nav,pane);showGroup(groups.includes(state.adminGroup)?state.adminGroup:'Loja');
     state.adminReady=true;pane.scrollTop=0;
     }catch(err){pane.replaceChildren(h('div','admin-loading','Não foi possível carregar a gestão: '+err.message));}
     finally{state.adminLoading=false;}

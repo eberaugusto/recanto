@@ -1,4 +1,4 @@
-"""Recanto 0.3.13. Economia e jogo executados inteiramente no servidor.
+"""Recanto 0.3.14. Economia e jogo executados inteiramente no servidor.
 
 Ações que alteram saldo/itens usam transações serializadas. O browser só pede
 operações; nunca escolhe resultado de sorteio, saldo, recompensa ou tempo.
@@ -526,6 +526,21 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         name: Mapped[str | None] = mapped_column(String(100), nullable=True)
         active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
+    class ShopProduct(Base):
+        # Produtos adicionais e personalização dos produtos padrão. Nunca apagamos
+        # este registro ao arquivar: pacotes comprados precisam continuar abrindo.
+        __tablename__ = 'recanto_shop_products'
+        sku: Mapped[str] = mapped_column(String(30), primary_key=True)
+        name: Mapped[str] = mapped_column(String(100), nullable=False)
+        kind: Mapped[str] = mapped_column(String(12), nullable=False)
+        price: Mapped[int] = mapped_column(Integer, nullable=False)
+        amount: Mapped[int] = mapped_column(Integer, nullable=False)
+        treat_sku: Mapped[str | None] = mapped_column(String(24), nullable=True)
+        description: Mapped[str | None] = mapped_column(String(350), nullable=True)
+        emoji: Mapped[str | None] = mapped_column(String(30), nullable=True)
+        rates_json: Mapped[str | None] = mapped_column(String(512), nullable=True)
+        active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
     class ProductCover(Base):
         __tablename__ = 'product_covers'
         sku: Mapped[str] = mapped_column(String(30), primary_key=True)
@@ -564,6 +579,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), nullable=False, index=True)
         sku: Mapped[str] = mapped_column(String(20), nullable=False)
         created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+        # Quantidade congelada no instante da compra, mesmo se a Loja mudar.
+        amount: Mapped[int | None] = mapped_column(Integer, nullable=True)
         opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     class ReservedCard(Base):
@@ -647,6 +664,12 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 # Falecimentos anteriores à atualização não são cobrados retroativamente.
                 if table == 'user_pets' and 'death_penalty_applied' not in existing:
                     connection.execute(text("UPDATE user_pets SET death_penalty_applied = TRUE WHERE status = 'morto'"))
+    # 0.3.14: conservar pacotes vendidos antes de alterar sua configuração.
+    if inspect(engine).has_table('inventory_packs'):
+        existing={c['name'] for c in inspect(engine).get_columns('inventory_packs')}
+        if 'amount' not in existing:
+            with engine.begin() as connection:
+                connection.execute(text('ALTER TABLE inventory_packs ADD COLUMN amount INTEGER'))
     Base.metadata.create_all(engine)
     with SessionLocal.begin() as ranks_db:
         if not ranks_db.scalar(select(func.count(LevelRank.start_level))):
@@ -2367,70 +2390,93 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 db.add(FavoriteChampion(user_id=uid,champion_id=champion_id,position=order))
         return {'ok':True}
 
+    # Produtos base permanecem compatíveis com configurações e IDs anteriores.
+    SHOP_DEFAULT_PRODUCTS = {
+        'pack3': {'name':'Pacote com 3 cards','kind':'cards','amount':3,'price_key':'pack3_cost','emoji':'🃏'},
+        'pack5': {'name':'Pacote com 5 cards','kind':'cards','amount':5,'price_key':'pack5_cost','emoji':'🎴'},
+        'treat3': {'name':'3 Biscoitos','kind':'treats','amount':3,'price_key':'treat_bundle_cost','emoji':'🍪','treat_sku':'biscoito'},
+        'fruit': {'name':'Frutinha','kind':'treats','amount':1,'price_key':'treat_fruit_cost','emoji':'🍓','treat_sku':'fruta'},
+        'feast': {'name':'Banquete','kind':'treats','amount':1,'price_key':'treat_feast_cost','emoji':'🍖','treat_sku':'banquete'},
+        'vaccine': {'name':'Vacina para Pet','kind':'treats','amount':1,'price_key':'vaccine_cost','emoji':'💉','treat_sku':'vacina'},
+    }
+
+    def shop_products(db, include_inactive=False):
+        custom={x.sku:x for x in db.scalars(select(ShopProduct)).all()}
+        controls={x.sku:x for x in db.scalars(select(ShopItemControl)).all()}
+        covers={x.sku:x.image_url for x in db.scalars(select(ProductCover)).all()}
+        result=[]
+        for sku,standard in SHOP_DEFAULT_PRODUCTS.items():
+            extra=custom.get(sku)
+            control=controls.get(sku)
+            active=(control.active if control else True) and (extra.active if extra else True)
+            if not active and not include_inactive:continue
+            rates=WEIGHTS[sku].copy() if standard['kind']=='cards' else None
+            if rates and extra and extra.rates_json:
+                try:rates=json.loads(extra.rates_json)
+                except (TypeError,ValueError):pass
+            amount=extra.amount if extra else standard['amount']
+            base=setting(db,standard['price_key'])
+            result.append({'sku':sku,'id':sku,'name':(control.name if control and control.name else (extra.name if extra else standard['name'])),
+                'kind':standard['kind'],'price':event_price(db,base),'original_price':base,
+                'amount':amount,'treat_sku':standard.get('treat_sku'),'rates':rates,
+                'food':TREAT_TYPES.get(standard.get('treat_sku'),{}).get('food',0),
+                'description':extra.description if extra else None,'emoji':extra.emoji if extra and extra.emoji else standard['emoji'],
+                'image_url':covers.get(sku),'active':bool(active),'is_default':True})
+        for sku,item in custom.items():
+            if sku in SHOP_DEFAULT_PRODUCTS or (not item.active and not include_inactive):continue
+            try:rates=json.loads(item.rates_json) if item.rates_json else None
+            except (TypeError,ValueError):rates=None
+            result.append({'sku':sku,'id':sku,'name':item.name,'kind':item.kind,
+                'price':event_price(db,item.price),'original_price':item.price,'amount':item.amount,
+                'treat_sku':item.treat_sku,'rates':rates if item.kind=='cards' else None,
+                'food':TREAT_TYPES.get(item.treat_sku,{}).get('food',0),
+                'description':item.description,'emoji':item.emoji or '🎁','image_url':covers.get(sku),
+                'active':bool(item.active),'is_default':False})
+        return result
+
+    def shop_rates(data):
+        if not isinstance(data,dict) or set(data)!=set(TIERS):
+            raise HTTPException(422,detail='Informe as quatro chances de raridade')
+        rates={tier:integer(data[tier]) for tier in TIERS}
+        if any(not 0<=v<=100 for v in rates.values()) or sum(rates.values())!=100:
+            raise HTTPException(422,detail='As probabilidades dos pacotes precisam somar 100%')
+        return rates
+
     @app.get('/api/shop')
     def shop(request: Request):
         me(request)
         with SessionLocal() as db:
-            products = [
-                {'sku': 'pack3', 'name': 'Pacote com 3 cards', 'price': event_price(db,setting(db, 'pack3_cost')), 'original_price':setting(db,'pack3_cost'), 'amount': 3,
-                 'rates': WEIGHTS['pack3'], 'kind': 'cards'},
-                {'sku': 'pack5', 'name': 'Pacote com 5 cards', 'price': event_price(db,setting(db, 'pack5_cost')), 'original_price':setting(db,'pack5_cost'), 'amount': 5,
-                 'rates': WEIGHTS['pack5'], 'kind': 'cards'},
-                {'sku': 'treat3', 'name': '3 Biscoitos', 'price': event_price(db,setting(db, 'treat_bundle_cost')), 'original_price':setting(db,'treat_bundle_cost'),
-                 'amount': 3, 'kind': 'treats','food':15,'treat_sku':'biscoito'},
-                {'sku': 'fruit', 'name': 'Frutinha', 'price':event_price(db,setting(db,'treat_fruit_cost')), 'original_price':setting(db,'treat_fruit_cost'), 'amount':1,'kind':'treats','food':30,'treat_sku':'fruta'},
-                {'sku': 'feast', 'name':'Banquete', 'price':event_price(db,setting(db,'treat_feast_cost')), 'original_price':setting(db,'treat_feast_cost'), 'amount':1,'kind':'treats','food':55,'treat_sku':'banquete'},
-                {'sku': 'vaccine', 'name':'Vacina para Pet', 'price':event_price(db,setting(db,'vaccine_cost')), 'original_price':setting(db,'vaccine_cost'), 'amount':1,'kind':'treats','food':0,'treat_sku':'vacina'},
-            ]
-            covers = {c.sku:c.image_url for c in db.scalars(select(ProductCover)).all()}
-            controls = {c.sku:c for c in db.scalars(select(ShopItemControl)).all()}
-            visible = []
-            for item in products:
-                control = controls.get(item['sku'])
-                if control and not control.active: continue
-                if control and control.name: item['name'] = control.name
-                item['image_url'] = covers.get(item['sku'])
-                item['emoji'] = SHOP_EMOJI[item['sku']]
-                visible.append(item)
-            return {'products': visible}
+            return {'products':shop_products(db)}
 
     @app.post('/api/shop/purchase')
     async def purchase(request: Request):
-        uid = me(request)
-        data = json_body(await request.json(), ('sku',))
-        sku = str(data['sku'])
-        if sku not in ('pack3', 'pack5', 'treat3', 'fruit', 'feast', 'vaccine'):
-            raise HTTPException(422, detail='Produto desconhecido')
+        uid=me(request)
+        data=json_body(await request.json(),('sku',))
+        sku=str(data['sku'])
         with writing() as db:
-            item_control = db.get(ShopItemControl, sku)
-            if item_control and not item_control.active:
-                raise HTTPException(409, detail='Este item foi removido da Loja')
-            w = wallet(db, uid)
-            if sku in ('treat3', 'fruit', 'feast', 'vaccine'):
-                foodsku,qty,key = {'treat3':('biscoito',3,'treat_bundle_cost'),
-                                   'fruit':('fruta',1,'treat_fruit_cost'),
-                                   'feast':('banquete',1,'treat_feast_cost'),
-                                   'vaccine':('vacina',1,'vaccine_cost')}[sku]
-                cost = event_price(db,setting(db, key))
-                require_coins(db, uid, cost)
-                w.coins -= cost
+            product=next((x for x in shop_products(db,include_inactive=True) if x['sku']==sku),None)
+            if not product:raise HTTPException(422,detail='Produto desconhecido')
+            if not product['active']:raise HTTPException(409,detail='Este produto está arquivado')
+            cost=product['price'];qty=product['amount'];w=wallet(db,uid)
+            require_coins(db,uid,cost)
+            if product['kind']=='treats':
+                foodsku=product['treat_sku']
+                if foodsku not in TREAT_TYPES:raise HTTPException(422,detail='Item de Pet não configurado')
+                w.coins-=cost
                 xp_spend(db,uid,cost)
-                give_treat(db, uid, foodsku, qty)
-                result = {'ok':True, 'treats_gained':qty, 'item':foodsku, 'spent':cost}
+                give_treat(db,uid,foodsku,qty)
+                result={'ok':True,'treats_gained':qty,'item':foodsku,'spent':cost}
             else:
-                qty = 3 if sku=='pack3' else 5
-                cost = event_price(db,setting(db, sku+'_cost'))
-                require_coins(db, uid, cost)
-                pool = stock(db)
-                if sum(x['remaining'] for x in pool) < qty:
-                    raise HTTPException(409, detail='Estoque insuficiente para reservar este pacote')
-                choices = [random_card(pool, sku) for _ in range(qty)]
-                pack=InventoryPack(user_id=uid, sku=sku, created_at=utcnow())
-                db.add(pack)
-                db.flush()
+                pool=stock(db)
+                if sum(x['remaining'] for x in pool)<qty:
+                    raise HTTPException(409,detail='Estoque insuficiente para reservar este pacote')
+                weights=product['rates']
+                choices=[random_card(pool,'pack3',overrides=weights) for _ in range(qty)]
+                pack=InventoryPack(user_id=uid,sku=sku,amount=qty,created_at=utcnow())
+                db.add(pack);db.flush()
                 for position,chosen in enumerate(choices):
-                    db.add(ReservedCard(pack_id=pack.id, card_id=chosen['id'], position=position))
-                w.coins -= cost
+                    db.add(ReservedCard(pack_id=pack.id,card_id=chosen['id'],position=position))
+                w.coins-=cost
                 xp_spend(db,uid,cost)
                 result={'ok':True,'pack_id':pack.id,'pack_amount':qty,'spent':cost}
         return result
@@ -2442,7 +2488,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             packs=db.scalars(select(InventoryPack).where(InventoryPack.user_id==uid, InventoryPack.opened_at.is_(None)).order_by(InventoryPack.id.desc())).all()
             covers={x.sku:x.image_url for x in db.scalars(select(ProductCover)).all()}
             treats=db.scalars(select(InventoryTreat).where(InventoryTreat.user_id==uid, InventoryTreat.quantity>0)).all()
-            return {'packs':[{'id':p.id,'sku':p.sku,'amount':3 if p.sku=='pack3' else 5,'image_url':covers.get(p.sku),'created_at':p.created_at.isoformat()} for p in packs],
+            return {'packs':[{'id':p.id,'sku':p.sku,'amount':p.amount or (3 if p.sku=='pack3' else 5),'image_url':covers.get(p.sku),'created_at':p.created_at.isoformat()} for p in packs],
                     'treats':[{'sku':t.sku,'quantity':t.quantity,'image_url':covers.get('vaccine' if t.sku=='vacina' else {'biscoito':'treat3','fruta':'fruit','banquete':'feast'}.get(t.sku)),**TREAT_TYPES[t.sku]} for t in treats if t.sku in TREAT_TYPES],
                     'collectibles':owned_collectibles(db,uid)}
 
@@ -2454,7 +2500,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if not pack or pack.user_id!=uid: raise HTTPException(404, detail='Pacote não encontrado')
             if pack.opened_at is not None: raise HTTPException(409,detail='Pacote já aberto')
             reserved=db.scalars(select(ReservedCard).where(ReservedCard.pack_id==pack_id).order_by(ReservedCard.position)).all()
-            quantity = 3 if pack.sku=='pack3' else 5
+            quantity = pack.amount or (3 if pack.sku=='pack3' else 5)
             positions = {r.position:r for r in reserved}
             missing = [position for position in range(quantity) if position not in positions]
             if missing:
@@ -2464,7 +2510,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 if sum(card['remaining'] for card in pool) < len(missing):
                     raise HTTPException(409,detail='Catálogo sem estoque para completar seu pacote. O pacote foi preservado; tente após o administrador cadastrar novos Cards.')
                 for position in missing:
-                    chosen = random_card(pool, pack.sku)
+                    config=next((x for x in shop_products(db,include_inactive=True) if x['sku']==pack.sku),None)
+                    chosen = random_card(pool,'pack3',overrides=config['rates'] if config and config['rates'] else WEIGHTS['pack3'])
                     db.add(ReservedCard(pack_id=pack.id, card_id=chosen['id'], position=position))
                 db.flush()
                 reserved=db.scalars(select(ReservedCard).where(ReservedCard.pack_id==pack_id).order_by(ReservedCard.position)).all()
@@ -3668,6 +3715,81 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         return {'ok': True, 'id': new_id, 'available': event not in ('voice_minutes', 'message_count') or len(os.getenv('RECANTO_BOT_SECRET','')) >= 32}
 
     # 0.1.3: editor centralizado. Remover = arquivar (nao quebra referencias antigas).
+    @app.get('/api/admin/shop/products')
+    def admin_list_shop_products(request:Request):
+        only_admin(request)
+        with SessionLocal() as db:return {'products':shop_products(db,include_inactive=True)}
+
+    def save_shop_product(db,payload,sku=None):
+        name=str(payload.get('name') or '').strip()
+        description=str(payload.get('description') or '').strip()
+        emoji=str(payload.get('emoji') or '🎁').strip()
+        price=integer(payload.get('price'))
+        amount=integer(payload.get('amount'))
+        kind=str(payload.get('kind') or '')
+        treat_sku=str(payload.get('treat_sku') or '') if kind=='treats' else None
+        if not 2<=len(name)<=100 or len(description)>350 or len(emoji)>30 or not 0<=price<=100000:
+            raise HTTPException(422,detail='Nome, descrição ou preço inválido')
+        if kind not in ('cards','treats') or not 1<=amount<=(10 if kind=='cards' else 100):
+            raise HTTPException(422,detail='Escolha Pacote (1 a 10 cards) ou Item de Pet (1 a 100 unidades)')
+        if kind=='treats' and treat_sku not in TREAT_TYPES:
+            raise HTTPException(422,detail='Escolha o tipo de item de Pet entregue')
+        rates=shop_rates(payload.get('rates')) if kind=='cards' else None
+        existing=db.get(ShopProduct,sku) if sku else None
+        builtin=SHOP_DEFAULT_PRODUCTS.get(sku) if sku else None
+        if builtin and (kind!=builtin['kind'] or (kind=='treats' and treat_sku!=builtin['treat_sku'])):
+            raise HTTPException(422,detail='O tipo do produto padrão não pode mudar; crie um novo produto')
+        if existing and existing.kind!=kind:
+            raise HTTPException(422,detail='O tipo de um produto existente não pode mudar')
+        if not sku:
+            sku='custom_'+secrets.token_hex(6)
+        row=existing or ShopProduct(sku=sku,kind=kind,name=name,price=price,amount=amount)
+        if not existing:db.add(row)
+        row.name=name;row.price=price;row.amount=amount;row.treat_sku=treat_sku
+        row.description=description or None;row.emoji=emoji;row.rates_json=json.dumps(rates,ensure_ascii=False) if rates else None
+        if builtin:
+            ctrl=db.get(ShopItemControl,sku)
+            if not ctrl:ctrl=ShopItemControl(sku=sku);db.add(ctrl)
+            ctrl.name=name
+            db.get(GameSetting,builtin['price_key']).value=price
+        if 'image_url' in payload:
+            image_url=safe_artwork(payload.get('image_url'))
+            cover=db.get(ProductCover,sku)
+            if image_url and cover:cover.image_url=image_url
+            elif image_url:db.add(ProductCover(sku=sku,image_url=image_url))
+            elif cover:db.delete(cover)
+        return sku
+
+    @app.post('/api/admin/shop/products')
+    async def admin_create_shop_product(request:Request):
+        only_admin(request)
+        payload=await request.json()
+        if not isinstance(payload,dict):raise HTTPException(422,detail='Dados inválidos')
+        with writing() as db:sku=save_shop_product(db,payload)
+        return {'ok':True,'sku':sku}
+
+    @app.post('/api/admin/shop/products/{sku}')
+    async def admin_edit_shop_product(sku:str,request:Request):
+        only_admin(request)
+        payload=await request.json()
+        if not isinstance(payload,dict):raise HTTPException(422,detail='Dados inválidos')
+        action=str(payload.get('action','save'))
+        with writing() as db:
+            if not any(x['sku']==sku for x in shop_products(db,include_inactive=True)):
+                raise HTTPException(404,detail='Produto não encontrado')
+            if action in ('archive','restore'):
+                if sku in SHOP_DEFAULT_PRODUCTS:
+                    ctrl=db.get(ShopItemControl,sku)
+                    if not ctrl:ctrl=ShopItemControl(sku=sku);db.add(ctrl)
+                    ctrl.active=(action=='restore')
+                    extra=db.get(ShopProduct,sku)
+                    if extra:extra.active=(action=='restore')
+                else:
+                    db.get(ShopProduct,sku).active=(action=='restore')
+            elif action=='save':save_shop_product(db,payload,sku)
+            else:raise HTTPException(422,detail='Ação inválida')
+        return {'ok':True,'sku':sku}
+
     @app.get('/api/admin/catalog-management')
     def admin_catalog_management(request: Request):
         only_admin(request)
@@ -3675,17 +3797,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             cards = db.scalars(select(Card).order_by(Card.id.desc())).all()
             pets = db.scalars(select(PetSpecies).order_by(PetSpecies.id.desc())).all()
             seals = db.scalars(select(Achievement).order_by(Achievement.id.desc())).all()
-            prices = {x.key:x.value for x in db.scalars(select(GameSetting)).all()}
-            controls = {x.sku:x for x in db.scalars(select(ShopItemControl)).all()}
-            covers = {x.sku:x.image_url for x in db.scalars(select(ProductCover)).all()}
-            items=[]
-            labels={'pack3':'Pacote com 3 cards','pack5':'Pacote com 5 cards','treat3':'3 Biscoitos','fruit':'Frutinha','feast':'Banquete','vaccine':'Vacina para Pet'}
-            price_keys={'pack3':'pack3_cost','pack5':'pack5_cost','treat3':'treat_bundle_cost','fruit':'treat_fruit_cost','feast':'treat_feast_cost','vaccine':'vaccine_cost'}
-            for sku,name in labels.items():
-                ctrl=controls.get(sku)
-                items.append({'id':sku,'name':ctrl.name if ctrl and ctrl.name else name,
-                    'price':prices.get(price_keys[sku],DEFAULTS[price_keys[sku]]),
-                    'image_url':covers.get(sku),'active':bool(ctrl.active) if ctrl else True})
+            items=[{'id':p['sku'],**p} for p in shop_products(db,include_inactive=True)]
             return {
                 'cards':[{'id':c.id,'name':c.name,'rarity':c.rarity,'collection':c.collection_name,'image_url':c.image_url,'active':bool(c.active)} for c in cards],
                 'pets':[{'id':p.id,'name':p.name,'emoji':p.emoji,'image_url':p.image_url,'active':bool(p.active),**model_fields(p)} for p in pets],
