@@ -3710,3 +3710,25 @@ body.dark-mode #petPane .expedition-event-badge{background:#6b4b2e!important;col
 body.dark-mode #petPane .expedition-tag{
   background:#2d4067!important;border-color:#4c6090!important;color:#f5f7ff!important;
 }
+
+/* RECANTO 0.3.12 — Loja: eliminar o vão entre o título e o resgate no PC.
+   O resgate permanece à direita e os produtos sobem junto com ele.
+   Em telas estreitas, preservamos o fluxo vertical para evitar colisão com o título. */
+@media (min-width: 900px) {
+  #shopScreen #shopContent {
+    margin-top: -38px;
+  }
+  #shopScreen #shopContent > .shop-daily-coins {
+    min-height: 70px !important;
+    padding: 10px 16px !important;
+  }
+}
+@media (min-width: 768px) and (max-width: 899px) {
+  #shopScreen #shopContent {
+    margin-top: -12px;
+  }
+  #shopScreen #shopContent > .shop-daily-coins {
+    min-height: 70px !important;
+    padding: 10px 14px !important;
+  }
+}
