@@ -1,4 +1,4 @@
-"""Recanto 0.3.10. Economia e jogo executados inteiramente no servidor.
+"""Recanto 0.3.8. Economia e jogo executados inteiramente no servidor.
 
 Ações que alteram saldo/itens usam transações serializadas. O browser só pede
 operações; nunca escolhe resultado de sorteio, saldo, recompensa ou tempo.
@@ -24,7 +24,7 @@ import uuid
 
 from fastapi import HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, and_, func, select, text, inspect, delete, update
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, and_, func, select, text, inspect, delete, update
 from sqlalchemy.orm import Mapped, mapped_column
 from PIL import Image
 
@@ -197,15 +197,6 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         selector: Mapped[str] = mapped_column(String(180), default='')
         mode: Mapped[str] = mapped_column(String(14), default='background')
         image_url: Mapped[str] = mapped_column(String(512), nullable=False)
-
-    class UiPersonalization(Base):
-        """Textos e cores por modo/resolução. Migração aditiva, sem tocar em dados existentes."""
-        __tablename__ = 'recanto_ui_personalization'
-        kind: Mapped[str] = mapped_column(String(12), primary_key=True)
-        scope: Mapped[str] = mapped_column(String(32), primary_key=True)
-        key: Mapped[str] = mapped_column(String(64), primary_key=True)
-        source: Mapped[str] = mapped_column(Text, nullable=False, default='')
-        value: Mapped[str] = mapped_column(Text, nullable=False, default='')
 
     class GameSetting(Base):
         __tablename__ = 'game_settings'
@@ -1118,6 +1109,16 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
 
     def feed_card(card):
         return {'name': card['name'], 'rarity': card.get('rarity', 'comum'), 'image_url': card.get('image_url')}
+
+    def feed_pet_item(db, sku):
+        sku = str(sku)
+        covers = {'biscoito':'treat3','fruta':'fruit','banquete':'feast','vacina':'vaccine'}
+        item = TREAT_TYPES.get(sku)
+        if not item:
+            return {'name':'Item de Pet','emoji':'🍪','image_url':None}
+        cover_sku = covers.get(sku)
+        image = db.scalar(select(ProductCover.image_url).where(ProductCover.sku==cover_sku).limit(1)) if cover_sku else None
+        return {'name':item.get('name') or 'Item de Pet','emoji':item.get('emoji'),'image_url':image}
 
     @app.get('/api/feed')
     def community_feed(request: Request):
@@ -2170,60 +2171,6 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             else:obj.name=name;obj.image_url=image
         return {'ok':True}
 
-    @app.get('/api/ui/personalization')
-    def public_ui_personalization():
-        # Configurações são públicas para a tela de login também; só admins editam.
-        with SessionLocal() as db:
-            rows=db.scalars(select(UiPersonalization)).all()
-            return {'texts':[{'source':row.source,'value':row.value}
-                             for row in rows if row.kind=='text'],
-                    'colors':[{'scope':row.scope,'token':row.key,'value':row.value}
-                              for row in rows if row.kind=='color']}
-
-    @app.post('/api/admin/ui/personalization')
-    async def save_ui_personalization(request: Request):
-        only_admin(request)
-        data=await request.json()
-        if not isinstance(data,dict):raise HTTPException(422,detail='Envie dados válidos')
-        kind=data.get('kind')
-        action=data.get('action','save')
-        if kind not in ('text','color') or action not in ('save','delete','reset'):
-            raise HTTPException(422,detail='Personalização inválida')
-        scope='global' if kind=='text' else str(data.get('scope',''))
-        if kind=='color' and scope not in ('light-mobile','light-desktop','dark-mobile','dark-desktop'):
-            raise HTTPException(422,detail='Selecione tema e dispositivo')
-        # Apagar tudo é sempre operação explícita, separada das demais mudanças.
-        if action=='reset':
-            with writing() as db:
-                db.execute(delete(UiPersonalization).where(UiPersonalization.kind==kind))
-            return {'ok':True,'action':'reset','kind':kind}
-        if kind=='text':
-            original=data.get('source','')
-            if not isinstance(original,str) or not 1<=len(original.strip())<=280:
-                raise HTTPException(422,detail='Informe o texto original (máximo 280 caracteres)')
-            original=original.strip()
-            key=hashlib.sha256(original.encode('utf-8')).hexdigest()
-            replacement=data.get('value','')
-            if action=='save' and (not isinstance(replacement,str) or len(replacement)>800):
-                raise HTTPException(422,detail='Novo texto inválido (máximo 800 caracteres)')
-        else:
-            key=str(data.get('token',''))
-            if not re.fullmatch(r'[a-f0-9]{10}',key):
-                raise HTTPException(422,detail='Identificador de cor inválido')
-            original=''
-            replacement=str(data.get('value','')).strip()
-            if action=='save' and not re.fullmatch(r'#[a-fA-F0-9]{6}(?:[a-fA-F0-9]{2})?',replacement):
-                raise HTTPException(422,detail='Cor inválida. Use #RRGGBB ou #RRGGBBAA')
-        with writing() as db:
-            row=db.get(UiPersonalization,(kind,scope,key))
-            if action=='delete':
-                if row:db.delete(row)
-            elif row:
-                row.source=original;row.value=replacement
-            else:
-                db.add(UiPersonalization(kind=kind,scope=scope,key=key,source=original,value=replacement))
-        return {'ok':True,'kind':kind,'scope':scope,'action':action}
-
     @app.get('/api/assets')
     def ui_assets(request: Request):
         # Imagens publicas para permitir logo/fundo personalizados antes do login.
@@ -2799,9 +2746,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if sku not in TREAT_TYPES or qty<1 or qty>100: raise HTTPException(422,detail='Petisco ou quantidade inválida')
         if to_user==uid: raise HTTPException(422,detail='Você não pode presentear a si mesmo')
         with writing() as db:
-            if not db.get(User,to_user): raise HTTPException(404,detail='Destinatário não encontrado')
+            recipient=db.get(User,to_user)
+            if not recipient: raise HTTPException(404,detail='Destinatário não encontrado')
             give_treat(db,uid,sku,-qty)
             give_treat(db,to_user,sku,qty)
+            publish_feed(db,uid,'gift_pet_item',to_user=recipient.username,item=feed_pet_item(db,sku),quantity=qty)
         return {'ok':True,'quantity':qty,'sku':sku}
 
     @app.get('/api/pets')
@@ -2926,6 +2875,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             db.add(UserPet(user_id=uid, species_id=sid, nickname=nickname, status='ativo',
                            food=85, happiness=85, health=100, luck=RANDOM.randint(1,10), adopted_at=utcnow(),
                            last_action_at=utcnow(), last_tick_at=utcnow()))
+            publish_feed(db,uid,'adopt_pet',pet={'name':nickname or specie.name,'image_url':specie.image_url,'emoji':specie.emoji})
             progress(db, uid, 'adopt')
             achievement_event(db, uid, 'adopt')
         return {'ok': True, 'message': f'{nickname} foi adotado!'}

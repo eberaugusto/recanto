@@ -1,366 +1,3 @@
-window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color"},{"token":"0580bff46d","base":"#5865f2","n":27,"hint":"--blue"},{"token":"6f6c3e4567","base":"#eef0ff","n":9,"hint":"background"},{"token":"80751746fd","base":"#f7f8ff","n":8,"hint":"background"},{"token":"5cc72e2aef","base":"#1b2949","n":7,"hint":"background"},{"token":"6af8276df0","base":"#f5f7ff","n":6,"hint":"color"},{"token":"598b32b7d9","base":"#000","n":5,"hint":"box-shadow"},{"token":"6345633e28","base":"#f7f9ff","n":5,"hint":"background"},{"token":"a1e8562550","base":"#f3f6ff","n":5,"hint":"color"},{"token":"4f04bd5686","base":"#f8faff","n":5,"hint":"color"},{"token":"301100ccea","base":"#263655","n":5,"hint":"background"},{"token":"8aee9aa6da","base":"#28365e","n":4,"hint":"color"},{"token":"b2dce430db","base":"#ffb43e","n":3,"hint":"background"},{"token":"6b33914262","base":"#ffc400","n":3,"hint":"color"},{"token":"95f780d52a","base":"#d6d6d6","n":3,"hint":"background"},{"token":"ae5def7024","base":"rgba(255,255,255,.16)","n":3,"hint":"background"},{"token":"37d941afda","base":"#e8eaff","n":3,"hint":"background"},{"token":"febcdbd501","base":"#edf0ff","n":3,"hint":"background"},{"token":"1d4ab3a2fd","base":"#f0f2ff","n":3,"hint":"background"},{"token":"917b85dbe5","base":"#5865da","n":3,"hint":"color"},{"token":"102e694954","base":"#192444","n":3,"hint":"background"},{"token":"11f94f0b92","base":"#eef2ff","n":3,"hint":"color"},{"token":"628dac85a1","base":"#f6f7ff","n":3,"hint":"background"},{"token":"ad55066e48","base":"#eaf0ff","n":3,"hint":"background"},{"token":"79fa534c31","base":"#303872","n":3,"hint":"color"},{"token":"1f84762ca9","base":"#cbd4ff","n":3,"hint":"border"},{"token":"1e66d2e2c3","base":"#edf2ff","n":3,"hint":"color"},{"token":"0d8c3e4bc4","base":"#263859","n":3,"hint":"background"},{"token":"6ec37efc4b","base":"#53658b","n":3,"hint":"border-color"},{"token":"2fc35cbe43","base":"#f2f5ff","n":3,"hint":"color"},{"token":"1cc8eda306","base":"#263b86","n":3,"hint":"color"},{"token":"040bda484a","base":"#ffbd4b","n":2,"hint":"outline"},{"token":"c4a0d5d848","base":"#7874ce","n":2,"hint":"background"},{"token":"bd8ad781b7","base":"#bfc0c2","n":2,"hint":"background"},{"token":"688f1be175","base":"rgba(19,24,79,.55)","n":2,"hint":"background"},{"token":"408abee19e","base":"#2b2e50","n":2,"hint":"color"},{"token":"7cd6c8bdf8","base":"#b22","n":2,"hint":"color"},{"token":"9f36b219c0","base":"rgba(255,255,255,.8)","n":2,"hint":"border"},{"token":"0af59dc4bd","base":"#f5f5ff","n":2,"hint":"background"},{"token":"183339f49f","base":"#454c89","n":2,"hint":"color"},{"token":"d352a206fb","base":"#505ac4","n":2,"hint":"color"},{"token":"4f94cdcce2","base":"#ffffff38","n":2,"hint":"background"},{"token":"2997b6187c","base":"rgba(33,40,121,.10)","n":2,"hint":"box-shadow"},{"token":"42ea74b635","base":"rgba(255,255,255,.24)","n":2,"hint":"border"},{"token":"07eac68bee","base":"#29319f12","n":2,"hint":"box-shadow"},{"token":"169c9a11e6","base":"#e0e5ff","n":2,"hint":"background"},{"token":"74b5686355","base":"#dde2ff","n":2,"hint":"background"},{"token":"ab36fd295c","base":"#e4e7ff","n":2,"hint":"background"},{"token":"c5420db9bd","base":"#26358a1b","n":2,"hint":"box-shadow"},{"token":"5260f39fe0","base":"rgba(255,255,255,.23)","n":2,"hint":"border"},{"token":"c97a481a13","base":"#2b3279","n":2,"hint":"color"},{"token":"86f5646c28","base":"#dfe4ff","n":2,"hint":"border"},{"token":"72fb24e1fc","base":"#dce1ff","n":2,"hint":"border"},{"token":"e55041fcee","base":"#354573","n":2,"hint":"background"},{"token":"35b6791725","base":"#e9edff","n":2,"hint":"color"},{"token":"611267892d","base":"#46588c","n":2,"hint":"border-color"},{"token":"1fb889ce56","base":"#353b60","n":2,"hint":"background"},{"token":"e4fef91126","base":"#f0f3ff","n":2,"hint":"color"},{"token":"d0944667ac","base":"#e6eaff","n":2,"hint":"background"},{"token":"5ffa0dfad5","base":"#e8edff","n":2,"hint":"color"},{"token":"f15818d8a9","base":"#f8f9ff","n":2,"hint":"background"},{"token":"88ebc33ade","base":"#1d2d7f","n":2,"hint":"color"},{"token":"25c2492275","base":"#dcf8e6","n":2,"hint":"background"},{"token":"836fb147e9","base":"#263976","n":2,"hint":"color"},{"token":"1f30f83311","base":"#27397e","n":2,"hint":"color"},{"token":"a4e2c2d45e","base":"#253976","n":2,"hint":"color"},{"token":"1263ce2c12","base":"#4b6090","n":2,"hint":"color"},{"token":"4d3e94c820","base":"#283f96","n":2,"hint":"color"},{"token":"b160779b0a","base":"#111a33","n":2,"hint":"background"},{"token":"42d30c32eb","base":"#60739b","n":2,"hint":"border-color"},{"token":"4eed144a14","base":"#2a3c63","n":2,"hint":"background-color"},{"token":"826e9358ef","base":"#293b5b","n":2,"hint":"background"},{"token":"136e19b095","base":"#d7f8e5","n":2,"hint":"background"},{"token":"b4679e1cbe","base":"#f4f6ff","n":2,"hint":"background"},{"token":"c3884b4ef7","base":"#2e3a75","n":2,"hint":"color"},{"token":"42b17b807e","base":"#d6def5","n":2,"hint":"border"},{"token":"1507e6b366","base":"#d7def5","n":2,"hint":"border"},{"token":"7426e9bbb3","base":"#41547b","n":2,"hint":"border-color"},{"token":"91d87e8785","base":"#263760","n":2,"hint":"color"},{"token":"09b3fb94df","base":"#ffbe17","n":1,"hint":"--gold"},{"token":"cfea09ae49","base":"#3f4045","n":1,"hint":"background"},{"token":"3d27c41c5a","base":"#bb949e","n":1,"hint":"background"},{"token":"c258c189a7","base":"#f2a85c","n":1,"hint":"background"},{"token":"f07475e68d","base":"#4552d6","n":1,"hint":"background"},{"token":"c81e53d5bd","base":"#ae2525","n":1,"hint":"color"},{"token":"f4720b8345","base":"#d2d2d5","n":1,"hint":"background"},{"token":"c22384a1e9","base":"rgba(255,255,255,.4)","n":1,"hint":"box-shadow"},{"token":"8065ebf936","base":"rgba(255,255,255,.5)","n":1,"hint":"border"},{"token":"b22d12eab6","base":"#26338b66","n":1,"hint":"box-shadow"},{"token":"a4ac40ff2a","base":"#f3f3ff","n":1,"hint":"background"},{"token":"4c58cd2153","base":"#eee","n":1,"hint":"border-bottom"},{"token":"de9e7fe096","base":"#797d98","n":1,"hint":"color"},{"token":"121d515390","base":"#cacbdd","n":1,"hint":"background"},{"token":"4728102162","base":"#0002","n":1,"hint":"box-shadow"},{"token":"4b7556815c","base":"#fff0f0","n":1,"hint":"background"},{"token":"8d56170bb9","base":"#bc3030","n":1,"hint":"color"},{"token":"50cef29444","base":"#a7a7b0","n":1,"hint":"color"},{"token":"faeffcaa91","base":"#0004","n":1,"hint":"box-shadow"},{"token":"a59544b1e5","base":"rgba(0,0,0,.25)","n":1,"hint":"background"},{"token":"895780ff49","base":"rgba(255,255,255,.12)","n":1,"hint":"background"},{"token":"c10b582fb6","base":"#515cd6","n":1,"hint":"color"},{"token":"632eba4135","base":"#8589e8","n":1,"hint":"background"},{"token":"3cea3f1388","base":"rgba(255,255,255,.38)","n":1,"hint":"border"},{"token":"6c16783964","base":"#62698c","n":1,"hint":"color"},{"token":"fef5ea3937","base":"rgba(255,255,255,.85)","n":1,"hint":"border"},{"token":"f6a74e5907","base":"#747997","n":1,"hint":"color"},{"token":"6a4675133a","base":"#ffffff19","n":1,"hint":"background"},{"token":"80e20b7da7","base":"#555da0","n":1,"hint":"color"},{"token":"cf041084d2","base":"#0001","n":1,"hint":"box-shadow"},{"token":"221abbff6e","base":"#687095","n":1,"hint":"color"},{"token":"cc0732b893","base":"#747ba3","n":1,"hint":"color"},{"token":"033c6bd68c","base":"#5865e9","n":1,"hint":"background"},{"token":"3eb57febfe","base":"#515dca","n":1,"hint":"color"},{"token":"b0c426975e","base":"#50577a","n":1,"hint":"color"},{"token":"937cc9b8c6","base":"#666e93","n":1,"hint":"color"},{"token":"be34582702","base":"#d0d7f5","n":1,"hint":"background"},{"token":"b707711174","base":"#9faaf4","n":1,"hint":"background"},{"token":"3d17502332","base":"#b5c0df","n":1,"hint":"border"},{"token":"b06c544e0e","base":"#6abada","n":1,"hint":"border-color"},{"token":"374c3982fd","base":"#e7be64","n":1,"hint":"border-color"},{"token":"795b5b6cf9","base":"#bc86f2","n":1,"hint":"border-color"},{"token":"683fe10756","base":"#b3e2ed","n":1,"hint":"background"},{"token":"b81a66f4d6","base":"#f1a9ff","n":1,"hint":"background"},{"token":"a7add77f28","base":"#c5fbef","n":1,"hint":"background"},{"token":"860b2d8bdd","base":"#93a3ee","n":1,"hint":"background"},{"token":"5954ad9505","base":"#dfb9eb","n":1,"hint":"background"},{"token":"75c9bdd3de","base":"#d2d5ff","n":1,"hint":"border"},{"token":"dd1bcc6e52","base":"#525ac2","n":1,"hint":"color"},{"token":"4b260f072d","base":"#555db0","n":1,"hint":"color"},{"token":"bcf4fcffdc","base":"#d5d9ef","n":1,"hint":"border"},{"token":"b7249e2880","base":"#505a95","n":1,"hint":"color"},{"token":"62b4444668","base":"#e7e9f7","n":1,"hint":"background"},{"token":"5ab8c155fa","base":"#6c74e7","n":1,"hint":"background"},{"token":"70ede5c5a6","base":"#626b90","n":1,"hint":"color"},{"token":"b0736ae1d8","base":"#ffffff55","n":1,"hint":"border"},{"token":"3830c77ac8","base":"#ffffff26","n":1,"hint":"background"},{"token":"ac75cff02a","base":"#252855","n":1,"hint":"background"},{"token":"5c2186ea1c","base":"#0003","n":1,"hint":"box-shadow"},{"token":"bdaf6fbc0b","base":"#3944ab44","n":1,"hint":"box-shadow"},{"token":"52f53d1dd6","base":"#ffbf47","n":1,"hint":"outline"},{"token":"e28dd287f9","base":"#ffffffeb","n":1,"hint":"background"},{"token":"39d71d6072","base":"#5660cb","n":1,"hint":"color"},{"token":"78a4ed1fdf","base":"#5963d4","n":1,"hint":"color"},{"token":"a11c9138ba","base":"rgba(30,34,95,.10)","n":1,"hint":"box-shadow"},{"token":"44e1954464","base":"#8d94b4","n":1,"hint":"color"},{"token":"b456880bbe","base":"#d6dcff","n":1,"hint":"border"},{"token":"0abbfe2c2f","base":"#545ed3","n":1,"hint":"color"},{"token":"6544bec14a","base":"#fff6d2","n":1,"hint":"background"},{"token":"03115b7935","base":"#f9e2a2","n":1,"hint":"background"},{"token":"b293dc82a4","base":"#e9c668","n":1,"hint":"border-color"},{"token":"8faa5d36e2","base":"#343bac22","n":1,"hint":"box-shadow"},{"token":"a673f7160e","base":"#4655e7","n":1,"hint":"background"},{"token":"99a7bfeea4","base":"rgba(255,255,255,.40)","n":1,"hint":"box-shadow"},{"token":"9fe9192690","base":"#565fed55","n":1,"hint":"box-shadow"},{"token":"b6c48ffa5a","base":"#bac4ff","n":1,"hint":"background"},{"token":"86a8a7f79c","base":"#c5ceff","n":1,"hint":"box-shadow"},{"token":"294a9120bf","base":"#151d7336","n":1,"hint":"box-shadow"},{"token":"ba3430c993","base":"#4857e2","n":1,"hint":"background"},{"token":"aa9580b749","base":"#4055d344","n":1,"hint":"box-shadow"},{"token":"0e74d3ec14","base":"#c83b47","n":1,"hint":"background"},{"token":"88aa58ef6e","base":"#c7cbfd","n":1,"hint":"background"},{"token":"2df7ecc0c4","base":"#ffd15e","n":1,"hint":"outline"},{"token":"f996d6983e","base":"#e6e7fd","n":1,"hint":"background"},{"token":"be77b3b86a","base":"#f9faff","n":1,"hint":"background"},{"token":"1151b7b47b","base":"#ffd15e88","n":1,"hint":"box-shadow"},{"token":"904636f8af","base":"#ffd15e55","n":1,"hint":"box-shadow"},{"token":"94360e1183","base":"#ffd15e00","n":1,"hint":"box-shadow"},{"token":"b929c2fb7c","base":"#6970e0","n":1,"hint":"background"},{"token":"5dfa20b42f","base":"#ffb342","n":1,"hint":"background"},{"token":"edd47759d4","base":"#ffffff72","n":1,"hint":"border"},{"token":"6ebeb54f98","base":"#ffffffec","n":1,"hint":"background"},{"token":"e21c70555c","base":"#5461dd","n":1,"hint":"color"},{"token":"b0628342a9","base":"#4c54bd","n":1,"hint":"color"},{"token":"f2cc8ded10","base":"#858ab9","n":1,"hint":"color"},{"token":"7e12c2b257","base":"#d8dcff","n":1,"hint":"border"},{"token":"42755301eb","base":"#31366d","n":1,"hint":"color"},{"token":"c1950ea42d","base":"#444ab5","n":1,"hint":"color"},{"token":"70d15f282c","base":"#bfc4ea","n":1,"hint":"background"},{"token":"b8aff9e1da","base":"#8185a8","n":1,"hint":"color"},{"token":"96aac2e6e8","base":"#4d65a0","n":1,"hint":"background"},{"token":"9adfffb4a4","base":"#81879f","n":1,"hint":"background"},{"token":"03b3b68698","base":"#4d647e","n":1,"hint":"background"},{"token":"1a3e572c3c","base":"#789cb5","n":1,"hint":"background"},{"token":"990e96b6dd","base":"#bfd4e2","n":1,"hint":"background"},{"token":"580a9a942c","base":"#332b8a","n":1,"hint":"background"},{"token":"69e4962188","base":"#5d6af4","n":1,"hint":"background"},{"token":"ec95820b6f","base":"#a1a7fa","n":1,"hint":"background"},{"token":"f7f843e5ff","base":"#83412a","n":1,"hint":"background"},{"token":"fa71a94667","base":"#d38b26","n":1,"hint":"background"},{"token":"537e1561cc","base":"#ffd56e","n":1,"hint":"background"},{"token":"6eaea37329","base":"#c06fba","n":1,"hint":"background"},{"token":"f9af57a88a","base":"#5d8dd3","n":1,"hint":"background"},{"token":"fbe498d9ec","base":"#6bc8c5","n":1,"hint":"background"},{"token":"3c124be14b","base":"#ffd59b","n":1,"hint":"background"},{"token":"4f66a5c7e2","base":"#0006","n":1,"hint":"text-shadow"},{"token":"556568e35a","base":"rgba(255,255,255,.78)","n":1,"hint":"border"},{"token":"e7ab21a2ce","base":"#434ed1","n":1,"hint":"background"},{"token":"5b78be02a0","base":"#7c85f9","n":1,"hint":"background"},{"token":"c50068dbb5","base":"#e6e6ed","n":1,"hint":"background"},{"token":"975600fd35","base":"#303c6e","n":1,"hint":"color"},{"token":"9b82f543fd","base":"#5661d8","n":1,"hint":"color"},{"token":"3302432436","base":"#ffe5a8","n":1,"hint":"background"},{"token":"17bc179b0d","base":"#684726","n":1,"hint":"color"},{"token":"dc26cbb46b","base":"#ffcf44","n":1,"hint":"color"},{"token":"3505e71d76","base":"#b9c1ff","n":1,"hint":"background"},{"token":"8e1c19491d","base":"#11184245","n":1,"hint":"box-shadow"},{"token":"a0f483af0d","base":"#4054df","n":1,"hint":"--blue-deep"},{"token":"af6b8c75e7","base":"#4d62ed","n":1,"hint":"background"},{"token":"f94dbc5327","base":"#5463ed","n":1,"hint":"background"},{"token":"72d8283e57","base":"#3f57dd","n":1,"hint":"background"},{"token":"ffd0fa8fa1","base":"#ba949e","n":1,"hint":"background"},{"token":"98aae22b34","base":"#f5a95b","n":1,"hint":"background"},{"token":"fb7089d45b","base":"rgba(255,255,255,.95)","n":1,"hint":"background"},{"token":"e3035c7c7d","base":"#dfe3ff","n":1,"hint":"border"},{"token":"16acc87fe4","base":"#515ddd","n":1,"hint":"color"},{"token":"3a92d32c45","base":"#29319f16","n":1,"hint":"box-shadow"},{"token":"9147a358da","base":"#7680ab","n":1,"hint":"color"},{"token":"c758a620e8","base":"#e7eaff","n":1,"hint":"background"},{"token":"648f88de7c","base":"#5865d3","n":1,"hint":"color"},{"token":"0634c16ca5","base":"rgba(255,255,255,.13)","n":1,"hint":"background"},{"token":"cd30a88ccd","base":"#384ddb","n":1,"hint":"accent-color"},{"token":"55ecce452a","base":"#fff7","n":1,"hint":"border"},{"token":"79e0bdc391","base":"rgba(39,51,115,.92)","n":1,"hint":"background"},{"token":"2e80799fc7","base":"rgba(75,94,230,.66)","n":1,"hint":"background"},{"token":"0fe0e3813a","base":"rgba(255,255,255,.92)","n":1,"hint":"border"},{"token":"b95d02d86b","base":"rgba(255,255,255,.55)","n":1,"hint":"box-shadow"},{"token":"aedadbe819","base":"#14162a","n":1,"hint":"background"},{"token":"db4fe25a5a","base":"#24308a","n":1,"hint":"background"},{"token":"e972422d1e","base":"#3249cb","n":1,"hint":"background"},{"token":"29958cdd54","base":"rgba(6,10,46,.25)","n":1,"hint":"box-shadow"},{"token":"3288478783","base":"#cad1ff","n":1,"hint":"background"},{"token":"d9613b9795","base":"#6670aa","n":1,"hint":"color"},{"token":"f84ab992fd","base":"#b7bfef","n":1,"hint":"background"},{"token":"9313786c26","base":"rgba(255,255,255,.2)","n":1,"hint":"background"},{"token":"4cfe6af130","base":"#2637a2","n":1,"hint":"background"},{"token":"9f0974fb48","base":"#6275db","n":1,"hint":"background"},{"token":"8375e15d58","base":"#b7a0f0","n":1,"hint":"background"},{"token":"9742645ed8","base":"rgba(26,38,135,.18)","n":1,"hint":"box-shadow"},{"token":"a449f32014","base":"#5360d5","n":1,"hint":"color"},{"token":"016e22dc92","base":"#7880b1","n":1,"hint":"color"},{"token":"841d6aea7e","base":"#4b55bc","n":1,"hint":"color"},{"token":"f0210e4f67","base":"#dce2ff","n":1,"hint":"background"},{"token":"7ac80f83fb","base":"#dde3ff","n":1,"hint":"border-top"},{"token":"9f5d9faae4","base":"#6671aa","n":1,"hint":"color"},{"token":"1ffaecb496","base":"rgba(75,94,230,.92)","n":1,"hint":"background"},{"token":"973df9b160","base":"rgba(26,37,126,.22)","n":1,"hint":"box-shadow"},{"token":"e5a3c225fc","base":"#e4e7fa","n":1,"hint":"border"},{"token":"f3d9149696","base":"#e8ebff","n":1,"hint":"background"},{"token":"2305ce4101","base":"#6c75a2","n":1,"hint":"color"},{"token":"fc4f746bc0","base":"#12175b55","n":1,"hint":"box-shadow"},{"token":"973736f8bf","base":"#343b9c","n":1,"hint":"color"},{"token":"14350a5755","base":"#5662d9","n":1,"hint":"color"},{"token":"bd49d64eee","base":"#101947","n":1,"hint":"background"},{"token":"568f66d5f4","base":"#202d77","n":1,"hint":"background"},{"token":"56d52c9dd0","base":"#17235e","n":1,"hint":"background"},{"token":"4abaf74dba","base":"#ecf1ff","n":1,"hint":"color"},{"token":"b568355330","base":"#ffd071","n":1,"hint":"color"},{"token":"3aa3f038b1","base":"#283759","n":1,"hint":"background"},{"token":"a4128eb5a1","base":"#526290","n":1,"hint":"border-color"},{"token":"caaa7bfecd","base":"#394da1","n":1,"hint":"background"},{"token":"35cfafda95","base":"#8491ef","n":1,"hint":"border-color"},{"token":"5b05607976","base":"#435277","n":1,"hint":"background"},{"token":"dd7b847325","base":"#3e4d78","n":1,"hint":"border-color"},{"token":"e6b756ebf0","base":"#d3d8f7","n":1,"hint":"border"},{"token":"e288e76ed1","base":"#eff1ff","n":1,"hint":"background"},{"token":"5cf325e6f5","base":"#515bd3","n":1,"hint":"color"},{"token":"7e7312b109","base":"#273766","n":1,"hint":"background"},{"token":"05986d8183","base":"#151b5130","n":1,"hint":"box-shadow"},{"token":"84f51f81e6","base":"#dfe3f5","n":1,"hint":"border-bottom"},{"token":"ad880d9902","base":"#3846ac","n":1,"hint":"color"},{"token":"b90c042332","base":"#2c337b","n":1,"hint":"color"},{"token":"ced300770f","base":"rgba(36,46,124,.10)","n":1,"hint":"box-shadow"},{"token":"58d9f1fdc4","base":"#777f9c","n":1,"hint":"color"},{"token":"5dd3ed3ff8","base":"#202d60","n":1,"hint":"background"},{"token":"6643af9cc1","base":"#bac6f2","n":1,"hint":"color"},{"token":"d34fdf1b63","base":"#4457ca","n":1,"hint":"color"},{"token":"70c7305ded","base":"#505ac1","n":1,"hint":"color"},{"token":"dc935e65f6","base":"#202c78","n":1,"hint":"color"},{"token":"86128f901c","base":"#273c9e","n":1,"hint":"background"},{"token":"c8b604ceac","base":"#334dcb","n":1,"hint":"background"},{"token":"287b128254","base":"#182d82","n":1,"hint":"background"},{"token":"830d8c2086","base":"#6675fa","n":1,"hint":"background"},{"token":"4263e187ae","base":"#ffffff13","n":1,"hint":"background"},{"token":"e03b709079","base":"#5468ee","n":1,"hint":"background"},{"token":"f65be69864","base":"#606df5","n":1,"hint":"background"},{"token":"03dfb02061","base":"#737d9e","n":1,"hint":"color"},{"token":"7284b0738e","base":"#223586","n":1,"hint":"color"},{"token":"25303f2d57","base":"#ffffff23","n":1,"hint":"background"},{"token":"43f6873321","base":"#ffd45c","n":1,"hint":"color"},{"token":"6ae9940da3","base":"#ffffff20","n":1,"hint":"background"},{"token":"2d6efc8786","base":"#a8b9ea","n":1,"hint":"background"},{"token":"bb2c5036d4","base":"#188756","n":1,"hint":"color"},{"token":"f62f64cb0b","base":"#7180a7","n":1,"hint":"color"},{"token":"b62d0c67c4","base":"rgba(36,46,124,.09)","n":1,"hint":"box-shadow"},{"token":"f89a9baf59","base":"#6e7ca1","n":1,"hint":"color"},{"token":"9796321be8","base":"#f1f2ff","n":1,"hint":"background"},{"token":"b7e287ddd0","base":"#33449a","n":1,"hint":"color"},{"token":"38fed9f5f5","base":"#6682f5","n":1,"hint":"background"},{"token":"922ef7eb8d","base":"#69769e","n":1,"hint":"color"},{"token":"a8824ca52e","base":"#263785","n":1,"hint":"color"},{"token":"0d77876732","base":"#59679f","n":1,"hint":"color"},{"token":"3eb20bf3e0","base":"#344596","n":1,"hint":"color"},{"token":"0ab962ec50","base":"#6671a0","n":1,"hint":"color"},{"token":"9a2f2c9101","base":"#ad5858","n":1,"hint":"color"},{"token":"606c366f47","base":"#e8ebfa","n":1,"hint":"background"},{"token":"3398a5d0d3","base":"#a33047","n":1,"hint":"color"},{"token":"b6f87d2b42","base":"#273879","n":1,"hint":"color"},{"token":"c6c2386d16","base":"#536394","n":1,"hint":"color"},{"token":"63a0b81149","base":"#30438e","n":1,"hint":"color"},{"token":"b7440242d4","base":"#cfd6f4","n":1,"hint":"border"},{"token":"abdad8d961","base":"#263fba","n":1,"hint":"color"},{"token":"ca1e5abbde","base":"#aab8ec","n":1,"hint":"border-color"},{"token":"f15420cae4","base":"#d6def7","n":1,"hint":"border"},{"token":"f900ae49c3","base":"#263875","n":1,"hint":"color"},{"token":"8cc446e50b","base":"#283978","n":1,"hint":"color"},{"token":"9c3ceaae24","base":"#354a88","n":1,"hint":"color"},{"token":"98f0af25e3","base":"#253b8e","n":1,"hint":"color"},{"token":"f7c40bee7b","base":"#53648e","n":1,"hint":"color"},{"token":"cf1de05532","base":"#2739800f","n":1,"hint":"box-shadow"},{"token":"9e57afd2d8","base":"#27397a","n":1,"hint":"color"},{"token":"feaa8fcf19","base":"#53638e","n":1,"hint":"color"},{"token":"dbc6938c7d","base":"#53628b","n":1,"hint":"color"},{"token":"ca96bc05cb","base":"#35457e","n":1,"hint":"color"},{"token":"2af3e6f980","base":"#243682","n":1,"hint":"color"},{"token":"8d2a87ac3b","base":"#283b87","n":1,"hint":"color"},{"token":"12c5c3239a","base":"#273a810e","n":1,"hint":"box-shadow"},{"token":"4b952aff21","base":"#e5f8ee","n":1,"hint":"background"},{"token":"81d1f20b64","base":"#18875a","n":1,"hint":"color"},{"token":"ea09cf2d4a","base":"#51628f","n":1,"hint":"color"},{"token":"7a7cd3f4d7","base":"#273983","n":1,"hint":"color"},{"token":"670f1d1bc5","base":"#5f6d94","n":1,"hint":"color"},{"token":"40ccb9a74b","base":"rgba(35,47,105,.90)","n":1,"hint":"background"},{"token":"bca9d0c3da","base":"rgba(147,40,51,.94)","n":1,"hint":"background"},{"token":"d63860d844","base":"#354bc1","n":1,"hint":"color"},{"token":"0f1384040f","base":"#fff9","n":1,"hint":"background"},{"token":"bb1a9fdb39","base":"#b9c6fb","n":1,"hint":"background"},{"token":"e08c322b57","base":"#6679cd","n":1,"hint":"color"},{"token":"c07c4b4832","base":"#ffffff24","n":1,"hint":"background"},{"token":"688e53c5ed","base":"#ffd15c","n":1,"hint":"color"},{"token":"1bc6ccee2e","base":"#495987","n":1,"hint":"color"},{"token":"ac819ed712","base":"#293c88","n":1,"hint":"color"},{"token":"8bd8ec52ab","base":"#475987","n":1,"hint":"color"},{"token":"5da7ab2a96","base":"#3148ab","n":1,"hint":"color"},{"token":"c9f818582c","base":"#273d80","n":1,"hint":"color"},{"token":"d3bd88caf7","base":"#273b87","n":1,"hint":"color"},{"token":"f2f4e05c77","base":"#263c88","n":1,"hint":"color"},{"token":"54286988aa","base":"#293d89","n":1,"hint":"color"},{"token":"248f244e66","base":"#e4e9ff","n":1,"hint":"background"},{"token":"ebea1acb7f","base":"#2a3c83","n":1,"hint":"color"},{"token":"c98fff78e9","base":"#e3e8ff","n":1,"hint":"background"},{"token":"206e84895a","base":"#2e48ad","n":1,"hint":"color"},{"token":"4e0709026a","base":"#273c8a","n":1,"hint":"color"},{"token":"2c05d97d29","base":"#536490","n":1,"hint":"color"},{"token":"11a11f6ae6","base":"#384ca3","n":1,"hint":"color"},{"token":"afeeded036","base":"#31458c","n":1,"hint":"color"},{"token":"4aa4396779","base":"#2d408b","n":1,"hint":"color"},{"token":"3061f07526","base":"#e9ecfa","n":1,"hint":"background"},{"token":"f7b18b676c","base":"#7d85ac","n":1,"hint":"color"},{"token":"7a02367d58","base":"#171c5b3d","n":1,"hint":"box-shadow"},{"token":"575c017390","base":"#25377d","n":1,"hint":"color"},{"token":"4c46f165b6","base":"#283c84","n":1,"hint":"color"},{"token":"05e0ded89a","base":"#f3f5ff","n":1,"hint":"background"},{"token":"aaa5597f27","base":"#cbd3f4","n":1,"hint":"border-color"},{"token":"8e045efff0","base":"#2a3e87","n":1,"hint":"color"},{"token":"bfa8fb90b3","base":"rgba(12,17,48,.94)","n":1,"hint":"background"},{"token":"e93521f0eb","base":"#29336d","n":1,"hint":"color"},{"token":"a842da4c92","base":"#2a366f","n":1,"hint":"color"},{"token":"cef01d0c2d","base":"#222d8013","n":1,"hint":"box-shadow"},{"token":"23c57fb107","base":"#4c57ca","n":1,"hint":"color"},{"token":"cefecf62dd","base":"#697699","n":1,"hint":"color"},{"token":"c80d48ffc2","base":"#303a70","n":1,"hint":"color"},{"token":"00900db787","base":"#596477","n":1,"hint":"color"},{"token":"5b2d97aa3d","base":"#2878cb","n":1,"hint":"color"},{"token":"aa0e9f0251","base":"#ba7915","n":1,"hint":"color"},{"token":"3d6272e2bc","base":"#9138bb","n":1,"hint":"color"},{"token":"968e579ae9","base":"#4b4cbb","n":1,"hint":"color"},{"token":"a6bc2acc80","base":"#e1e5ff","n":1,"hint":"border"},{"token":"dbca0415d4","base":"#12237e33","n":1,"hint":"box-shadow"},{"token":"ce63a71946","base":"#d8deff","n":1,"hint":"border"},{"token":"89b20e9396","base":"#f1f3ff","n":1,"hint":"background"},{"token":"85f98266ec","base":"#5965df","n":1,"hint":"color"},{"token":"77a029edd2","base":"#c83d72","n":1,"hint":"color"},{"token":"639de18cd3","base":"#fff1f5","n":1,"hint":"background"},{"token":"814542ab8c","base":"#ffd2df","n":1,"hint":"border-color"},{"token":"095efb9243","base":"#4a5988","n":1,"hint":"color"},{"token":"5f2a1ebc33","base":"#354e9a","n":1,"hint":"color"},{"token":"80db9d58f3","base":"#364a70","n":1,"hint":"border-color"},{"token":"b3cef24238","base":"#bdcbed","n":1,"hint":"color"},{"token":"4e5f668a24","base":"#b5c2df","n":1,"hint":"color"},{"token":"326128bd91","base":"#304267","n":1,"hint":"background"},{"token":"26c6476ed9","base":"#f0f4ff","n":1,"hint":"color"},{"token":"1b5e7f0b2c","base":"#522d4a","n":1,"hint":"background"},{"token":"66513e4c3f","base":"#ffbed7","n":1,"hint":"color"},{"token":"2dceea1e62","base":"#8f5277","n":1,"hint":"border-color"},{"token":"b441f522d7","base":"#243552","n":1,"hint":"background"},{"token":"0c20303408","base":"#7185b0","n":1,"hint":"border-color"},{"token":"b42b059f8f","base":"#253758","n":1,"hint":"background"},{"token":"55b03262e1","base":"#4a5f87","n":1,"hint":"border-color"},{"token":"086cb1a543","base":"#2b3b60","n":1,"hint":"background"},{"token":"d983230182","base":"#eff3ff","n":1,"hint":"color"},{"token":"7ca0255a80","base":"#4c608d","n":1,"hint":"border-color"},{"token":"8d2f755f16","base":"#405376","n":1,"hint":"border-color"},{"token":"12845f8301","base":"#263959","n":1,"hint":"background-color"},{"token":"adb34d9836","base":"#473049","n":1,"hint":"background"},{"token":"709ba61073","base":"rgba(12,25,105,.25)","n":1,"hint":"box-shadow"},{"token":"ded0738e78","base":"#213250","n":1,"hint":"background"},{"token":"dc73c0fdb9","base":"#4c628a","n":1,"hint":"border"},{"token":"64439dfcfe","base":"#344a70","n":1,"hint":"background"},{"token":"17763908ee","base":"#087346","n":1,"hint":"color"},{"token":"ec95189119","base":"#b2ebcd","n":1,"hint":"border-color"},{"token":"a273f223c2","base":"#e9eaff","n":1,"hint":"background"},{"token":"eb05ddf894","base":"#253657","n":1,"hint":"background"},{"token":"ea40029963","base":"#1c2949","n":1,"hint":"background"},{"token":"c74abf3d3b","base":"#25357fbc","n":1,"hint":"background"},{"token":"232712ebac","base":"#132b6a30","n":1,"hint":"box-shadow"},{"token":"de5668d04a","base":"#364872ed","n":1,"hint":"background"},{"token":"6b8dc622ac","base":"#39487c","n":1,"hint":"background"},{"token":"0d41cad3d5","base":"rgba(255,255,255,.18)","n":1,"hint":"border"},{"token":"09884d7f39","base":"rgba(0,0,0,.18)","n":1,"hint":"box-shadow"},{"token":"26dfb364e5","base":"#7f8fff","n":1,"hint":"outline"},{"token":"a5b8c4d503","base":"rgba(35,53,127,.28)","n":1,"hint":"background"},{"token":"229a6a07ef","base":"rgba(255,255,255,.65)","n":1,"hint":"color"},{"token":"977d43d0c0","base":"rgba(54,72,114,.28)","n":1,"hint":"background"},{"token":"73a06625e6","base":"rgba(255,255,255,.7)","n":1,"hint":"color"},{"token":"9d3df43756","base":"#5360dd","n":1,"hint":"background"},{"token":"86dbf1c9a5","base":"rgba(13,23,67,.38)","n":1,"hint":"box-shadow"},{"token":"7b0a1fae0f","base":"#8a9cff","n":1,"hint":"outline"},{"token":"f4e112379e","base":"#526284","n":1,"hint":"border-color"},{"token":"05e687f9b0","base":"#334973","n":1,"hint":"background"},{"token":"bfad7b8dd9","base":"rgba(20,28,68,.22)","n":1,"hint":"box-shadow"},{"token":"9c9bae420e","base":"rgba(109,126,212,.18)","n":1,"hint":"border"},{"token":"206d3eb248","base":"#1a2747","n":1,"hint":"background"},{"token":"70cab9868d","base":"rgba(0,0,0,.45)","n":1,"hint":"box-shadow"},{"token":"86401c8778","base":"rgba(86,102,155,.45)","n":1,"hint":"border"},{"token":"9cff077899","base":"rgba(88,101,242,.14)","n":1,"hint":"background"},{"token":"c659d630ce","base":"#ffffff","n":1,"hint":"background"},{"token":"aaaf0d36b0","base":"#f1c54d","n":1,"hint":"outline"},{"token":"6381b4c545","base":"#ecf0ff","n":1,"hint":"background"},{"token":"78f6f7f59d","base":"#304467","n":1,"hint":"background"},{"token":"f08fe6677e","base":"#ffce62","n":1,"hint":"outline"},{"token":"0046a36be7","base":"#737e9d","n":1,"hint":"color"},{"token":"c6d892e393","base":"#bdc8e2","n":1,"hint":"color"},{"token":"31c29a3662","base":"#273760","n":1,"hint":"color"},{"token":"1ab7d96131","base":"#f4cb54","n":1,"hint":"outline"},{"token":"6e67264c63","base":"rgba(202,65,86,.45)","n":1,"hint":"border"},{"token":"90bea3ed82","base":"rgba(95,112,202,.09)","n":1,"hint":"background"},{"token":"4fef8ee70f","base":"rgba(8,15,40,.25)","n":1,"hint":"background"},{"token":"d38d946fcd","base":"#f5f6ff","n":1,"hint":"color"},{"token":"46a3673c45","base":"#34448a","n":1,"hint":"color"},{"token":"7592b04dd8","base":"#ffffffa8","n":1,"hint":"background"},{"token":"828e3b3514","base":"#30466c","n":1,"hint":"background"},{"token":"5f61e5b419","base":"#2d408e","n":1,"hint":"color"},{"token":"f797a56474","base":"#e5eaff","n":1,"hint":"background"},{"token":"93afd61793","base":"#4257a6","n":1,"hint":"color"},{"token":"d4fa801c59","base":"#dce3ff","n":1,"hint":"background"},{"token":"0c523031bd","base":"#5969ee","n":1,"hint":"background"},{"token":"4ad4578758","base":"#34a573","n":1,"hint":"background"},{"token":"58b6a451a0","base":"#e3b245","n":1,"hint":"background"},{"token":"8ddd29dc46","base":"#344773","n":1,"hint":"background"},{"token":"99471bcb1e","base":"#37486e","n":1,"hint":"background"},{"token":"3516dffc4c","base":"#d2daff","n":1,"hint":"--recanto-frame-base"},{"token":"4f92f1241a","base":"#9eabd8","n":1,"hint":"--recanto-frame-base"},{"token":"178bbc72ef","base":"#e2e7ff","n":1,"hint":"--recanto-frame-base"},{"token":"cfa1997f1f","base":"#c9d3eb","n":1,"hint":"--recanto-frame-base"},{"token":"b8d42cf0e9","base":"#7f91ba","n":1,"hint":"--recanto-frame-base"},{"token":"f73f5d4429","base":"#e3e7f0","n":1,"hint":"--recanto-frame-base"},{"token":"aed3867170","base":"#caefff","n":1,"hint":"--recanto-frame-base"},{"token":"d7ef2a4375","base":"#54addf","n":1,"hint":"--recanto-frame-base"},{"token":"dcc142cedd","base":"#a6e1f3","n":1,"hint":"--recanto-frame-base"},{"token":"0e51a5abda","base":"#fff1bc","n":1,"hint":"--recanto-frame-base"},{"token":"04f1147c9b","base":"#c89525","n":1,"hint":"--recanto-frame-base"},{"token":"3382053adb","base":"#f7d66a","n":1,"hint":"--recanto-frame-base"},{"token":"36f6457c67","base":"#bbf7f0","n":1,"hint":"--recanto-frame-base"},{"token":"fc4e1c8b63","base":"#bc8aef","n":1,"hint":"--recanto-frame-base"},{"token":"2293f10237","base":"#f6b0df","n":1,"hint":"--recanto-frame-base"},{"token":"8da61cb383","base":"#94dcff","n":1,"hint":"--recanto-frame-base"},{"token":"6440925842","base":"#202b55","n":1,"hint":"background"},{"token":"5ff983b58a","base":"rgba(98,114,203,.18)","n":1,"hint":"border"},{"token":"d9a3b7296f","base":"rgba(88,101,242,.04)","n":1,"hint":"background"},{"token":"eb4dad08dd","base":"rgba(92,109,175,.2)","n":1,"hint":"border"},{"token":"6a726db97f","base":"#f2f4ff","n":1,"hint":"background"},{"token":"299ad8faf4","base":"#e7ebff","n":1,"hint":"background"},{"token":"723bb507e0","base":"#50639b","n":1,"hint":"color"},{"token":"dd6c2283bf","base":"#253656","n":1,"hint":"background"},{"token":"eae7de4ea1","base":"#1b2947","n":1,"hint":"background"},{"token":"3e878754d2","base":"#d4dfff","n":1,"hint":"color"},{"token":"cf280f2bea","base":"rgba(25,40,80,.25)","n":1,"hint":"background"},{"token":"0ff29f19c1","base":"rgba(10,20,40,.65)","n":1,"hint":"text-shadow"},{"token":"e50f5a598d","base":"rgba(120,130,180,.10)","n":1,"hint":"background"},{"token":"e74bf0e38c","base":"rgba(120,130,180,.18)","n":1,"hint":"border"},{"token":"b1fe89c86f","base":"#2c3b7c","n":1,"hint":"color"},{"token":"352c7c9428","base":"rgba(30,49,114,.08)","n":1,"hint":"box-shadow"},{"token":"38e29e74e8","base":"#e2f6ee","n":1,"hint":"background"},{"token":"fefe085265","base":"#15764c","n":1,"hint":"color"},{"token":"693c73b4a1","base":"#eaeaf0","n":1,"hint":"background"},{"token":"37e38ceb6a","base":"#5d6479","n":1,"hint":"color"},{"token":"e3206923ba","base":"#dfe7ff","n":1,"hint":"background"},{"token":"a0412124ea","base":"#707ca8","n":1,"hint":"color"},{"token":"3752247c7f","base":"#4657a0","n":1,"hint":"color"},{"token":"55aeb70555","base":"#657399","n":1,"hint":"color"},{"token":"b528ef701d","base":"#637092","n":1,"hint":"color"},{"token":"1742ee7a49","base":"#475f91","n":1,"hint":"border-left-color"},{"token":"89d2fa7843","base":"#24365d","n":1,"hint":"background"},{"token":"0c82db72bf","base":"#dae2ff","n":1,"hint":"color"},{"token":"1ced800f10","base":"#b6c2e1","n":1,"hint":"color"},{"token":"f447026eea","base":"#235044","n":1,"hint":"background"},{"token":"fb44ea17fc","base":"#aaf0d3","n":1,"hint":"color"},{"token":"6d865658bc","base":"#39445f","n":1,"hint":"background"},{"token":"72f856ef70","base":"#c7d1e4","n":1,"hint":"color"},{"token":"a4899cc906","base":"#293b60","n":1,"hint":"background"},{"token":"1a31bb32f7","base":"#f4f7ff","n":1,"hint":"color"},{"token":"66a8dc7a4e","base":"#526791","n":1,"hint":"border-color"},{"token":"04242e0478","base":"#2f438f","n":1,"hint":"color"},{"token":"c9f6949846","base":"#6476b0","n":1,"hint":"color"},{"token":"e456b7cea2","base":"#5d65e01c","n":1,"hint":"box-shadow"},{"token":"513a3773ca","base":"#293a81","n":1,"hint":"color"},{"token":"b519543836","base":"#1d294a","n":1,"hint":"background"},{"token":"d4086e2d30","base":"#c6d0ff","n":1,"hint":"color"},{"token":"314bc379e0","base":"#3e4d80","n":1,"hint":"background"},{"token":"5413568681","base":"rgba(128,138,190,.2)","n":1,"hint":"border-bottom"},{"token":"3b58572b32","base":"#2b397c","n":1,"hint":"color"},{"token":"fde65f36d7","base":"#16865b","n":1,"hint":"color"},{"token":"41114b4418","base":"#293a80","n":1,"hint":"color"},{"token":"cce993a2c7","base":"#263f9b","n":1,"hint":"color"},{"token":"542fb08bbe","base":"#efbf28","n":1,"hint":"color"},{"token":"c68ba2fd0c","base":"#283b83","n":1,"hint":"color"},{"token":"4a27de2f9a","base":"#2128791a","n":1,"hint":"box-shadow"},{"token":"a13f57a7ec","base":"#d9def5","n":1,"hint":"border"},{"token":"44ad7e74c9","base":"rgba(104,118,225,.06)","n":1,"hint":"background"},{"token":"a58e914dda","base":"#5b6191","n":1,"hint":"color"},{"token":"6507b83c3c","base":"rgba(104,118,225,.12)","n":1,"hint":"background"},{"token":"63149613af","base":"rgba(207,215,255,.22)","n":1,"hint":"border-color"},{"token":"f4e18cb867","base":"#3949ad","n":1,"hint":"background"},{"token":"a1a1390a8e","base":"#686de0","n":1,"hint":"background"},{"token":"903d96e0df","base":"#333d7c","n":1,"hint":"background"},{"token":"7a7191944a","base":"#5058a5","n":1,"hint":"background"},{"token":"9843492c80","base":"#386f53","n":1,"hint":"color"},{"token":"bdc0879dc1","base":"#abebc9","n":1,"hint":"color"},{"token":"820c838b9e","base":"#c24848","n":1,"hint":"color"},{"token":"41f33ecf68","base":"rgba(100,111,175,.2)","n":1,"hint":"border"},{"token":"556c9114ff","base":"rgba(115,128,217,.06)","n":1,"hint":"background"},{"token":"ce7c1a9ea3","base":"rgba(115,128,217,.13)","n":1,"hint":"background"},{"token":"5d5b0f9d9c","base":"#6978e4","n":1,"hint":"background"},{"token":"f2814760a7","base":"#3541a6","n":1,"hint":"background"},{"token":"8c762bd340","base":"#121846","n":1,"hint":"background"},{"token":"d776d47c09","base":"#a7c0ff","n":1,"hint":"--reward-glow"},{"token":"25af57b2c1","base":"#e8f3ff","n":1,"hint":"--reward-ray"},{"token":"60c40b3a11","base":"#819bff","n":1,"hint":"background"},{"token":"4026dc943e","base":"#4553c9","n":1,"hint":"background"},{"token":"749339a650","base":"#18215b","n":1,"hint":"background"},{"token":"6d27a7a2b7","base":"#acdbff","n":1,"hint":"--reward-background"},{"token":"3770e3f72f","base":"#4c7a9c","n":1,"hint":"--reward-background"},{"token":"69425ffd5b","base":"#1c324e","n":1,"hint":"--reward-background"},{"token":"d3a19fc0c8","base":"#e1f4ff","n":1,"hint":"--reward-glow"},{"token":"f278188a1b","base":"#cceaff","n":1,"hint":"--reward-ray"},{"token":"1cc4d4ea01","base":"#a3b3ff","n":1,"hint":"--reward-background"},{"token":"a5ed142f22","base":"#4a55dc","n":1,"hint":"--reward-background"},{"token":"8bb348fc45","base":"#171d77","n":1,"hint":"--reward-background"},{"token":"b36bbab6bc","base":"#cad2ff","n":1,"hint":"--reward-glow"},{"token":"7083c0ad70","base":"#93b7ff","n":1,"hint":"--reward-ray"},{"token":"cfec05e907","base":"#ffe2a0","n":1,"hint":"--reward-background"},{"token":"93d7e9b7b5","base":"#c58420","n":1,"hint":"--reward-background"},{"token":"a3ce28a60a","base":"#663514","n":1,"hint":"--reward-background"},{"token":"6ec7ea5f85","base":"#ffe7a1","n":1,"hint":"--reward-glow"},{"token":"b4b8115718","base":"#ffe3a0","n":1,"hint":"--reward-ray"},{"token":"137f3139f9","base":"#ffb8ea","n":1,"hint":"--reward-background"},{"token":"a0d7d66b01","base":"#a565df","n":1,"hint":"--reward-background"},{"token":"67abdd9c07","base":"#398ec0","n":1,"hint":"--reward-background"},{"token":"7afcbdf5b4","base":"#183864","n":1,"hint":"--reward-background"},{"token":"23b5c39321","base":"#f1d0ff","n":1,"hint":"--reward-glow"},{"token":"ee58b4a5a0","base":"#adffef","n":1,"hint":"--reward-ray"},{"token":"9bb3efa8de","base":"#fff4b3","n":1,"hint":"color"},{"token":"e7a0f4a721","base":"#10184b99","n":1,"hint":"text-shadow"},{"token":"1c9f262649","base":"#0b11458c","n":1,"hint":"box-shadow"},{"token":"a61ee89bc6","base":"#889cf4","n":1,"hint":"background"},{"token":"766c48c8ce","base":"#4854bd","n":1,"hint":"background"},{"token":"4de31ca413","base":"#1b225f","n":1,"hint":"background"},{"token":"b827243f4b","base":"#dfe8ff","n":1,"hint":"border"},{"token":"d8f57502fa","base":"#fff8cb","n":1,"hint":"color"},{"token":"75abcece62","base":"#5467d4","n":1,"hint":"box-shadow"},{"token":"b481a3918e","base":"#d4e3ff7d","n":1,"hint":"box-shadow"},{"token":"5fe248fd72","base":"#081241ac","n":1,"hint":"box-shadow"},{"token":"75ed981e7f","base":"#b0c6ff45","n":1,"hint":"box-shadow"},{"token":"c7897d16c7","base":"#dbe4ffc0","n":1,"hint":"border"},{"token":"1d64c35bfb","base":"#dbe4ff73","n":1,"hint":"border"},{"token":"7bdc44be1f","base":"#0009","n":1,"hint":"text-shadow"},{"token":"e8fd4c9b40","base":"#8f9caa","n":1,"hint":"border-color"},{"token":"005b736276","base":"#4c87f2","n":1,"hint":"border-color"},{"token":"4188f52898","base":"#e5aa39","n":1,"hint":"border-color"},{"token":"ca11edf875","base":"#ad62e9","n":1,"hint":"border-color"},{"token":"537d11a11e","base":"#77859c","n":1,"hint":"background"},{"token":"3e991071ef","base":"#386cce","n":1,"hint":"background"},{"token":"3b2448a49a","base":"#996219","n":1,"hint":"background"},{"token":"3e829e923c","base":"#6b42e5","n":1,"hint":"background"},{"token":"b2d727a52c","base":"#d35bab","n":1,"hint":"background"},{"token":"24b5aadad6","base":"#3b9ccf","n":1,"hint":"background"},{"token":"afe7c7521b","base":"#dce3f9","n":1,"hint":"border"},{"token":"b3e79695e3","base":"#334b95","n":1,"hint":"color"},{"token":"89f8730450","base":"#fff0d7","n":1,"hint":"background"},{"token":"31fbaefb96","base":"#865219","n":1,"hint":"color"},{"token":"e9c562fb6b","base":"#4e5c91","n":1,"hint":"color"},{"token":"37ac2513c2","base":"#e0e6f7","n":1,"hint":"border"},{"token":"ce32522493","base":"#364780","n":1,"hint":"color"},{"token":"6325356cad","base":"#1f2e50","n":1,"hint":"background"},{"token":"501538be55","base":"#40527a","n":1,"hint":"border-color"},{"token":"00ae3a567f","base":"#c0d0f4","n":1,"hint":"color"},{"token":"c95791526f","base":"#364e85","n":1,"hint":"background"},{"token":"bba0167494","base":"#6b4b2e","n":1,"hint":"background"},{"token":"828afa8863","base":"#ffe4ab","n":1,"hint":"color"},{"token":"8b211a74c3","base":"#2d4067","n":1,"hint":"background"},{"token":"719923c943","base":"#4c6090","n":1,"hint":"border-color"}];
-
-/* Recanto 0.3.10 — Personalização da interface, persistida e autenticada no backend.
- * Nunca traduz dados de negócio na API. Somente o texto de apresentação no DOM.
- */
-"use strict";
-(() => {
-  const $ = id => document.getElementById(id);
-  const palette = window.RecantoPalette || [];
-  const originals = new WeakMap();
-  const attributeOriginals = new WeakMap();
-  const observed = new Map();
-  const nodes = new Set();
-  const attributeNodes = new Set();
-  let entries = [], textMap = new Map(), wildcardEntries = [], colorMap = new Map(), root = null;
-  let editorText = null, editorColor = null, observer = null;
-  let scanning = false, picker = false, ready = false;
-  const attrNames = ['placeholder','title','aria-label','alt'];
-  const device = () => matchMedia('(min-width:768px)').matches ? 'desktop' : 'mobile';
-  const theme = () => document.body.classList.contains('dark-mode') ? 'dark' : 'light';
-  const scope = () => `${theme()}-${device()}`;
-  const debug = error => { console.warn('[Recanto Personalização]', error); };
-
-  async function request(path, data) {
-    const options={credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}};
-    if (data !== undefined) {
-      options.method='POST';options.headers['Content-Type']='application/json';options.body=JSON.stringify(data);
-    }
-    const resp=await fetch(path,options);
-    let result;
-    try {result=await resp.json();}catch {result={detail:'Não foi possível ler a resposta do servidor.'};}
-    if(!resp.ok)throw Error(result.detail||'Erro HTTP '+resp.status);
-    return result;
-  }
-  function translate(source) {
-    if(!source || !source.trim())return source;
-    const m=/^(\s*)([\s\S]*?)(\s*)$/.exec(source);
-    const original=m[2];
-    let replacement=textMap.get(original);
-    if(replacement===undefined) {
-      for(const entry of wildcardEntries){
-        const hit=entry.regex.exec(original);
-        if(hit){
-          replacement=entry.value.replace(/\{\{([1-9][0-9]?)\}\}/g,(_,number)=>hit[Number(number)]??'');
-          break;
-        }
-      }
-    }
-    return replacement===undefined ? source : m[1]+replacement+m[3];
-  }
-  function rebuildTexts(){
-    textMap=new Map(entries.filter(x=>!x.source.includes('*')).map(x=>[x.source,x.value]));
-    wildcardEntries=entries.filter(x=>x.source.includes('*')).map(x=>{
-      const expression='^'+x.source.split('*').map(p=>p.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('([\\s\\S]*?)')+'$';
-      try{return {regex:new RegExp(expression),value:x.value};}catch{return null;}
-    }).filter(Boolean).sort((a,b)=>b.regex.source.length-a.regex.source.length);
-    refreshText();
-  }
-  function excluded(el){
-    return !el || !!el.closest('#adminModal,script,style,svg,template,noscript,[data-rc-editor-ignore]');
-  }
-  function collect(raw){
-    const value=String(raw||'').trim();
-    if(value && value.length<=280 && !/^\d+[,.\d]*$/.test(value)){
-      observed.set(value,(observed.get(value)||0)+1);
-    }
-  }
-  function translateNode(node,force=false){
-    const parent=node?.parentElement;
-    if(excluded(parent))return;
-    const actual=node.nodeValue;
-    let record=originals.get(node);
-    if(!record || (record.output!==actual && !force)){
-      record={source:actual,output:actual};originals.set(node,record);
-      collect(actual);
-    }
-    const translated=translate(record.source);
-    record.output=translated;
-    if(actual!==translated)node.nodeValue=translated;
-    nodes.add(node);
-  }
-  function translateAttributes(el,force=false){
-    if(excluded(el))return;
-    let map=attributeOriginals.get(el);
-    if(!map){map={};attributeOriginals.set(el,map);}
-    let used=false;
-    for(const attr of attrNames){
-      if(!el.hasAttribute(attr))continue;
-      const current=el.getAttribute(attr);
-      let record=map[attr];
-      if(!record || (record.output!==current && !force)){
-        record={source:current,output:current};map[attr]=record;collect(current);
-      }
-      const translated=translate(record.source);
-      record.output=translated;
-      if(current!==translated)el.setAttribute(attr,translated);
-      used=true;
-    }
-    if(used)attributeNodes.add(el);
-  }
-  function scan(target){
-    if(!target || !target.isConnected || scanning)return;
-    scanning=true;
-    try{
-      if(target.nodeType===Node.TEXT_NODE){translateNode(target);return;}
-      if(target.nodeType!==Node.ELEMENT_NODE || excluded(target))return;
-      translateAttributes(target);
-      const walker=document.createTreeWalker(target,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT,{
-        acceptNode(n){return n.nodeType===Node.ELEMENT_NODE && excluded(n) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;}
-      });
-      let el;
-      while((el=walker.nextNode())){
-        if(el.nodeType===Node.TEXT_NODE)translateNode(el);
-        else translateAttributes(el);
-      }
-    }finally{scanning=false;}
-  }
-  function refreshText(){
-    for(const node of nodes){if(node.isConnected)translateNode(node,true);else nodes.delete(node);}
-    for(const el of attributeNodes){if(el.isConnected)translateAttributes(el,true);else attributeNodes.delete(el);}
-    if(document.title) document.title=translate('Recanto');
-  }
-  function applyColors(){
-    if(!document.documentElement)return;
-    const chosen=colorMap.get(scope())||{};
-    for(const item of palette){
-      const property='--rc-ui-'+item.token;
-      if(chosen[item.token])document.documentElement.style.setProperty(property,chosen[item.token]);
-      else document.documentElement.style.removeProperty(property);
-    }
-    const meta=document.querySelector('meta[name="theme-color"]');
-    const selected=getComputedStyle(document.documentElement).getPropertyValue('--blue').trim();
-    if(meta && selected && CSS.supports('color',selected))meta.setAttribute('content',selected);
-  }
-  function replaceData(data){
-    entries=Array.isArray(data.texts)?data.texts.filter(x=>typeof x.source==='string'&&typeof x.value==='string'):[];
-    colorMap=new Map();
-    for(const c of data.colors||[]){
-      if(!colorMap.has(c.scope))colorMap.set(c.scope,{});
-      colorMap.get(c.scope)[c.token]=c.value;
-    }
-    rebuildTexts();applyColors();
-    editorText?.refresh?.();editorColor?.refresh?.();
-  }
-  async function load(){
-    try{replaceData(await request('/api/ui/personalization'));ready=true;}
-    catch(error){debug(error);}
-  }
-  async function save(payload){
-    await request('/api/admin/ui/personalization',payload);
-    await load();
-  }
-  function elem(tag,classname='',txt){
-    const el=document.createElement(tag);if(classname)el.className=classname;
-    if(txt!==undefined)el.textContent=txt;return el;
-  }
-  function btn(label,onClick,cls='soft-action'){
-    const el=elem('button',cls,label);el.type='button';el.addEventListener('click',onClick);return el;
-  }
-  function input(placeholder='',value=''){
-    const el=elem('input','text-input');el.placeholder=placeholder;el.value=value;return el;
-  }
-  function msg(host,message,error=false){host.textContent=message;host.classList.toggle('rc-custom-error',!!error);}
-  function busy(button,job,status){
-    if(button.disabled)return;
-    button.disabled=true;
-    Promise.resolve().then(job).then(()=>msg(status,'✓ Alteração salva no servidor.')).catch(error=>msg(status,'⚠ '+error.message,true)).finally(()=>button.disabled=false);
-  }
-  function getSource(node){
-    if(node.nodeType===Node.TEXT_NODE)return (originals.get(node)?.source||node.nodeValue||'').trim();
-    if(node.nodeType!==Node.ELEMENT_NODE)return '';
-    for(const child of node.childNodes){
-      if(child.nodeType===Node.TEXT_NODE){const original=(originals.get(child)?.source||child.nodeValue||'').trim();if(original)return original;}
-    }
-    return '';
-  }
-  function beginPick(callback,kind='text'){
-    if(picker)return;
-    picker=true;
-    const modal=$('adminModal');
-    modal.hidden=true;document.body.classList.remove('page-open');
-    const hint=elem('div','rc-pick-banner','Toque no texto que deseja editar · ESC para cancelar');
-    hint.dataset.rcEditorIgnore='true';document.body.append(hint);
-    const finish=value=>{
-      if(!picker)return;
-      picker=false;document.removeEventListener('click',handle,true);
-      document.removeEventListener('keydown',onKey,true);
-      hint.remove();modal.hidden=false;document.body.classList.add('page-open');
-      if(value)callback(value);
-    };
-    function handle(e){
-      e.preventDefault();e.stopImmediatePropagation();
-      if(kind==='element'){finish(e.target);return;}
-      let el=e.target;
-      let original='';
-      for(let i=0;el && i<6;i++,el=el.parentElement){
-        original=getSource(el);
-        if(!original && i===0){const attrs=attributeOriginals.get(el);original=attrs?.['aria-label']?.source||attrs?.placeholder?.source||'';}
-        if(original)break;
-      }
-      finish(original);
-    }
-    function onKey(e){if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();finish(null);}}
-    document.addEventListener('click',handle,true);
-    document.addEventListener('keydown',onKey,true);
-  }
-  function makeTextEditor(){
-    const section=elem('section','game-box rc-customizer');
-    section.append(elem('h3','', '✍️ Editor de Textos'));
-    section.append(elem('p','','Edite ou oculte qualquer frase da interface. Textos vazios desaparecem visualmente sem desativar botões. Frases com * aceitam valores dinâmicos; use {{1}} para repetir o primeiro trecho variável. Os dados de cards, Pets e usuários permanecem intactos no servidor.'));
-    const controls=elem('div','rc-custom-tools');const query=input('Buscar texto, botão, título ou aviso...');const pick=btn('Selecionar na tela',()=>beginPick(value=>{source.value=value;target.value=entries.find(x=>x.source===value)?.value??value;section.scrollIntoView({block:'start'});source.focus();}));
-    const showChoice=elem('select','select-input');[['todos','Todos os textos'],['alterados','Somente alterados'],['vistos','Detectados na interface']].forEach(([v,t])=>{let o=elem('option','',t);o.value=v;showChoice.append(o);});
-    controls.append(query,showChoice,pick);section.append(controls);
-    const selector=elem('div','rc-custom-entry');
-    const source=elem('textarea','text-input');source.rows=2;source.placeholder='Texto original exato (ou use * para partes variáveis)';
-    const target=elem('textarea','text-input');target.rows=2;target.placeholder='Novo texto — deixe vazio para ocultar';
-    const sourceLabel=elem('label','','Texto original');const targetLabel=elem('label','','Novo texto (pode ficar vazio)');
-    const actions=elem('div','rc-custom-actions'),status=elem('p','rc-custom-status');
-    const saveBtn=btn('Salvar texto',()=>busy(saveBtn,async()=>{
-      const orig=source.value.trim();if(!orig)throw Error('Escolha ou informe a frase original.');
-      await save({kind:'text',source:orig,value:target.value});render();
-    },status),'main-action');
-    const clearBtn=btn('Remover texto da interface',()=>{target.value='';saveBtn.click();});
-    const restore=btn('Restaurar texto original',()=>busy(restore,async()=>{
-      if(!source.value.trim())throw Error('Escolha uma frase.');
-      await save({kind:'text',action:'delete',source:source.value.trim()});target.value=source.value;render();
-    },status));
-    actions.append(saveBtn,clearBtn,restore);
-    selector.append(sourceLabel,source,targetLabel,target,actions,status);section.append(selector);
-    const count=elem('p','rc-custom-count');section.append(count);
-    const list=elem('div','rc-custom-list');section.append(list);
-    const pages=elem('div','rc-custom-actions');section.append(pages);
-    const resetTexts=btn('Restaurar todos os textos',async()=>{
-      if(!confirm('Restaurar TODOS os textos para os originais?'))return;
-      try{await save({kind:'text',action:'reset'});source.value='';target.value='';render();msg(status,'✓ Todos os textos restaurados.');}catch(e){msg(status,'⚠ '+e.message,true);}
-    });section.append(resetTexts);
-    let page=0;
-    function choose(value){source.value=value;target.value=entries.find(x=>x.source===value)?.value??value;selector.scrollIntoView({block:'nearest'});}
-    function render(){
-      const lookup=query.value.toLocaleLowerCase('pt-BR');
-      const saved=new Map(entries.map(row=>[row.source,row]));
-      const keys=new Set([...observed.keys(),...saved.keys()]);
-      let rows=[...keys].filter(v=>v.length<=280&&!/^[-+\d,.\s]+$/.test(v));
-      rows=rows.filter(v=>(showChoice.value!=='alterados'||saved.has(v))&&(showChoice.value!=='vistos'||observed.has(v)));
-      rows=rows.filter(v=>v.toLocaleLowerCase('pt-BR').includes(lookup)||(saved.get(v)?.value||'').toLocaleLowerCase('pt-BR').includes(lookup));
-      rows.sort((a,b)=>Number(saved.has(b))-Number(saved.has(a)) || a.localeCompare(b,'pt-BR'));
-      const size=25;const total=Math.max(1,Math.ceil(rows.length/size));page=Math.min(page,total-1);
-      count.textContent=`${rows.length} textos encontrados · ${entries.length} personalizados · página ${page+1}/${total}`;
-      list.replaceChildren();
-      for(const v of rows.slice(page*size,(page+1)*size)){
-        const row=btn('',()=>choose(v),'rc-text-item');const savedEntry=saved.get(v);
-        const name=elem('span','',v);row.append(name);
-        if(savedEntry){row.append(elem('small','',savedEntry.value===''?'Oculto':'→ '+savedEntry.value));row.classList.add('rc-text-changed');}
-        list.append(row);
-      }
-      pages.replaceChildren(btn('Anterior',()=>{page--;render();},'soft-action'),btn('Próxima',()=>{page++;render();},'soft-action'));
-      pages.children[0].disabled=page<=0;pages.children[1].disabled=page>=total-1;
-    }
-    query.addEventListener('input',()=>{page=0;render();});showChoice.addEventListener('change',()=>{page=0;render();});
-    editorText={refresh:render};render();return section;
-  }
-  function hexPreview(base){
-    if(/^#[0-9a-f]{3}$/i.test(base))return '#'+[...base.slice(1)].map(c=>c+c).join('');
-    if(/^#[0-9a-f]{6,8}$/i.test(base))return base.slice(0,7);
-    const m=base.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
-    return m?'#'+m.slice(1,4).map(n=>Math.min(255,Number(n)).toString(16).padStart(2,'0')).join(''):'#5865f2';
-  }
-  function makeColorsEditor(){
-    const section=elem('section','game-box rc-customizer');
-    section.append(elem('h3','','🎨 Editor de Cores'));
-    section.append(elem('p','','Altere cores de fundos, textos, bordas, gradientes, cartões e botões sem mexer no CSS. Cada cor pode ter valores independentes no PC e celular, em tema claro e escuro. As alterações são compartilhadas com todos os usuários.'));
-    const filters=elem('div','rc-custom-tools');
-    const mode=elem('select','select-input');[['light','☀️ Claro'],['dark','🌙 Escuro']].forEach(([v,t])=>{const o=elem('option','',t);o.value=v;mode.append(o);});
-    const screen=elem('select','select-input');[['mobile','📱 Celular (< 768px)'],['desktop','🖥️ PC (≥ 768px)']].forEach(([v,t])=>{const o=elem('option','',t);o.value=v;screen.append(o);});
-    mode.value=theme();screen.value=device();
-    const query=input('Buscar cor, código (#...), propriedade CSS...');
-    const justEdited=elem('label','rc-custom-check');const check=elem('input');check.type='checkbox';justEdited.append(check,document.createTextNode(' Apenas alteradas'));
-    const captureProperty=elem('select','select-input');
-    [['backgroundColor','Fundo'],['color','Texto'],['borderTopColor','Borda']].forEach(([key,label])=>{
-      const option=elem('option','',label);option.value=key;captureProperty.append(option);
-    });
-    const capture=btn('Selecionar cor na tela',()=>beginPick(element=>{
-      const computed=getComputedStyle(element);
-      let chosen=computed[captureProperty.value];
-      if(captureProperty.value==='backgroundColor' && (!chosen || chosen==='rgba(0, 0, 0, 0)')){
-        const ancestor=element.parentElement;
-        if(ancestor)chosen=getComputedStyle(ancestor).backgroundColor;
-      }
-      const original=hexPreview(chosen||'');
-      const found=palette.find(item=>hexPreview(item.base).toLowerCase()===original.toLowerCase());
-      check.checked=false;query.value=found?.base||original;page=0;render();
-      section.scrollIntoView({block:'start'});
-      msg(status,found?'Cor localizada: '+original+'. Edite uma das correspondências.':'A cor '+original+' não foi localizada entre os tons originais; pesquise outro elemento ou código.');
-    },'element'));
-    filters.append(mode,screen,query,justEdited,captureProperty,capture);section.append(filters);
-    const note=elem('p','rc-custom-muted','Dica: cores alteradas para outro dispositivo ou tema serão aplicadas automaticamente quando aquele modo estiver ativo.');section.append(note);
-    const counter=elem('p','rc-custom-count');section.append(counter);
-    const list=elem('div','rc-palette-list');section.append(list);
-    const controls=elem('div','rc-custom-actions');section.append(controls);
-    const status=elem('p','rc-custom-status');section.append(status);
-    const resetAll=btn('Restaurar todas as cores personalizadas',async()=>{
-      if(!confirm('Restaurar TODAS as cores dos quatro modos?'))return;
-      try{await save({kind:'color',action:'reset'});render();msg(status,'✓ Cores restauradas.');}catch(e){msg(status,'⚠ '+e.message,true);}
-    });section.append(resetAll);
-    let page=0;
-    const currentScope=()=>mode.value+'-'+screen.value;
-    function render(){
-      const selected=colorMap.get(currentScope())||{};
-      const term=query.value.trim().toLowerCase();
-      const filtered=palette.filter(p=> (!check.checked||selected[p.token]) && (!term || `${p.base} ${p.hint} ${p.token}`.toLowerCase().includes(term)));
-      filtered.sort((a,b)=>Number(!!selected[b.token])-Number(!!selected[a.token])||b.n-a.n);
-      const size=16;const total=Math.max(1,Math.ceil(filtered.length/size));page=Math.min(page,total-1);
-      counter.textContent=`${filtered.length} cores disponíveis · ${Object.keys(selected).length} alteradas neste modo · página ${page+1}/${total}`;
-      list.replaceChildren();
-      for(const entry of filtered.slice(page*size,(page+1)*size)){
-        const box=elem('div','rc-color-row');
-        const old=elem('span','rc-color-preview');old.style.background=entry.base;
-        const info=elem('div','rc-color-info');info.append(elem('strong','',entry.base),elem('small','',`${entry.hint} · ${entry.n} uso(s) no estilo`));
-        const color=elem('input','rc-color-picker');color.type='color';color.value=hexPreview(selected[entry.token]||entry.base);color.title='Escolher cor';
-        const value=input('#RRGGBB ou #RRGGBBAA',selected[entry.token]||'');value.classList.add('rc-color-value');
-        color.oninput=()=>{value.value=color.value;value.style.borderColor=color.value;};
-        const saveButton=btn('Salvar',()=>busy(saveButton,async()=>{
-          let v=value.value.trim();if(/^#[a-f0-9]{3}$/i.test(v))v=hexPreview(v);
-          await save({kind:'color',scope:currentScope(),token:entry.token,value:v});render();
-        },status),'soft-action');
-        const restore=btn('↺',()=>busy(restore,async()=>{
-          await save({kind:'color',action:'delete',scope:currentScope(),token:entry.token});render();
-        },status),'soft-action');restore.title='Restaurar cor original';
-        if(selected[entry.token])box.classList.add('rc-color-modified');
-        box.append(old,info,color,value,saveButton,restore);list.append(box);
-      }
-      controls.replaceChildren(btn('Anterior',()=>{page--;render();}),btn('Próxima',()=>{page++;render();}));
-      controls.children[0].disabled=page<=0;controls.children[1].disabled=page>=total-1;
-    }
-    for(const el of [mode,screen,check])el.addEventListener('change',()=>{page=0;render();});
-    query.addEventListener('input',()=>{page=0;render();});
-    editorColor={refresh:render};render();return section;
-  }
-  function mount(pane){
-    editorText=null;editorColor=null;
-    const texts=makeTextEditor(),colors=makeColorsEditor();pane.append(texts,colors);
-  }
-  function init(){
-    if(root)return;
-    root=document.body;
-    scan(root);
-    observer=new MutationObserver(changes=>{
-      for(const change of changes){
-        if(change.type==='characterData')translateNode(change.target);
-        else if(change.type==='attributes')translateAttributes(change.target);
-        else for(const child of change.addedNodes)scan(child);
-      }
-    });
-    observer.observe(root,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:attrNames});
-    load();
-    window.addEventListener('resize',applyColors);
-    window.setInterval(load,90000);
-  }
-  window.RecantoCustomizer={init,mount,applyColors,reload:load,observed,ready:()=>ready};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});
-  else init();
-})();
-
 "use strict";
 (() => {
   const $ = id => document.getElementById(id);
@@ -567,7 +204,6 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   function applyTheme(mode){
     state.darkMode=mode==='dark';
     document.body.classList.toggle('dark-mode',state.darkMode);
-    window.RecantoCustomizer?.applyColors();
     const toggle=$('darkModeToggle');
     if(toggle){toggle.classList.toggle('on',state.darkMode);toggle.setAttribute('aria-checked',String(state.darkMode));}
   }
@@ -788,17 +424,26 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   let feedLoading=false;
   function feedImageText(parent, item, kind){
     if(!item)return;
-    const token=h('span','feed-entity '+(kind==='card'?'feed-rarity-'+String(item.rarity||'comum').normalize('NFD').replace(/[\u0300-\u036f]/g,''):'feed-pet-name'),(kind==='pet'?poroSpeciesName(item.name):item.name)||'Item');
+    const rarityClass=kind==='card'?'feed-rarity-'+String(item.rarity||'comum').normalize('NFD').replace(/[\u0300-\u036f]/g,''):kind==='item'?'feed-item-name':'feed-pet-name';
+    const label=(kind==='pet'?poroSpeciesName(item.name):item.name)||'Item';
+    const token=h('span','feed-entity '+rarityClass,label);
     token.tabIndex=0;
-    if(item.image_url){
-      const preview=h('span','feed-preview');const img=h('img');img.src=item.image_url;img.loading='lazy';img.alt=item.name||'Prévia';preview.append(img);token.append(preview);
-      token.addEventListener('click',()=>token.classList.toggle('preview-open'));
+    const togglePreview=()=>token.classList.toggle('preview-open');
+    if(kind==='card'){
+      const preview=h('span','feed-preview feed-preview-card');
+      preview.append(frameCardArt(item,'card-art'));
+      token.append(preview);
+      token.addEventListener('click',togglePreview);
+    }else if(item.image_url){
+      const preview=h('span','feed-preview');
+      const img=h('img');img.src=item.image_url;img.loading='lazy';img.alt=item.name||'Prévia';preview.append(img);token.append(preview);
+      token.addEventListener('click',togglePreview);
     }else if(item.emoji){const preview=h('span','feed-preview feed-emoji',item.emoji);token.append(preview);}
     parent.append(token);
   }
   function feedMessage(row,item){
     const d=item.data||{};const add=text=>row.append(document.createTextNode(text));
-    const card=c=>feedImageText(row,c,'card');const pet=p=>feedImageText(row,p,'pet');
+    const card=c=>feedImageText(row,c,'card');const pet=p=>feedImageText(row,p,'pet');const petItem=i=>feedImageText(row,i,'item');
     if(item.kind==='expedition_start'){add(' enviou ');pet(d.pet);add(' para uma Expedição.');}
     else if(item.kind==='daily_card'){add(' conseguiu ');card(d.card);add(' no Resgate Diário.');}
     else if(item.kind==='pack_card'){add(' conseguiu ');card(d.card);add(' no Pack de '+(Number(d.pack_size)||'?')+' Cards.');}
@@ -807,6 +452,8 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     else if(item.kind==='trade_coins'){add(' trocou ');card(d.card);add(' por '+(Number(d.coins)||0)+' moedas com '+(d.other||'outro membro')+'.');}
     else if(item.kind==='trade_collectibles'){add(' trocou o colecionável '+(d.item_a?.name||'Item')+' por '+(d.item_b?.name||'Item')+' com '+(d.other||'outro membro')+'.');}
     else if(item.kind==='trade_collectible_coins'){add(' negociou o colecionável '+(d.item?.name||'Item')+' por '+money(d.coins)+' moedas com '+(d.other||'outro membro')+'.');}
+    else if(item.kind==='adopt_pet'){add(' adotou ');pet(d.pet);add('.');}
+    else if(item.kind==='gift_pet_item'){add(' presenteou '+(d.to_user||'outro membro')+' com ');petItem(d.item);add(' ×'+(Number(d.quantity)||1)+'.');}
     else if(item.kind==='badge'){add(' conquistou o selo ');if(d.badge?.icon)add(d.badge.icon+' ');feedImageText(row,{name:d.badge?.name,image_url:d.badge?.image_url},'pet');add('!');}
     else if(item.kind==='visitor_pet_care'){
       add(d.action==='feed'?' alimentou ':' acariciou ');pet(d.pet);
@@ -1513,7 +1160,11 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
         pane.append(row);}
       pane.append(button('Ver itens na Loja →',()=>chooseTab('loja','treat3'),'soft-action'));
     }else if(tab==='colecionaveis'){
-      if(!d.collectibles?.length)pane.append(block('Nenhum colecionável','Itens especiais encontrados nas expedições aparecerão aqui.'));
+      const tradeAction=button('🔄 Trocar ou negociar colecionáveis',()=>{state.cardTab='trocas';chooseTab('cards');},'soft-action inventory-empty-action');
+      if(!d.collectibles?.length){
+        pane.append(block('Nenhum colecionável','Itens especiais encontrados nas expedições aparecerão aqui.'),tradeAction);
+        return;
+      }
       const grid=h('div','collectible-grid');
       for(const item of d.collectibles||[]){const tile=h('article','collectible-item');tile.dataset.rarity=item.rarity||'comum';tile.append(mediaCover(item.image_url,item.emoji,item.name,'collectible-art'),h('strong','',item.name),h('span','collectible-rarity',tierLabels[item.rarity]||'Comum'),h('small','',`Quantidade: ${item.quantity}`));
         if(item.description)tile.append(h('p','',item.description));
@@ -1521,7 +1172,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
         controls.append(button('Ver detalhes',()=>showProfileItemDetail(item,'collectible'),'soft-action'));
         controls.append(button('Equipar no Pet',()=>safeRun(()=>API('/api/pets/equip-collectible',{collectible_id:item.id}),'Item equipado no seu Pet!')));
         tile.append(controls);grid.append(tile);}
-      pane.append(grid,button('🔄 Trocar ou negociar colecionáveis',()=>{state.cardTab='trocas';chooseTab('cards');},'soft-action'));
+      pane.append(grid,tradeAction);
     }
   }
   async function giftDialog(item){
@@ -1530,9 +1181,12 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       const wrap=$('profilesPane');$('profilesModal').hidden=false;wrap.replaceChildren(h('h3','','Presentear '+item.name));
       const select=h('select','select-input');choices.forEach(x=>{const opt=h('option','',x.name);opt.value=x.key;select.append(opt);});
       const num=h('input','text-input');num.type='number';num.min='1';num.max=String(item.quantity);num.value='1';
-      wrap.append(h('p','','Escolha quem receberá os petiscos no inventário.'),select,h('p','','Quantidade'),num,
+      const actions=h('div','gift-dialog-actions');
+      actions.append(
         button('Enviar presente',async()=>{const result=await safeRun(()=>API('/api/inventory/gift',{to_user:select.value,sku:item.sku,quantity:Number(num.value)}),'Presente enviado!');if(result){$('profilesModal').hidden=true;await loadInventory();}}),
-        button('Voltar ao inventário',()=>{$('profilesModal').hidden=true;},'soft-action'));
+        button('Voltar ao inventário',()=>{$('profilesModal').hidden=true;},'soft-action')
+      );
+      wrap.append(h('p','','Escolha quem receberá os itens de Pet no inventário.'),select,h('p','','Quantidade'),num,actions);
     }catch(err){toast(err.message);}
   }
   // RECANTO 0.3.7 — verso instantâneo e toque antecipado enfileirado.
@@ -3491,7 +3145,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       }
     }).catch(()=>{});
     updateResetConfirmation();
-    const groups=['Geral','Textos','Cores','Feed','Economia','Eventos','Níveis','Cards','Loja','Pets','Missões','Selos','Assets','Usuários','Integrações'];
+    const groups=['Geral','Feed','Economia','Eventos','Níveis','Cards','Loja','Pets','Missões','Selos','Assets','Usuários','Integrações'];
     const classify=(name)=>{
       const x=name.toLowerCase();
       if(x.includes('limpar feed'))return 'Feed';
@@ -3504,14 +3158,11 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       if(x.includes('cadastrar poro')||x.includes('gerenciar poros')||x.includes('cadastrar pet')||x.includes('gerenciar pets')||x.includes('fundos dos pets')||x.includes('colecionáveis')||x.includes('expedições'))return 'Pets';
       if(x.includes('missões do recanto'))return 'Missões';
       if(x.includes('selo'))return 'Selos';
-      if(x.includes('editor de textos'))return 'Textos';
-      if(x.includes('editor de cores'))return 'Cores';
       if(x.includes('assets'))return 'Assets';
       if(x.includes('administrador')||x.includes('ids autorizados')||x.includes('ajustar moedas')||x.includes('limpar dados dos usuários'))return 'Usuários';
       if(x.includes('integrações'))return 'Integrações';
       return 'Geral';
     };
-    window.RecantoCustomizer?.mount(pane);
     const boxes=[...pane.querySelectorAll(':scope > .game-box')];
     for(const box of boxes)box.dataset.adminGroup=classify(box.querySelector('h3')?.textContent||'');
     const nav=h('div','admin-tabs');
