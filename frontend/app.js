@@ -1313,8 +1313,10 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     return img;
   }
   function renderPokemonTeam(team){
-    const grid=h('div','pokemon-team-grid');
-    if(!team.length){grid.append(h('p','pokemon-team-empty','Nenhum Pokémon favorito definido.'));return grid;}
+    // Mesmo componente de mensagem vazia utilizado por Jogos/Campeões Favoritos.
+    // A grade de seis Pokémon permanece exclusiva dos perfis com seleção.
+    const grid=h('div',team.length?'pokemon-team-grid':'game-icons');
+    if(!team.length){grid.append(h('p','public-empty-description','Nenhum Pokémon favorito definido.'));return grid;}
     for(const pokemon of team.slice(0,6)){
       const item=h('div','pokemon-team-member');
       // A arte é apenas visual: clicar não navega para sites externos.

@@ -4448,3 +4448,41 @@ body.dark-mode .recanto-pokemon-gender.unknown{background:#344560;color:#e0e6ef;
 
 .recanto-pokemon-trade-sprites{display:flex;gap:12px;justify-content:center;}
 .recanto-pokemon-trade-sprites .recanto-pokemon-image{width:70px;height:70px;max-height:70px;object-fit:contain;}
+
+/* Recanto 0.4.3 — Pokémons Favoritos: mensagem vazia usa o mesmo
+   alinhamento, cor e quebra de Jogos/Campeões Favoritos. */
+#profileContent .profile-pokemon-team .game-icons > p,
+#publicProfilePage .public-pokemon-team .game-icons > p {
+  box-sizing:border-box!important;
+  display:block!important;
+  flex:0 0 100%!important;
+  grid-column:1 / -1!important;
+  min-width:0!important;
+  width:100%!important;
+  max-width:100%!important;
+  margin:0 auto!important;
+  padding:6px 8px!important;
+  justify-self:center!important;
+  align-self:center!important;
+  text-align:center!important;
+  font-size:clamp(12px,1vw,15px)!important;
+  line-height:1.5!important;
+  white-space:normal!important;
+  overflow-wrap:normal!important;
+  color:var(--rc-ui-016e22dc92,#7880b1);
+}
+@media (min-width:768px) {
+  #profileContent .profile-pokemon-team .game-icons > p,
+  #publicProfilePage .public-pokemon-team .game-icons > p {
+    white-space:nowrap!important;
+  }
+}
+@media (max-width:767px) {
+  #profileContent .profile-pokemon-team .game-icons > p,
+  #publicProfilePage .public-pokemon-team .game-icons > p {
+    font-size:13px!important;
+    padding:6px 10px!important;
+    white-space:normal!important;
+    overflow-wrap:anywhere!important;
+  }
+}
