@@ -4319,3 +4319,60 @@ body.dark-mode #petPane .recanto-pokemon-expedition-card .recanto-battle-slot.en
 #petPane .recanto-wild-card-large{display:flex;flex-direction:column;gap:14px;}
 #petPane .recanto-wild-card-large .recanto-wild-scene{width:100%;background-size:cover;background-position:center;}
 #petPane .recanto-wild-card-large>h3,#petPane .recanto-wild-card-large>p {margin:2px 0;}
+
+/* Recanto 0.4.0 — cenário de captura: ocupa toda a área disponível */
+#petPane .recanto-pokemon-capture-columns{grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr);align-items:stretch;gap:18px;}
+#petPane .recanto-pokemon-capture-columns>.game-box{min-width:0;max-width:none;}
+#petPane .recanto-wild-card,
+#petPane .recanto-wild-card-large{
+  width:100%!important;max-width:none!important;min-width:0!important;
+  margin:0!important;display:flex;flex-direction:column;gap:0;
+  box-sizing:border-box;
+}
+#petPane .recanto-wild-card-large .recanto-wild-scene{
+  box-sizing:border-box!important;display:flex!important;width:100%!important;
+  max-width:none!important;min-width:0!important;min-height:390px!important;
+  aspect-ratio:auto!important;border-radius:18px;padding:22px;
+  background-position:center!important;background-size:cover!important;
+  background-repeat:no-repeat!important;
+}
+#petPane .recanto-wild-scene .recanto-pokemon-image{
+  width:min(42%,220px);max-width:220px;height:auto;max-height:250px;
+  aspect-ratio:1;object-fit:contain;z-index:2;
+}
+#petPane .recanto-wild-scene-details{
+  width:100%;padding-top:19px;display:flex;align-items:center;
+  flex-direction:column;gap:9px;min-width:0;
+}
+#petPane .recanto-wild-scene-details h3,
+#petPane .recanto-wild-scene-details p{margin:0;line-height:1.5;}
+#petPane .recanto-wild-scene-details .recanto-pokemon-types{margin:0;}
+#petPane .recanto-wild-scene-footer{
+  width:100%;display:flex;flex-direction:column;gap:10px;
+  align-items:stretch;margin-top:16px;
+}
+#petPane .recanto-wild-scene-footer button{width:100%;min-height:43px;}
+#petPane .recanto-wild-scene-footer .recanto-capture-limit{margin:0;text-align:center;}
+#petPane .recanto-wild-custom-background::before{display:none;}
+#petPane .recanto-pokemon-capture-columns .recanto-pokemon-bag{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+.recanto-pokemon-bg-editor{display:grid;gap:12px;padding:16px;border:1px solid #cbd5ee;border-radius:16px;margin-top:18px;}
+.recanto-pokemon-bg-editor>h4,.recanto-pokemon-bg-editor>p{margin:0;}
+.recanto-pokemon-bg-preview{width:100%;aspect-ratio:16/7;min-height:110px;
+  background:#91be87;background-size:cover;background-position:center;
+  border-radius:12px;display:flex;align-items:center;justify-content:center;
+  color:#254829;font-size:12px;text-align:center;padding:12px;box-sizing:border-box;}
+body.dark-mode .recanto-pokemon-bg-editor{border-color:#46577c;}
+@media(max-width:1050px){
+  #petPane .recanto-pokemon-capture-columns{grid-template-columns:1fr!important;}
+  #petPane .recanto-pokemon-capture-columns .recanto-pokemon-bag{grid-template-columns:repeat(3,minmax(0,1fr));}
+}
+@media(max-width:600px){
+  #petPane .recanto-wild-card-large .recanto-wild-scene{
+    width:100%!important;min-height:300px!important;padding:12px;border-radius:15px;
+  }
+  #petPane .recanto-wild-scene .recanto-pokemon-image{width:min(55%,195px);max-height:200px;}
+  #petPane .recanto-pokemon-capture-columns .recanto-pokemon-bag{grid-template-columns:repeat(2,minmax(0,1fr));}
+  #petPane .recanto-wild-scene-details{padding-top:16px;gap:7px;}
+}

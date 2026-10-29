@@ -391,6 +391,9 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     if(url.startsWith('/api/daily/')){invalidateCached(['/api/daily/status','/api/me','/api/inventory','/api/cards'],['cards','inventario','perfil']);return;}
     if(url.startsWith('/api/inventory/packs/')){invalidateCached(['/api/inventory','/api/cards','/api/me'],['inventario','cards','perfil']);return;}
     if(url.startsWith('/api/pets/')){invalidateCached(['/api/pets','/api/inventory','/api/me'],['pet','inventario','perfil']);return;}
+    // Atualizações Pokémon não devem invalidar a página Pets inteira: evita
+    // duas reconstruções consecutivas do menu e do cenário após uma captura.
+    if(url.startsWith('/api/pokemon/adventure/')){invalidateCached(['/api/inventory','/api/me','/api/shop','/api/missions','/api/recanto-extra-missions'],['inventario','loja','missoes','perfil']);return;}
     if(url.startsWith('/api/inventory/gift')){invalidateCached(['/api/inventory','/api/me'],['inventario','perfil']);return;}
     if(url.startsWith('/api/missions/')||url.startsWith('/api/recanto-extra-missions/')){invalidateCached(['/api/missions','/api/me'],['missoes','perfil']);return;}
     if(url.startsWith('/api/feed/')){invalidateCached(['/api/me'],['feed','perfil']);return;}
@@ -425,7 +428,14 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   function prefetchTabs(){
     if(prefetchPromise)return prefetchPromise;
     const urls=['/api/daily/status','/api/shop','/api/inventory','/api/missions','/api/pets'];
-    prefetchPromise=Promise.allSettled(urls.map(url=>API(url)));
+    prefetchPromise=(async()=>{
+      // Duas requisições de cada vez: evita que cinco GETs pesados disputem a
+      // mesma conexão com uma captura ou navegação ativa.
+      for(let i=0;i<urls.length;i+=2){
+        if(!state.account || document.hidden)break;
+        await Promise.allSettled(urls.slice(i,i+2).map(url=>API(url)));
+      }
+    })();
     prefetchPromise.finally(()=>{prefetchPromise=null;});
     return prefetchPromise;
   }
@@ -2634,13 +2644,39 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       p.status==='sick'?'Doente':p.status==='hospital'?'Na Enfermaria':'Em expedição'));
     return tile;
   };
+  let pokemonEncounterUpdater=null;
+  let pokemonPanelRefreshId=0;
+  async function refreshPokemonPane(){
+    const pane=$('petPane')?.querySelector('.recanto-pet-tab-content');
+    if(!pane || petSubTab!=='pokemon' || state.tab!=='pet')return;
+    const requestId=++pokemonPanelRefreshId;
+    // Buscar antes de alterar qualquer nó: o painel antigo permanece utilizável
+    // enquanto o servidor responde e a tela não pisca nem pula para o topo.
+    const info=await API('/api/pokemon/adventure');
+    if(requestId!==pokemonPanelRefreshId || !pane.isConnected || petSubTab!=='pokemon')return;
+    pokemonEncounterUpdater=null;
+    pane.replaceChildren();
+    await loadPokemonAdventure(pane,info);
+    tabLoadedAt.pet=Date.now();
+  }
   async function pokemonCall(path,payload,success='Concluído!'){
     const result=await safeRun(()=>API('/api/pokemon/adventure'+path,payload),success);
-    if(result){if(result.coins_balance!==undefined)applyConfirmedCoins(result);await loadPet();}
+    if(result){
+      if(result.coins_balance!==undefined)applyConfirmedCoins(result);
+      tabLoadedAt.pet=Date.now();
+      if(path==='/seek' && result.encounter && pokemonEncounterUpdater){
+        // O Pokémon chega sobre a paisagem atual, sem recarregar as abas.
+        pokemonEncounterUpdater(result.encounter);
+      } else {
+        try{await refreshPokemonPane();}
+        catch(error){toast('A ação foi salva, mas não foi possível atualizar a tela: '+error.message);}
+      }
+    }
     return result;
   }
-  async function loadPokemonAdventure(pane){
-    const info=await API('/api/pokemon/adventure');
+  async function loadPokemonAdventure(pane,preloaded=null){
+    const info=preloaded||await API('/api/pokemon/adventure');
+    pokemonEncounterUpdater=null;
     if(!info.started){
       const intro=block('⚡ Escolha seu Pokémon inicial','Escolha uma única vez entre os iniciais das nove gerações. Pokémons Favoritos do perfil não dão direito a capturas ou bônus no jogo.');
       const grid=h('div','recanto-pokemon-starters');
@@ -2656,7 +2692,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       intro.append(grid);pane.append(intro);return;
     }
     const nav=h('div','recanto-pokemon-tabs');
-    for(const [key,label] of pokemonTabs){const btn=button(label,()=>{adventurePage=key;loadPet().catch(error=>toast(error.message));},
+    for(const [key,label] of pokemonTabs){const btn=button(label,()=>{adventurePage=key;refreshPokemonPane().catch(error=>toast(error.message));},
       'recanto-pokemon-tab'+(key===adventurePage?' selected':''));nav.append(btn);}
     pane.append(nav);
     const title=h('div','recanto-pokemon-summary');title.append(h('strong','',`${info.owned.length} Pokémon capturado(s)`),
@@ -2689,67 +2725,83 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       wrap.append(collection);
       pane.append(wrap);
     }else if(adventurePage==='wild'){
-      const wrap=h('div','recanto-pokemon-two-col');
+      const wrap=h('div','recanto-pokemon-two-col recanto-pokemon-capture-columns');
       const box=block('🌿 Encontros selvagens','Encontros aparecem em horários variáveis. Pokémon Lendários e Míticos não podem ser encontrados nem capturados.');
-      const wild=info.encounter;
       const captureCard=h('div','recanto-wild-card recanto-wild-card-large');
-      const scene=h('div','recanto-wild-scene'+(wild?'':' recanto-wild-empty'));
-      if(wild)scene.append(pokemonPicture(wild));
-      else scene.append(h('span','recanto-wild-placeholder','🌲'));
-      captureCard.append(scene);
-      if(wild){
-        const timer=h('p','recanto-capture-timer');
-        const endTime=new Date(wild.expires_at).getTime();
-        const updateWildTimer=()=>{
-          if(!timer.isConnected){clearInterval(interval);return;}
-          const remaining=Math.max(0,endTime-Date.now());
-          timer.textContent=remaining>0?'Vai embora em '+countdown(wild.expires_at):'O Pokémon selvagem foi embora';
-          if(remaining<=0){clearInterval(interval);box.classList.add('recanto-capture-expired');
-            for(const btn of bagGrid.querySelectorAll('button'))btn.disabled=true;
-          }
-        };
-        captureCard.append(h('h3','',wild.name),pokemonTypeBadges(wild.types),
-          h('p','',`Nível ${wild.level} · ${wild.attempts} tentativa(s)`),timer);
-        const interval=setInterval(updateWildTimer,1000);
-        requestAnimationFrame(updateWildTimer);
-      }else{
-        captureCard.append(h('p','',`Próximo encontro: ${new Date(info.next_encounter).getTime()<=Date.now()?'Disponível agora':countdown(info.next_encounter)}`));
-      }
-      const seekBtn=button(wild?'Tentar captura com suas Pokébolas':'Procurar Pokémon selvagem',()=>wild?null:pokemonCall('/seek',{},'Um Pokémon selvagem apareceu!'),'soft-action');
-      if(wild)seekBtn.disabled=true;
-      else seekBtn.disabled=new Date(info.next_encounter).getTime()>Date.now();
-      captureCard.append(seekBtn);
-      if(info.capture_limit){
-        const limits=h('p','recanto-capture-limit',`Tentativas disponíveis: ${info.capture_limit.remaining} de ${info.capture_limit.limit} a cada ${info.capture_limit.window_minutes} minutos`);
-        if(info.capture_limit.next_at)limits.append(h('small','',` · Renova em ${countdown(info.capture_limit.next_at)}`));
-        captureCard.append(limits);
-      }
-      box.append(captureCard);
-      wrap.append(box);
-
-      const bag=block('🎒 Minhas Pokébolas','Use suas Pokébolas para tentar capturar Pokémon selvagens. Itens comprados aparecem aqui.');
+      const scene=h('div','recanto-wild-scene');
+      const sceneDetails=h('div','recanto-wild-scene-details');
+      const sceneFooter=h('div','recanto-wild-scene-footer');
+      const bag=block('🎒 Minhas Pokébolas','Use suas Pokébolas para capturar Pokémon selvagens. Os itens são comprados na Loja.');
       const bagGrid=h('div','recanto-pokemon-bag');
       const shopMap=Object.fromEntries((info.shop||[]).map(item=>[item.sku,item]));
-      const bagItems=[['pokebola','🔴'],['superbola','🔵'],['ultrabola','🟡']];
-      if(Number(info.items.incenso||0)>0 || shopMap.incenso) bagItems.push(['incenso','🕯️']);
-      for(const [sku,fallback] of bagItems){
-        const item=shopMap[sku]||{sku,name:sku==='pokebola'?'Pokébola':sku==='superbola'?'Superbola':sku==='ultrabola'?'Ultrabola':'Incenso',emoji:fallback};
-        const owned=Number(info.items[sku]||0);
-        const tile=h('article','recanto-bag-item'+(owned<=0?' is-empty':''));
-        tile.append(h('strong','',`${item.emoji||fallback} ${item.name}`),h('small','',`Quantidade: ${owned}`));
-        if(wild && sku!=='incenso'){
-          const btn=button(`Usar agora`,()=>pokemonCall('/catch',{ball:sku},'Lançamento concluído!'),'soft-action');
-          btn.disabled=!owned || (info.capture_limit && info.capture_limit.remaining<=0) || new Date(wild.expires_at).getTime()<=Date.now();tile.append(btn);
-        }else if(sku==='incenso'){
-          tile.append(h('small','', owned>0?'Aumenta as chances e ajuda a encontrar Pokémon.':'Compre na Loja para usar depois.'));
+      const shopItems=[['pokebola','🔴'],['superbola','🔵'],['ultrabola','🟡']];
+      if(Number(info.items.incenso||0)>0 || shopMap.incenso)shopItems.push(['incenso','🕯️']);
+      let currentTimer=null;
+      const drawWild=(wild)=>{
+        info.encounter=wild;
+        if(currentTimer)clearInterval(currentTimer);
+        scene.replaceChildren();sceneDetails.replaceChildren();sceneFooter.replaceChildren();bagGrid.replaceChildren();
+        scene.classList.toggle('recanto-wild-empty',!wild);
+        const firstType=String((wild?.types||[])[0]||'normal').toLowerCase();
+        // Mesmo fundo para qualquer Pokémon que tenha este tipo como primário.
+        const bg=String(info.capture_backgrounds?.[firstType]||'').trim();
+        if(bg && (bg.startsWith('https://')||bg.startsWith('/uploads/'))){
+          scene.style.backgroundImage='url('+JSON.stringify(bg)+')';
+          scene.classList.add('recanto-wild-custom-background');
         }else{
-          tile.append(h('small','', owned>0?'Pronta para capturas.':'Compre na Loja para usar depois.'));
+          scene.style.removeProperty('background-image');scene.classList.remove('recanto-wild-custom-background');
         }
-        bagGrid.append(tile);
-      }
-      bag.append(bagGrid,button('Abrir Loja',()=>chooseTab('loja'),'soft-action'));
-      wrap.append(bag);
-      pane.append(wrap);
+        if(wild){
+          scene.append(pokemonPicture(wild));
+          sceneDetails.append(h('h3','',wild.name),pokemonTypeBadges(wild.types),h('p','',`Nível ${wild.level} · ${wild.attempts} tentativa(s)`));
+          const timer=h('p','recanto-capture-timer');sceneDetails.append(timer);
+          const endTime=new Date(wild.expires_at).getTime();
+          const updateWildTimer=()=>{
+            const left=Math.max(0,endTime-Date.now());
+            timer.textContent=left>0?'Vai embora em '+countdown(wild.expires_at):'O Pokémon selvagem foi embora';
+            box.classList.toggle('recanto-capture-expired',left<=0);
+            if(left<=0){clearInterval(currentTimer);for(const btn of bagGrid.querySelectorAll('button'))btn.disabled=true;}
+            // Sem reconstruir a página quando o cronômetro encerra.
+            if(!timer.isConnected && Date.now()-renderedAt>4000)clearInterval(currentTimer);
+          };
+          const renderedAt=Date.now();
+          updateWildTimer();currentTimer=setInterval(updateWildTimer,1000);
+        }else{
+          box.classList.remove('recanto-capture-expired');
+          scene.append(h('span','recanto-wild-placeholder','🌲'));
+          const next=h('p','recanto-wild-next');
+          let seekButton=null;
+          const updateNext=()=>{const ready=new Date(info.next_encounter).getTime()<=Date.now();next.textContent='Próximo encontro: '+(ready?'Disponível agora':countdown(info.next_encounter));if(seekButton)seekButton.disabled=!ready;};
+          updateNext();currentTimer=setInterval(()=>{if(!next.isConnected && Date.now()-renderedAt>4000){clearInterval(currentTimer);return;}updateNext();},1000);
+          const renderedAt=Date.now();
+          sceneDetails.append(next);
+          const btn=button('Procurar Pokémon selvagem',()=>pokemonCall('/seek',{},'Um Pokémon selvagem apareceu!'),'soft-action');
+          seekButton=btn;btn.disabled=new Date(info.next_encounter).getTime()>Date.now();sceneFooter.append(btn);
+        }
+        if(info.capture_limit){
+          const remaining=Number(info.capture_limit.remaining);
+          const limits=h('p','recanto-capture-limit',`Tentativas disponíveis: ${remaining} de ${info.capture_limit.limit} a cada ${info.capture_limit.window_minutes} minutos`);
+          if(info.capture_limit.next_at)limits.append(h('small','',` · Renova em ${countdown(info.capture_limit.next_at)}`));
+          sceneFooter.append(limits);
+        }
+        for(const [sku,fallback] of shopItems){
+          const item=shopMap[sku]||{sku,name:sku==='pokebola'?'Pokébola':sku==='superbola'?'Superbola':sku==='ultrabola'?'Ultrabola':'Incenso',emoji:fallback};
+          const owned=Number(info.items[sku]||0);
+          const tile=h('article','recanto-bag-item'+(owned<=0?' is-empty':''));
+          tile.append(h('strong','',`${item.emoji||fallback} ${item.name}`),h('small','',`Quantidade: ${owned}`));
+          if(wild && sku!=='incenso'){
+            const btn=button('Usar agora',()=>pokemonCall('/catch',{ball:sku},'Lançamento concluído!'),'soft-action');
+            btn.disabled=!owned||(info.capture_limit && info.capture_limit.remaining<=0)||new Date(wild.expires_at).getTime()<=Date.now();tile.append(btn);
+          }else if(sku==='incenso')tile.append(h('small','',owned>0?'Incenso disponível no inventário.':'Compre na Loja para usar depois.'));
+          else tile.append(h('small','',owned>0?'Pronta para captura.':'Compre na Loja para usar depois.'));
+          bagGrid.append(tile);
+        }
+      };
+      captureCard.append(scene,sceneDetails,sceneFooter);
+      box.append(captureCard);bag.append(bagGrid,button('Abrir Loja',()=>chooseTab('loja'),'soft-action'));
+      wrap.append(box,bag);pane.append(wrap);
+      drawWild(info.encounter);
+      pokemonEncounterUpdater=drawWild;
     }else if(adventurePage==='items'){
       const box=block('🎒 Itens de Pokémon','Aqui ficam apenas os itens Pokémon que você já comprou e pode usar. A compra de itens acontece na Loja.');
       const gallery=h('div','recanto-pokemon-bag');
@@ -2917,7 +2969,29 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       for(const [key,input] of Object.entries(bossInputs))payload[key]=input.type==='number'?Number(input.value):input.value;
       const result=await safeRun(()=>API('/api/admin/pokemon/adventure/boss',payload),'Chefe salvo!');
       if(result)toast('Reabra a Gestão para atualizar as opções.');
-    }));return box;
+    }));
+    // Cenários de captura por primeiro tipo: compartilham o armazenamento seguro
+    // de assets do Recanto e não exigem nova tabela nem reinicializar os jogadores.
+    const bgBox=h('div','recanto-pokemon-bg-editor');
+    bgBox.append(h('h4','','🌄 Cenários de captura por tipo primário'),
+      h('p','','Cadastre uma imagem HTTPS ou /uploads/ para cada tipo. O primeiro tipo do Pokémon define o cenário; sem imagem, aparece o fundo padrão.'));
+    const typeSelect=h('select','select-input');
+    for(const [type,name] of Object.entries(pokemonTypeNames)){const opt=h('option','',name);opt.value=type;typeSelect.append(opt);}
+    const bgInput=h('input','text-input');bgInput.type='url';bgInput.placeholder='https://exemplo.com/floresta.webp';
+    const preview=h('div','recanto-pokemon-bg-preview');
+    const bgValues={...(cfg.capture_backgrounds||{})};
+    const showBg=()=>{bgInput.value=bgValues[typeSelect.value]||'';preview.style.backgroundImage=bgInput.value?'url('+JSON.stringify(bgInput.value)+')':'';
+      preview.textContent=bgInput.value?'':'Sem imagem personalizada — cenário padrão';};
+    typeSelect.addEventListener('change',showBg);
+    bgInput.addEventListener('change',()=>{const value=bgInput.value.trim();preview.style.backgroundImage=value&&(/^(https:\/\/|\/uploads\/)/).test(value)?'url('+JSON.stringify(value)+')':'';});
+    const saveBg=async(url)=>{const type=typeSelect.value;
+      const result=await safeRun(()=>API('/api/admin/pokemon/adventure/background',{type,image_url:url}),'Cenário do tipo '+pokemonTypeNames[type]+' atualizado!');
+      if(result){if(url)bgValues[type]=url;else delete bgValues[type];showBg();}
+    };
+    bgBox.append(typeSelect,bgInput,preview,button('Salvar fundo deste tipo',()=>saveBg(bgInput.value.trim()),'soft-action'),
+      button('Restaurar cenário padrão',()=>saveBg(''),'soft-action'));
+    box.append(bgBox);
+    return box;
   }
 
   // Exibe sempre a arte cadastrada. O emoji e usado apenas se nao houver

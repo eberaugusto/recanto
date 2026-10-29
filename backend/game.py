@@ -4626,4 +4626,5 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         pokemon_catalog=pokemon_catalog,pokemon_entry=pokemon_entry,wallet=wallet,
         require_coins=require_coins,publish_feed=publish_feed,stock=stock,grant_card=grant_card,
         Card=Card,Collectible=Collectible,InventoryCollectible=InventoryCollectible,
-        pokemon_generation=pokemon_generation,feed_card=feed_card,progress=progress)
+        pokemon_generation=pokemon_generation,feed_card=feed_card,progress=progress,
+        UIAsset=UIAsset,safe_artwork=safe_artwork)

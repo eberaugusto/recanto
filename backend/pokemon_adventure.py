@@ -10,6 +10,7 @@ from sqlalchemy import Integer, String, DateTime, ForeignKey, Boolean, Text, sel
 from sqlalchemy.orm import Mapped, mapped_column
 
 RNG = random.SystemRandom()
+POKEMON_TYPES = ('normal','fire','water','electric','grass','ice','fighting','poison','ground','flying','psychic','bug','rock','ghost','dragon','dark','steel','fairy')
 STARTERS = {1:('Bulbasaur','grass'),4:('Charmander','fire'),7:('Squirtle','water'),
  152:('Chikorita','grass'),155:('Cyndaquil','fire'),158:('Totodile','water'),
  252:('Treecko','grass'),255:('Torchic','fire'),258:('Mudkip','water'),
@@ -136,10 +137,13 @@ def define_models(Base):
 
 def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive_to_utc,pokemon_catalog,
         pokemon_entry,wallet,require_coins,publish_feed,stock,grant_card,Card,Collectible,InventoryCollectible,
-        pokemon_generation,feed_card,progress):
+        pokemon_generation,feed_card,progress,UIAsset,safe_artwork):
     M=models
     _species_cache={}
     _pokemon_type_cache={}
+    _poke_client=httpx.Client(timeout=httpx.Timeout(6.0, connect=3.0),follow_redirects=True,limits=httpx.Limits(max_connections=8,max_keepalive_connections=4))
+    def type_backgrounds(db):
+        return {row.key[len('pokemon-bg-'):]:row.image_url for row in db.scalars(select(UIAsset).where(UIAsset.key.like('pokemon-bg-%'))).all() if row.key[len('pokemon-bg-'):] in POKEMON_TYPES}
     def now():return utcnow()
     def norm_date(v):return naive_to_utc(v) if v else None
     def verify_int(raw,lo,hi,label):
@@ -155,7 +159,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
         cached=_species_cache.get(n)
         if cached and cached[1]>time.monotonic():return cached[0]
         try:
-            response=httpx.get(f'https://pokeapi.co/api/v2/pokemon-species/{n}/',timeout=8)
+            response=_poke_client.get(f'https://pokeapi.co/api/v2/pokemon-species/{n}/')
             response.raise_for_status();obj=response.json()
             data={'legendary':bool(obj.get('is_legendary')),'mythical':bool(obj.get('is_mythical')),
                   'capture_rate':int(obj.get('capture_rate') or 45),'evolution_chain':obj.get('evolution_chain',{}).get('url')}
@@ -167,8 +171,8 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
         cached=_pokemon_type_cache.get(n)
         if cached and cached[1]>time.monotonic():return cached[0]
         try:
-            response=httpx.get(f'https://pokeapi.co/api/v2/pokemon/{n}/',timeout=8);response.raise_for_status()
-            types=[r['type']['name'] for r in response.json().get('types',[]) if 'type' in r]
+            response=_poke_client.get(f'https://pokeapi.co/api/v2/pokemon/{n}/');response.raise_for_status()
+            types=[r['type']['name'] for r in sorted(response.json().get('types',[]),key=lambda e:int(e.get('slot',99))) if 'type' in r]
             if not types:raise ValueError('sem tipos')
             _pokemon_type_cache[n]=(types,time.monotonic()+86400*7)
             return types
@@ -246,8 +250,11 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             expedition=db.get(M['Expedition'],uid)
             configs=[config_json(c) for c in get_exp_config(db) if c.active]
             bosses=[boss_json(b) for b in db.scalars(select(M['Boss']).where(M['Boss'].active.is_(True))).all()]
+            # Uma única consulta traz todos os preços, evitando N consultas por item.
+            prices={row.key:row.value for row in db.scalars(select(M['Setting']).where(M['Setting'].key.like('item_price_%'))).all()}
             return {'started':True,'owned':[owned_json(p) for p in owned(db,uid)],
-             'items':item_counts(db,uid),'shop':[{**data,'sku':sku,'price':(db.get(M['Setting'],'item_price_'+sku).value if db.get(M['Setting'],'item_price_'+sku) else data['price'])} for sku,data in ITEMS.items()],
+             'items':item_counts(db,uid),'shop':[{**data,'sku':sku,'price':prices.get('item_price_'+sku,data['price'])} for sku,data in ITEMS.items()],
+             'capture_backgrounds':type_backgrounds(db),
              'encounter':encounter_json(encounter) if encounter else None,
              'capture_limit':capture_status(db,uid),
              'next_encounter':norm_date(acct.next_encounter).isoformat(),
@@ -583,7 +590,27 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
                 'prices':{sku:(db.get(M['Setting'],'item_price_'+sku).value if db.get(M['Setting'],'item_price_'+sku) else item['price']) for sku,item in ITEMS.items()},
                 'ball_chances':{sku:(db.get(M['Setting'],'ball_chance_'+sku).value if db.get(M['Setting'],'ball_chance_'+sku) else item['chance']) for sku,item in BALLS.items()},
                 'expeditions':[config_json(c) for c in get_exp_config(db)],
-                'bosses':[boss_json(x) for x in db.scalars(select(M['Boss'])).all()]}
+                'bosses':[boss_json(x) for x in db.scalars(select(M['Boss'])).all()],
+                'capture_backgrounds':type_backgrounds(db)}
+    @app.post('/api/admin/pokemon/adventure/background')
+    async def save_capture_background(request:Request):
+        only_admin(request)
+        payload=await request.json()
+        if not isinstance(payload,dict):raise HTTPException(422,detail='Dados inválidos')
+        pokemon_type=str(payload.get('type') or '').strip().lower()
+        if pokemon_type not in POKEMON_TYPES:raise HTTPException(422,detail='Selecione um dos 18 tipos de Pokémon')
+        url=safe_artwork(payload.get('image_url'))
+        key='pokemon-bg-'+pokemon_type
+        with writing() as db:
+            entry=db.get(UIAsset,key)
+            if not url:
+                if entry:db.delete(entry)
+            elif entry:
+                entry.image_url=url
+            else:
+                db.add(UIAsset(key=key,selector='',mode='background',image_url=url))
+        return {'ok':True,'type':pokemon_type,'image_url':url}
+
     @app.post('/api/admin/pokemon/adventure/settings')
     async def update_config(request:Request):
         only_admin(request);data=await request.json()
