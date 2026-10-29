@@ -476,12 +476,24 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   // RECANTO 0.2.5 — molduras prontas por raridade/coleção, sem emblema separado.
   let collectionStyles={};
   let cardFrameFlags={};
+  let collectionFrameVariants=[];
+  let cardVariantChoices={};
   let collectionStylesLoaded=false;
   let collectionStylesRequest=null;
   function cardVisualStyle(collection, rarity){
     const special=collectionStyles[String(collection||'').trim()]||{};
     const rarityStyle=collectionStyles['__rarity__'+String(rarity||'comum').trim().toLowerCase()]||{};
     return {frame_url:special.frame_url||rarityStyle.frame_url||''};
+  }
+  function fillCardVariantSelect(select, collection, selected=0){
+    const current=String(selected||0);
+    select.replaceChildren();
+    const add=(value,label)=>{const op=h('option','',label);op.value=String(value);select.append(op);};
+    add(0,'Padrão da coleção / raridade');
+    for(const v of collectionFrameVariants.filter(v=>v.collection===String(collection||'').trim()))
+      add(v.id,v.name);
+    select.value=[...select.options].some(o=>o.value===current)?current:'0';
+    return select;
   }
   function updateOneCardFrame(art){
     if(!art?.classList?.contains('recanto-framed-art'))return;
@@ -496,7 +508,10 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       return;
     }
     const visual=cardVisualStyle(collection, rarity);
-    if(visual.frame_url){art.style.setProperty('--recanto-custom-frame',`url(${JSON.stringify(visual.frame_url)})`);art.classList.add('custom-collection-frame');}
+    const variantId=Number(art.dataset.frameVariantId || cardVariantChoices[cardId] || 0);
+    const variant=collectionFrameVariants.find(v=>v.id===variantId&&v.collection===collection);
+    const frameUrl=variant?.frame_url||visual.frame_url;
+    if(frameUrl){art.style.setProperty('--recanto-custom-frame',`url(${JSON.stringify(frameUrl)})`);art.classList.add('custom-collection-frame');}
     else{art.style.removeProperty('--recanto-custom-frame');art.classList.remove('custom-collection-frame');}
   }
   function updateAllCardFrames(){document.querySelectorAll('.recanto-framed-art').forEach(updateOneCardFrame);}
@@ -505,7 +520,9 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     if(collectionStylesLoaded&&!force)return collectionStyles;
     const request=(force?fetchJson:API)('/api/collections/card-styles');
     collectionStylesRequest=request.then(data=>{
-      collectionStyles=data.styles||{};cardFrameFlags=data.card_frames||{};collectionStylesLoaded=true;updateAllCardFrames();return collectionStyles;
+      collectionStyles=data.styles||{};cardFrameFlags=data.card_frames||{};
+      collectionFrameVariants=data.variants||[];cardVariantChoices=data.card_variants||{};
+      collectionStylesLoaded=true;updateAllCardFrames();return collectionStyles;
     }).catch(()=>collectionStyles).finally(()=>{collectionStylesRequest=null;});
     return collectionStylesRequest;
   }
@@ -516,6 +533,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const cardId=item.card_id||item.id;
     if(cardId)art.dataset.cardId=String(cardId);
     if(item.frame_enabled===false)art.dataset.frameEnabled='false';
+    if(item.frame_variant_id)art.dataset.frameVariantId=String(item.frame_variant_id);
     const photo=h('div','recanto-card-photo');
     // Uma URL inválida não deve colocar o texto alternativo gigante no lugar
     // da arte. No Render, links /uploads/ antigos podem desaparecer após deploy.
@@ -3441,6 +3459,13 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       inputs.model_url.addEventListener('input',()=>{khadaInput.value='';});
       form.append(h('small','','Configure os nomes EXATOS dos clipes do GLB para Idle, Carinho e Alimentação. Modelos por embed Khada não permitem controlar clipes a partir do Recanto.'));
     }
+    if(group==='cards' && inputs.frame_variant_id){
+      // As molduras oferecidas pertencem sempre à coleção do card editado.
+      const updateVariantChoices=(wanted=0)=>fillCardVariantSelect(inputs.frame_variant_id,inputs.collection.value,wanted);
+      inputs.collection.addEventListener('change',()=>updateVariantChoices());
+      inputs.frame_enabled.addEventListener('change',()=>{inputs.frame_variant_id.disabled=inputs.frame_enabled.value==='false';});
+      loadCollectionCardStyles().then(()=>updateVariantChoices(inputs.frame_variant_id.value)).catch(()=>{});
+    }
     const actions=h('div','admin-action-row');
     const save=button('Salvar alterações',async()=>{
       const current=rows.find(row=>String(row.id)===chooser.value);
@@ -3508,9 +3533,13 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       const current=rows.find(row=>String(row.id)===chooser.value);
       form.hidden=!current;
       if(!current){status.textContent='Nenhum registro para editar.';return;}
+      if(group==='cards'&&inputs.frame_variant_id)
+        fillCardVariantSelect(inputs.frame_variant_id,current.collection,current.frame_variant_id||0);
       for(const [key,,kind] of spec){
         inputs[key].value=key==='frame_enabled'?String(current[key]!==false):(current[key]??(kind==='number'?0:''));
       }
+      if(group==='cards'&&inputs.frame_variant_id)
+        inputs.frame_variant_id.disabled=inputs.frame_enabled.value==='false';
       if(inputs.image_url)inputs.image_url.dispatchEvent(new Event('change'));
       status.textContent=current.active?'● Ativo':'● Arquivado (não aparece em novos catálogos)';
       status.classList.toggle('off',!current.active);
@@ -3718,9 +3747,17 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       const option=h('option','',title);option.value=value;cardFrame.append(option);
     }
     frameRow.append(cardFrame,h('small','','A raridade do card permanece a mesma, com ou sem moldura.'));
-    card.append(rarity,frameRow,button('Cadastrar card',()=>safeRun(async()=>{
+    const variantRow=h('label','admin-field','Escolha uma moldura desta coleção');
+    const cardVariant=h('select','select-input');
+    variantRow.append(cardVariant,h('small','','Você pode escolher a moldura padrão ou qualquer outra cadastrada para a coleção.'));
+    const refreshCardVariants=()=>fillCardVariantSelect(cardVariant,collectionInput.value);
+    collectionInput.addEventListener('input',refreshCardVariants);
+    cardFrame.addEventListener('change',()=>{cardVariant.disabled=cardFrame.value==='false';});
+    loadCollectionCardStyles().then(refreshCardVariants).catch(()=>refreshCardVariants());
+    refreshCardVariants();
+    card.append(rarity,frameRow,variantRow,button('Cadastrar card',()=>safeRun(async()=>{
       const image_url=cardFile.files.length?await uploadArtwork(cardFile.files[0]):ui.value;
-      const result=await API('/api/admin/cards',{name:ni.value,rarity:rarity.value,collection:collectionInput.value,image_url,frame_enabled:cardFrame.value==='true'});
+      const result=await API('/api/admin/cards',{name:ni.value,rarity:rarity.value,collection:collectionInput.value,image_url,frame_enabled:cardFrame.value==='true',frame_variant_id:Number(cardVariant.value||0)});
       collectionStylesLoaded=false;loadCollectionCardStyles(true).catch(()=>{});
       return result;
     },'Card cadastrado!')));pane.append(card);
@@ -3763,7 +3800,8 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     pane.append(adminCatalogEditor('cards','Gerenciar cards cadastrados',[
       ['name','Nome','text'],['rarity','Raridade','select',Object.entries(tierLabels)],
       ['frame_enabled','Moldura','select',[['true','Com moldura'],['false','Sem moldura']]],
-      ['collection','Coleção','text'],['image_url','Imagem HTTPS ou /uploads/... (vazio remove)','text']
+      ['collection','Coleção','text'],['frame_variant_id','Moldura desta coleção','select',[[0,'Padrão da coleção / raridade']]],
+      ['image_url','Imagem HTTPS ou /uploads/... (vazio remove)','text']
     ],existingCatalog));
     pane.append(adminShopEditor());
     pane.append(adminCatalogEditor('pets','Gerenciar Pets',[
@@ -3815,60 +3853,104 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     pane.append(frameRarityBox);
     fillRarityRows().catch(()=>{});
 
-    const styleBox=block('Molduras exclusivas por coleção','A moldura exclusiva da coleção fica POR CIMA da foto e substitui a de raridade. Inclua o R/logo na arte e deixe o centro transparente (PNG/WebP recomendado).');
+    const styleBox=block('Molduras por coleção','Selecione uma coleção existente. Você pode manter a moldura original da coleção e adicionar outras, com nomes distintos, para escolher em cada Card.');
     styleBox.classList.add('admin-collection-frame-editor');
-    const styleNames=h('datalist');styleNames.id='cardCollectionStyleOptions';
-    const styleNameRow=h('label','admin-field','Coleção');
-    const styleName=h('input','text-input');styleName.type='text';styleName.value='Recanto Original';
-    styleName.setAttribute('list','cardCollectionStyleOptions');styleName.autocomplete='off';
+    const styleNameRow=h('label','admin-field','Coleção existente');
+    const styleName=h('select','select-input');
     styleNameRow.append(styleName);
-    const styleHelp=h('p','admin-style-help','Informe o nome exato da coleção. Se nada for cadastrado para ela, o Card usa a moldura padrão da raridade.');
-    const frameUrlRow=adminField('URL HTTPS da moldura pronta (PNG, WEBP, JPG ou SVG)','');
+    const styleHelp=h('p','admin-style-help','A moldura padrão da coleção continua disponível. Os Cards antigos não mudam até que você escolha outra moldura para eles.');
+    const frameUrlRow=adminField('URL da moldura padrão da coleção (opcional)','');
     const frameFile=h('input','text-input');frameFile.type='file';frameFile.accept='image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.png,.jpg,.jpeg,.webp,.gif,.svg';
     const stylePreview=h('div','admin-frame-preview');
-    const previewCard={name:'Prévia do Card',rarity:'raro',collection:'__preview__'};
-    const previewArt=frameCardArt(previewCard,'card-art');
-    previewArt.dataset.collection='__preview__';
-    previewArt.dataset.rarity='raro';
-    stylePreview.append(previewArt,h('small','','Prévia da coleção selecionada. Se não houver moldura exclusiva, aparecerá a moldura padrão da raridade.'));
+    const previewArt=frameCardArt({name:'Prévia do Card',rarity:'raro',collection:'__preview__'},'card-art');
+    previewArt.dataset.collection='__preview__';previewArt.dataset.rarity='raro';
+    stylePreview.append(previewArt,h('small','','Prévia da moldura selecionada.'));
     const savedStyles=h('small','admin-style-help','Carregando configurações...');
     let stylesForAdmin={};
     const refreshStyleInputs=()=>{
-      const name=styleName.value.trim()||'Recanto Original';
+      const name=styleName.value.trim();
       const found=stylesForAdmin[name]||{};
       frameUrlRow[1].value=found.frame_url||'';
       frameFile.value='';
       collectionStyles.__preview__={frame_url:found.frame_url||null};
+      previewArt.dataset.frameVariantId='';
       updateOneCardFrame(previewArt);
+      renderVariantSelector();
     };
+    const variantSeparator=h('h4','','Molduras adicionais da coleção');
+    const variantChooser=h('select','select-input');
+    const variantNameRow=adminField('Nome da moldura (por exemplo, Dourada, Halloween, Especial)','');
+    const variantUrlRow=adminField('URL da imagem da moldura','');
+    const variantFile=h('input','text-input');variantFile.type='file';variantFile.accept='image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.png,.jpg,.jpeg,.webp,.gif,.svg';
+    const variantPreview=h('div','admin-frame-preview');
+    const variantPreviewArt=frameCardArt({name:'Prévia da variante',rarity:'raro',collection:'__variant_preview__'},'card-art');
+    variantPreviewArt.dataset.collection='__variant_preview__';
+    variantPreview.append(variantPreviewArt,h('small','','Prévia da moldura adicional.'));
+    const applyVariantPreview=()=>{
+      const source=variantUrlRow[1].value.trim();
+      collectionStyles.__variant_preview__={frame_url:source||null};
+      variantPreviewArt.dataset.frameVariantId='';
+      updateOneCardFrame(variantPreviewArt);
+    };
+    variantUrlRow[1].addEventListener('input',applyVariantPreview);
+    function renderVariantSelector(wanted='new'){
+      const name=styleName.value.trim();
+      const variants=collectionFrameVariants.filter(v=>v.collection===name);
+      variantChooser.replaceChildren();
+      const fresh=h('option','','+ Nova moldura');fresh.value='new';variantChooser.append(fresh);
+      for(const v of variants){const op=h('option','',v.name);op.value=String(v.id);variantChooser.append(op);}
+      variantChooser.value=variants.some(v=>String(v.id)===String(wanted))?String(wanted):'new';
+      renderSelectedVariant();
+      savedStyles.textContent=`${variants.length} moldura(s) adicional(is) em ${name||'esta coleção'}.`;
+    }
+    function renderSelectedVariant(){
+      const v=collectionFrameVariants.find(v=>String(v.id)===variantChooser.value&&v.collection===styleName.value);
+      variantNameRow[1].value=v?.name||'';
+      variantUrlRow[1].value=v?.frame_url||'';
+      variantFile.value='';applyVariantPreview();
+    }
+    variantChooser.addEventListener('change',renderSelectedVariant);
     styleName.addEventListener('change',refreshStyleInputs);
-    loadCollectionCardStyles().then(styles=>{
+    Promise.all([loadCollectionCardStyles(),catalogTask.catch(()=>({items:[]}))]).then(([styles,catalog])=>{
       stylesForAdmin={...styles};
-      const names=new Set(['Recanto Original','Celebridades','Personagens','Memes']);
-      for(const key of Object.keys(styles))if(!key.startsWith('__rarity__'))names.add(key);
-      catalogTask.then(catalog=>{
-        for(const item of catalog.items||[])names.add(item.collection||'Recanto Original');
-        styleNames.replaceChildren(...[...names].sort().map(name=>{const op=h('option');op.value=name;return op;}));
-      }).catch(()=>{styleNames.replaceChildren(...[...names].sort().map(name=>{const op=h('option');op.value=name;return op;}));});
-      savedStyles.textContent='Coleções com moldura exclusiva: '+(Object.keys(styles).filter(x=>x && !x.startsWith('__rarity__')).join(' · ')||'nenhuma');
+      const names=new Set(['Recanto Original',...['Celebridades','Personagens','Memes']]);
+      for(const key of Object.keys(styles))if(!key.startsWith('__rarity__')&&!key.startsWith('__preview__'))names.add(key);
+      for(const item of catalog.items||[])names.add(item.collection||'Recanto Original');
+      for(const v of collectionFrameVariants)names.add(v.collection);
+      const existing=styleName.value;
+      styleName.replaceChildren(...[...names].filter(Boolean).sort((a,b)=>a.localeCompare(b,'pt-BR')).map(name=>{const op=h('option','',name);op.value=name;return op;}));
+      styleName.value=[...names].includes(existing)?existing:'Recanto Original';
       refreshStyleInputs();
-    });
-    styleBox.append(styleNameRow,styleNames,styleHelp,frameUrlRow[0],h('label','','Ou envie a moldura pronta'),frameFile,stylePreview,savedStyles,
-      button('Salvar moldura da coleção',async()=>{
-        const name=styleName.value.trim();
-        if(!name){toast('Informe o nome exato da coleção.');return;}
+    }).catch(err=>{savedStyles.textContent='Falha ao listar coleções: '+err.message;});
+    styleBox.append(styleNameRow,styleHelp,frameUrlRow[0],h('label','','Ou envie a moldura padrão'),frameFile,stylePreview,
+      button('Salvar moldura padrão da coleção',async()=>{
+        const name=styleName.value.trim();if(!name){toast('Selecione uma coleção.');return;}
         const result=await safeRun(async()=>{
           const frame_url=frameFile.files[0]?await uploadArtwork(frameFile.files[0]):frameUrlRow[1].value.trim();
           return API('/api/admin/collections/card-styles',{collection:name,frame_url});
-        },'Moldura salva!');
-        if(result){
-          collectionStylesLoaded=false;resetCachedData();
-          await loadCollectionCardStyles(true);
-          stylesForAdmin={...collectionStyles};
-          refreshStyleInputs();
-          savedStyles.textContent='Moldura salva para: '+name;
-        }
-      }));
+        },'Moldura padrão atualizada!');
+        if(result){collectionStylesLoaded=false;await loadCollectionCardStyles(true);stylesForAdmin={...collectionStyles};refreshStyleInputs();}
+      }),variantSeparator,h('label','admin-field','Selecionar moldura para editar'),variantChooser,
+      variantNameRow[0],variantUrlRow[0],h('label','','Ou envie uma imagem PNG, WEBP ou GIF'),variantFile,
+      variantPreview,savedStyles);
+    const variantActions=h('div','admin-action-row');
+    variantActions.append(button('Salvar moldura adicional',async()=>{
+      const collection=styleName.value.trim(),name=variantNameRow[1].value.trim();
+      if(!collection||!name){toast('Selecione a coleção e informe um nome de moldura.');return;}
+      const id=variantChooser.value;
+      const result=await safeRun(async()=>API('/api/admin/collections/frame-variants',{
+        action:id==='new'?'create':'update',
+        ...(id!=='new'?{id:Number(id)}:{}),
+        collection,name,frame_url:variantFile.files.length?await uploadArtwork(variantFile.files[0]):variantUrlRow[1].value.trim()
+      }),'Moldura salva!');
+      if(result){collectionStylesLoaded=false;await loadCollectionCardStyles(true);renderVariantSelector(result.id);}
+    }),button('Excluir moldura selecionada',async()=>{
+      if(variantChooser.value==='new'){toast('Selecione uma moldura existente.');return;}
+      if(!confirm('Excluir esta moldura? Cards que a utilizam voltarão à moldura padrão da coleção, sem mudar sua raridade.'))return;
+      const result=await safeRun(()=>API('/api/admin/collections/frame-variants',{action:'delete',id:Number(variantChooser.value)}),'Moldura excluída!');
+      if(result){collectionStylesLoaded=false;await loadCollectionCardStyles(true);renderVariantSelector();}
+    },'danger-action'));
+    styleBox.append(variantActions);
     pane.append(styleBox);
 
     const pet=block('Cadastrar Pet','Aceita imagem PNG/JPG/WEBP/GIF, modelo 3D GLB/GLTF e nomes de animações do arquivo.');

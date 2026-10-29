@@ -324,6 +324,20 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         frame_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
         emblem_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
+    class CollectionFrameVariant(Base):
+        """Múltiplas molduras nomeadas para a mesma coleção."""
+        __tablename__ = 'recanto_collection_frame_variants'
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        collection_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+        name: Mapped[str] = mapped_column(String(100), nullable=False)
+        frame_url: Mapped[str] = mapped_column(String(512), nullable=False)
+
+    class CardFrameChoice(Base):
+        """Ausência de registro mantém o visual tradicional da coleção/raridade."""
+        __tablename__ = 'recanto_card_frame_choices'
+        card_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+        variant_id: Mapped[int] = mapped_column(Integer, nullable=False)
+
     class PetExpedition(Base):
         __tablename__ = 'pet_expeditions'
         user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
@@ -1057,6 +1071,30 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if type(value) is not bool:
             raise HTTPException(422, detail='A opção de moldura deve ser verdadeira ou falsa')
         return value
+
+    def card_frame_choice(db, card_id):
+        choice = db.get(CardFrameChoice, card_id)
+        return choice.variant_id if choice else 0
+
+    def set_card_frame_choice(db, card_id, collection, raw, enabled=True):
+        """Valida a pertença da moldura à coleção, sem permitir seleção de outra coleção."""
+        try:
+            variant_id = int(raw or 0)
+        except (TypeError, ValueError):
+            raise HTTPException(422, detail='Moldura selecionada inválida')
+        if variant_id < 0 or not enabled:
+            variant_id = 0
+        if variant_id:
+            variant = db.get(CollectionFrameVariant, variant_id)
+            if not variant or variant.collection_name != collection:
+                raise HTTPException(422, detail='Esta moldura não pertence à coleção do card')
+        old = db.get(CardFrameChoice, card_id)
+        if variant_id:
+            if old: old.variant_id = variant_id
+            else: db.add(CardFrameChoice(card_id=card_id, variant_id=variant_id))
+        elif old:
+            db.delete(old)
+        return variant_id
 
     def favorite_info(db, uid):
         fav = db.get(FavoriteCard, uid)
@@ -2395,9 +2433,13 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         with SessionLocal() as db:
             rows=db.scalars(select(CollectionCardStyle).order_by(CollectionCardStyle.collection_name)).all()
             disabled = db.scalars(select(CardFrameSetting.card_id).where(CardFrameSetting.frame_enabled.is_(False))).all()
+            variants = db.scalars(select(CollectionFrameVariant).order_by(CollectionFrameVariant.collection_name,CollectionFrameVariant.name)).all()
+            chosen = db.scalars(select(CardFrameChoice)).all()
             return {'styles': {row.collection_name: {
                 'frame_url': row.frame_url
-            } for row in rows}, 'card_frames': {str(card_id): False for card_id in disabled}}
+            } for row in rows}, 'card_frames': {str(card_id): False for card_id in disabled},
+                'variants':[{'id':v.id,'collection':v.collection_name,'name':v.name,'frame_url':v.frame_url} for v in variants],
+                'card_variants':{str(c.card_id):c.variant_id for c in chosen}}
 
     @app.post('/api/admin/collections/card-styles')
     async def save_collection_card_style(request: Request):
@@ -2418,6 +2460,60 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 current.frame_url=frame
                 current.emblem_url=None
         return {'ok':True,'collection':name,'frame_url':frame}
+
+    @app.post('/api/admin/collections/frame-variants')
+    async def admin_manage_collection_frame_variant(request: Request):
+        only_admin(request)
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise HTTPException(422, detail='Dados inválidos')
+        action = str(data.get('action') or 'create')
+        if action not in ('create','update','delete'):
+            raise HTTPException(422, detail='Ação de moldura inválida')
+        with writing() as db:
+            if action == 'create':
+                collection = str(data.get('collection') or '').strip()
+                name = str(data.get('name') or '').strip()
+                if not (2 <= len(collection) <= 100 and 2 <= len(name) <= 100):
+                    raise HTTPException(422, detail='Escolha uma coleção e dê um nome à moldura')
+                if collection.startswith('__rarity__') or collection == '__preview__':
+                    raise HTTPException(422, detail='Coleção reservada')
+                frame_url = safe_artwork(data.get('frame_url'))
+                if not frame_url:
+                    raise HTTPException(422, detail='Selecione a imagem da moldura')
+                exists = db.scalar(select(CollectionFrameVariant.id).where(
+                    CollectionFrameVariant.collection_name == collection,
+                    func.lower(CollectionFrameVariant.name) == name.lower()))
+                if exists:
+                    raise HTTPException(409, detail='Já existe uma moldura com esse nome nesta coleção')
+                variant = CollectionFrameVariant(collection_name=collection,name=name,frame_url=frame_url)
+                db.add(variant);db.flush()
+            else:
+                try: variant_id = int(data.get('id'))
+                except (ValueError, TypeError): raise HTTPException(422, detail='ID de moldura inválido')
+                variant = db.get(CollectionFrameVariant,variant_id)
+                if variant is None:
+                    raise HTTPException(404, detail='Moldura não encontrada')
+                if action == 'delete':
+                    # Cards que a utilizavam voltam para a moldura padrão sem perder raridade.
+                    db.execute(delete(CardFrameChoice).where(CardFrameChoice.variant_id==variant.id))
+                    db.delete(variant)
+                    return {'ok':True,'deleted':variant_id}
+                name = str(data.get('name') or '').strip()
+                if not 2 <= len(name) <= 100:
+                    raise HTTPException(422, detail='Nome inválido')
+                frame_url = safe_artwork(data.get('frame_url'))
+                if not frame_url:
+                    raise HTTPException(422, detail='Informe uma imagem de moldura')
+                exists = db.scalar(select(CollectionFrameVariant.id).where(
+                    CollectionFrameVariant.collection_name==variant.collection_name,
+                    func.lower(CollectionFrameVariant.name)==name.lower(),
+                    CollectionFrameVariant.id!=variant.id))
+                if exists:
+                    raise HTTPException(409, detail='Já existe uma moldura com esse nome nesta coleção')
+                variant.name=name;variant.frame_url=frame_url
+            return {'ok':True,'id':variant.id,'collection':variant.collection_name,
+                    'name':variant.name,'frame_url':variant.frame_url}
 
     @app.get('/api/collections/featured')
     def featured_collection(request:Request):
@@ -3658,8 +3754,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             db.add(card)
             db.flush()
             set_card_frame(db, card.id, with_frame)
+            chosen_variant = set_card_frame_choice(db,card.id,collection,data.get('frame_variant_id'),with_frame)
             cid = card.id
-        return {'ok': True, 'id': cid, 'frame_enabled':with_frame, 'rarity':rarity}
+        return {'ok': True, 'id': cid, 'frame_enabled':with_frame, 'frame_variant_id':chosen_variant, 'rarity':rarity}
 
     @app.post('/api/admin/cards/collection')
     async def admin_update_card_collection(request: Request):
@@ -3674,6 +3771,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if not card:
                 raise HTTPException(404, detail='Card não encontrado')
             card.collection_name = collection
+            # Uma moldura de outra coleção jamais fica vinculada ao card.
+            set_card_frame_choice(db, card_id, collection, 0)
         return {'ok': True, 'card_id': card_id, 'collection': collection}
 
     @app.post('/api/admin/pets')
@@ -4161,7 +4260,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             seals = db.scalars(select(Achievement).order_by(Achievement.id.desc())).all()
             items=[{'id':p['sku'],**p} for p in shop_products(db,include_inactive=True)]
             return {
-                'cards':[{'id':c.id,'name':c.name,'rarity':c.rarity,'collection':c.collection_name,'image_url':c.image_url,'frame_enabled':frame_enabled(db,c.id),'active':bool(c.active)} for c in cards],
+                'cards':[{'id':c.id,'name':c.name,'rarity':c.rarity,'collection':c.collection_name,'image_url':c.image_url,'frame_enabled':frame_enabled(db,c.id),'frame_variant_id':card_frame_choice(db,c.id),'active':bool(c.active)} for c in cards],
                 'pets':[{'id':p.id,'name':p.name,'emoji':p.emoji,'image_url':p.image_url,'active':bool(p.active),**model_fields(p)} for p in pets],
                 'achievements':[{'id':a.id,'title':a.title,'description':a.description,'icon':a.icon,'event':a.event,'target':a.target,'image_url':a.image_url,'active':bool(a.active)} for a in seals],
                 'items':items,
@@ -4216,6 +4315,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             db.execute(update(ExpeditionConfig).where(ExpeditionConfig.featured_card_id.is_not(None))
                        .values(featured_card_id=None))
             db.execute(delete(CardFrameSetting))
+            db.execute(delete(CardFrameChoice))
             removed = db.execute(delete(Card)).rowcount or 0
             return {'cards_deleted': removed, 'refunded_coins': refunded}
         selected_owned = select(OwnedCard.id)
@@ -4246,6 +4346,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         db.execute(update(ExpeditionConfig).where(ExpeditionConfig.featured_card_id.in_(selected_cards))
                    .values(featured_card_id=None))
         db.execute(delete(CardFrameSetting).where(CardFrameSetting.card_id.in_(selected_cards)))
+        db.execute(delete(CardFrameChoice).where(CardFrameChoice.card_id.in_(selected_cards)))
         removed = db.execute(delete(Card).where(Card.id.in_(selected_cards))).rowcount or 0
         return {'cards_deleted': removed, 'refunded_coins': refunded}
 
@@ -4336,7 +4437,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                         raise HTTPException(422,detail='Nome, raridade ou coleção inválidos')
                     obj.name=name;obj.rarity=rarity;obj.collection_name=collection
                     obj.image_url=safe_artwork(payload.get('image_url'))
-                    set_card_frame(db, item_id, parse_frame_enabled(payload))
+                    enabled = parse_frame_enabled(payload)
+                    set_card_frame(db, item_id, enabled)
+                    set_card_frame_choice(db, item_id, collection, payload.get('frame_variant_id'), enabled)
                 elif group=='pets':
                     name=str(payload.get('name','')).strip()
                     if not 2<=len(name)<=100:raise HTTPException(422,detail='Nome inválido')
