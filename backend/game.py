@@ -27,7 +27,13 @@ from fastapi.responses import FileResponse
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, and_, func, select, text, inspect, delete, update
 from sqlalchemy.orm import Mapped, mapped_column
 from PIL import Image
-from .pokemon_adventure import define_models, register_routes as register_pokemon_adventure
+# O projeto também é iniciado como `from game import register_game` no Render.
+# Nesse modo `game` não pertence a um pacote e um import relativo falha.
+# Suportar os dois layouts sem mascarar ImportError internos do módulo Pokémon.
+if __package__:
+    from .pokemon_adventure import define_models, register_routes as register_pokemon_adventure
+else:
+    from pokemon_adventure import define_models, register_routes as register_pokemon_adventure
 
 RANDOM = random.SystemRandom()
 TIERS = {'comum': 3, 'raro': 2, 'lendário': 1, 'prismático': 1}
