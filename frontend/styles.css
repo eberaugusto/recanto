@@ -321,8 +321,8 @@ button:disabled { opacity: .6; cursor: wait; }
 .public-badges{display:flex;gap:9px;flex-wrap:wrap}.public-badges .badge-chip{display:grid;place-items:center}
 .social-actions{display:flex;gap:9px;flex-wrap:wrap}.social-actions button{flex:1}
 .pack-reveal{position:absolute;inset:0;z-index:100;background:linear-gradient(150deg,var(--rc-ui-96aac2e6e8,#4d65a0),var(--rc-ui-9adfffb4a4,#81879f));color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;isolation:isolate;transition:background .22s ease;}
-.pack-reveal.tier-comum{background:linear-gradient(145deg,var(--rc-ui-03b3b68698,#4d647e),var(--rc-ui-1a3e572c3c,#789cb5) 55%,var(--rc-ui-990e96b6dd,#bfd4e2))}
-.pack-reveal.tier-raro{background:linear-gradient(145deg,var(--rc-ui-580a9a942c,#332b8a),var(--rc-ui-69e4962188,#5d6af4) 48%,var(--rc-ui-ec95820b6f,#a1a7fa))}
+.pack-reveal.tier-comum{background:linear-gradient(145deg,var(--rc-ui-03b3b68698,#5f3823),var(--rc-ui-1a3e572c3c,#b47d4c) 55%,var(--rc-ui-990e96b6dd,#e1b893))}
+.pack-reveal.tier-raro{background:linear-gradient(145deg,var(--rc-ui-580a9a942c,#596474),var(--rc-ui-69e4962188,#a5aeba) 48%,var(--rc-ui-ec95820b6f,#e6ebf1))}
 .pack-reveal.tier-lendário{background:linear-gradient(145deg,var(--rc-ui-f7f843e5ff,#83412a),var(--rc-ui-fa71a94667,#d38b26) 50%,var(--rc-ui-537e1561cc,#ffd56e))}
 .pack-reveal.tier-prismático{background:linear-gradient(135deg,var(--rc-ui-6eaea37329,#c06fba),var(--rc-ui-f9af57a88a,#5d8dd3) 28%,var(--rc-ui-fbe498d9ec,#6bc8c5) 60%,var(--rc-ui-3c124be14b,#ffd59b));}
 .reveal-hint{font-size:20px;font-weight:800;text-shadow:0 2px 12px var(--rc-ui-4f66a5c7e2,#0006);}
@@ -2501,8 +2501,8 @@ body.dark-mode .poro-stat-header{color:var(--rc-ui-ad55066e48,#eaf0ff);}
   background-size:100% 100%!important;
   background-repeat:no-repeat!important;
 }
-.recanto-framed-art.tier-comum {--recanto-frame-base:linear-gradient(135deg,var(--rc-ui-cfa1997f1f,#c9d3eb),var(--rc-ui-b8d42cf0e9,#7f91ba) 52%,var(--rc-ui-f73f5d4429,#e3e7f0));}
-.recanto-framed-art.tier-raro {--recanto-frame-base:linear-gradient(135deg,var(--rc-ui-aed3867170,#caefff),var(--rc-ui-d7ef2a4375,#54addf) 50%,var(--rc-ui-dcc142cedd,#a6e1f3));}
+.recanto-framed-art.tier-comum {--recanto-frame-base:linear-gradient(135deg,var(--rc-ui-cfa1997f1f,#edc4a0),var(--rc-ui-b8d42cf0e9,#a86938) 52%,var(--rc-ui-f73f5d4429,#f5dec5));}
+.recanto-framed-art.tier-raro {--recanto-frame-base:linear-gradient(135deg,var(--rc-ui-aed3867170,#f0f3f7),var(--rc-ui-d7ef2a4375,#98a5b4) 50%,var(--rc-ui-dcc142cedd,#d7dfe8));}
 .recanto-framed-art.tier-lendário {--recanto-frame-base:linear-gradient(135deg,var(--rc-ui-0e51a5abda,#fff1bc),var(--rc-ui-04f1147c9b,#c89525) 48%,var(--rc-ui-3382053adb,#f7d66a));}
 .recanto-framed-art.tier-prismático {--recanto-frame-base:linear-gradient(135deg,var(--rc-ui-36f6457c67,#bbf7f0) 0%,var(--rc-ui-fc4e1c8b63,#bc8aef) 40%,var(--rc-ui-2293f10237,#f6b0df) 75%,var(--rc-ui-8da61cb383,#94dcff));}
 .recanto-framed-art>.recanto-card-photo {
@@ -3517,9 +3517,9 @@ body.dark-mode .recanto-shop-discount{color:var(--rc-ui-bdc0879dc1,#abebc9)}
   background:var(--reward-background,radial-gradient(ellipse at 50% 40%,var(--rc-ui-60c40b3a11,#819bff),var(--rc-ui-4026dc943e,#4553c9) 50%,var(--rc-ui-749339a650,#18215b)));
   transition:opacity .48s ease;
 }
-#packReveal.pack-reveal.tier-comum{--reward-background:radial-gradient(ellipse at 50% 38%,var(--rc-ui-6d27a7a2b7,#acdbff),var(--rc-ui-3770e3f72f,#4c7a9c) 53%,var(--rc-ui-69425ffd5b,#1c324e));--reward-glow:var(--rc-ui-d3a19fc0c8,#e1f4ff);--reward-ray:var(--rc-ui-f278188a1b,#cceaff)}
-#packReveal.pack-reveal.tier-raro{--reward-background:radial-gradient(ellipse at 50% 38%,var(--rc-ui-1cc4d4ea01,#a3b3ff),var(--rc-ui-a5ed142f22,#4a55dc) 51%,var(--rc-ui-8bb348fc45,#171d77));--reward-glow:var(--rc-ui-b36bbab6bc,#cad2ff);--reward-ray:var(--rc-ui-7083c0ad70,#93b7ff)}
-#packReveal.pack-reveal.tier-lendário{--reward-background:radial-gradient(ellipse at 50% 38%,var(--rc-ui-cfec05e907,#ffe2a0),var(--rc-ui-93d7e9b7b5,#c58420) 49%,var(--rc-ui-a3ce28a60a,#663514));--reward-glow:var(--rc-ui-6ec7ea5f85,#ffe7a1);--reward-ray:var(--rc-ui-b4b8115718,#ffe3a0)}
+#packReveal.pack-reveal.tier-comum{--reward-background:radial-gradient(ellipse at 50% 38%,var(--rc-ui-6d27a7a2b7,#f2c9a2),var(--rc-ui-3770e3f72f,#a96538) 53%,var(--rc-ui-69425ffd5b,#553016));--reward-glow:var(--rc-ui-d3a19fc0c8,#ffdeb8);--reward-ray:var(--rc-ui-f278188a1b,#f7c89a)}
+#packReveal.pack-reveal.tier-raro{--reward-background:radial-gradient(ellipse at 50% 38%,var(--rc-ui-1cc4d4ea01,#f3f5f8),var(--rc-ui-a5ed142f22,#9ca8b7) 51%,var(--rc-ui-8bb348fc45,#374451));--reward-glow:var(--rc-ui-b36bbab6bc,#f3f6fa);--reward-ray:var(--rc-ui-7083c0ad70,#d1dce8)}
+#packReveal.pack-reveal.tier-lendário{--reward-background:radial-gradient(ellipse at 50% 38%,var(--rc-ui-cfec05e907,#fff0b8),var(--rc-ui-93d7e9b7b5,#d7a02c) 49%,var(--rc-ui-a3ce28a60a,#664216));--reward-glow:var(--rc-ui-6ec7ea5f85,#fff0b8);--reward-ray:var(--rc-ui-b4b8115718,#ffe2a0)}
 #packReveal.pack-reveal.tier-prismático{--reward-background:radial-gradient(ellipse at 34% 29%,var(--rc-ui-137f3139f9,#ffb8ea),var(--rc-ui-a0d7d66b01,#a565df) 34%,var(--rc-ui-67abdd9c07,#398ec0) 68%,var(--rc-ui-7afcbdf5b4,#183864));--reward-glow:var(--rc-ui-23b5c39321,#f1d0ff);--reward-ray:var(--rc-ui-ee58b4a5a0,#adffef)}
 #packReveal[data-phase="revealing"]::before,#packReveal[data-phase="revealed"]::before{opacity:1}
 #packReveal .recanto-reward-light{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:-1}
@@ -3839,3 +3839,15 @@ body.dark-mode .rc-customizer .rc-custom-error{color:#ff91a7}
 #adminModal .admin-layout-empty{padding:18px;border:1px dashed #8798b9;border-radius:12px;line-height:1.5;}
 body.dark-mode #adminModal .admin-layout-assign{background:rgba(127,148,217,.15);}
 @media(max-width:520px){#adminModal .admin-layout-category-row>input{flex:1 1 100%;}}
+
+/* RECANTO 0.3.17 — raridades dos CARDS: Bronze, Prata, Ouro; Prismático permanece original.
+   As variáveis rc-ui continuam a permitir as cores salvas pelo administrador. */
+.card-tile.tier-comum .card-art {border-color:var(--rc-ui-3d17502332,#a86d3b);}
+.card-tile.tier-raro .card-art {border-color:var(--rc-ui-b06c544e0e,#9aa8b6);}
+.card-tile.tier-lendário .card-art {border-color:var(--rc-ui-374c3982fd,#dfb344);}
+.feed-rarity-comum{color:var(--rc-ui-00900db787,#a0683b);}
+.feed-rarity-raro{color:var(--rc-ui-5b2d97aa3d,#738293);}
+.feed-rarity-lendario{color:var(--rc-ui-aa0e9f0251,#b78921);}
+body.dark-mode .feed-rarity-comum{color:var(--rc-ui-00900db787,#e5b07b)!important;}
+body.dark-mode .feed-rarity-raro{color:var(--rc-ui-5b2d97aa3d,#d6e1ec)!important;}
+body.dark-mode .feed-rarity-lendario{color:var(--rc-ui-aa0e9f0251,#ffdb80)!important;}
