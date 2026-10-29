@@ -744,6 +744,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         demo_ids = db.scalars(select(User.id).where(User.id.like('teste_%'))).all()
         if demo_ids:
             for uid in demo_ids:
+                owned_pokemon_ids=db.scalars(select(PokemonModels['Owned'].id).where(PokemonModels['Owned'].user_id==uid)).all()
+                if owned_pokemon_ids:
+                    db.execute(delete(PokemonModels['FeedLog']).where(PokemonModels['FeedLog'].pokemon_id.in_(owned_pokemon_ids)))
                 for cls, key in ((ReservedCard, None), (VisitorCare, 'visitor_id'), (VisitorCare, 'owner_id'),
                                  (InventoryPack, 'user_id'), (InventoryTreat, 'user_id'),
                                  (PokemonModels['Trade'],'sender_id'), (PokemonModels['Trade'],'receiver_id'),
@@ -1168,7 +1171,32 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         'favorite_game':'Definir jogos favoritos',
         'favorite_champion':'Definir campeões favoritos',
         'favorite_pokemon':'Definir Pokémons Favoritos',
+        # Metas Pokémon (progresso persistente e atualizado somente pelo backend).
+        'pokemon_catch':'Capturar Pokémon',
+        'pokemon_trade':'Trocar Pokémon com outro jogador',
+        'pokemon_evolve':'Evoluir Pokémon',
+        'pokemon_heal':'Recuperar Pokémon doente',
+        'pokemon_feed':'Alimentar Pokémon',
+        'pokemon_battle':'Participar de batalha de chefe Pokémon',
+        'pokemon_battle_win':'Vencer chefe Pokémon',
+        'pokemon_expedition_start':'Enviar Pokémon para expedição',
+        'pokemon_expedition_finish':'Concluir expedição Pokémon',
+        # Metas Pet: continuam compartilhando os eventos já utilizados.
+        'pet':'Acariciar Pet',
+        'feed':'Alimentar Pet',
+        'adopt':'Adotar Pet',
+        'pet_heal':'Recuperar Pet no veterinário',
+        'pet_expedition_finish':'Concluir expedição de Pet',
     }
+    POKEMON_MISSION_TYPES={
+        'normal':'Normal','fire':'Fogo','water':'Água','electric':'Elétrico',
+        'grass':'Planta','ice':'Gelo','fighting':'Lutador','poison':'Venenoso',
+        'ground':'Terra','flying':'Voador','psychic':'Psíquico','bug':'Inseto',
+        'rock':'Pedra','ghost':'Fantasma','dragon':'Dragão','dark':'Sombrio',
+        'steel':'Aço','fairy':'Fada',
+    }
+    EXTRA_EVENTS.update({f'pokemon_catch_type_{key}':f'Capturar Pokémon do tipo {name}'
+                         for key,name in POKEMON_MISSION_TYPES.items()})
 
     def extra_period(kind):
         if kind=='unica':return 'ever'
@@ -1196,9 +1224,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         else:
             obj.progress = min(9999, obj.progress + amount)
         if mission in EXTRA_EVENTS:
-            # Novas ações usam o sistema integrado daqui; não dependem do main.py antigo.
+            # As missões configuráveis compartilham eventos com as missões antigas.
             extra_mission_progress(db,uid,mission,amount)
-        elif mission_tracker:
+        if mission_tracker and (mission not in EXTRA_EVENTS or mission in ('pet','feed','adopt')):
             mission_tracker(db, uid, mission, amount)
 
     def mission_action(db, uid, kind, target='once'):
@@ -3086,6 +3114,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     else:db.add(InventoryCollectible(user_id=uid,collectible_id=item.id,quantity=1))
                     new_collectible=collectible_dict(item)
                     progress(db,uid,'collectible_gain')
+            progress(db,uid,'pet_expedition_finish')
             db.delete(row)
         return {'ok':True,'coins_gained':earned,'card':granted,'converted_coins':converted_coins,
                 'collectible':new_collectible}
@@ -3239,6 +3268,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             obj.status='ativo';obj.vet_since=None
             obj.food=max(obj.food,75);obj.happiness=max(obj.happiness,75);obj.health=max(obj.health or 0,70)
             obj.last_action_at=obj.last_tick_at=utcnow()
+            progress(db,uid,'pet_heal')
         return {'ok':True}
 
     @app.post('/api/pets/rescue')
@@ -3260,6 +3290,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             obj.happiness = 65
             obj.health = max(obj.health or 0,70)
             obj.last_action_at = obj.last_tick_at = utcnow()
+            progress(db,uid,'pet_heal')
         return {'ok': True, 'spent': price}
 
     @app.get('/api/missions')
@@ -4453,6 +4484,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 purge(db,VisitorCare,((VisitorCare.visitor_id==target)|(VisitorCare.owner_id==target)) if target else None)
                 for cls in (PetExpedition,InventoryCollectible,UserPet):purge(db,cls,uid_predicate(cls))
             if 'pokemon' in selected:
+                pokemon_ids=db.scalars(select(PokemonModels['Owned'].id).where(
+                    PokemonModels['Owned'].user_id==target) if target else select(PokemonModels['Owned'].id)).all()
+                if pokemon_ids:
+                    db.execute(delete(PokemonModels['FeedLog']).where(PokemonModels['FeedLog'].pokemon_id.in_(pokemon_ids)))
                 purge(db,PokemonModels['Trade'],
                     ((PokemonModels['Trade'].sender_id==target)|(PokemonModels['Trade'].receiver_id==target)) if target else None)
                 for cls in (PokemonModels['Expedition'],PokemonModels['Encounter'],PokemonModels['Item'],PokemonModels['Owned'],PokemonModels['Account']):
@@ -4551,7 +4586,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if scope not in ('progress','factory') or payload['confirmation'] != 'LIMPAR TUDO':
             raise HTTPException(422, detail='Confirme digitando LIMPAR TUDO')
         with writing() as db:
-            for table in (PokemonModels['Trade'],PokemonModels['Expedition'],PokemonModels['Encounter'],PokemonModels['Item'],PokemonModels['Owned'],PokemonModels['Account'],MissionActionDaily,RecantoMissionExtraProgress,VisitorCare, FavoriteCard, ReservedCard, InventoryPack, InventoryTreat, InventoryCollectible,
+            for table in (PokemonModels['FeedLog'],PokemonModels['CaptureAttempt'],PokemonModels['Trade'],PokemonModels['Expedition'],PokemonModels['Encounter'],PokemonModels['Item'],PokemonModels['Owned'],PokemonModels['Account'],MissionActionDaily,RecantoMissionExtraProgress,VisitorCare, FavoriteCard, ReservedCard, InventoryPack, InventoryTreat, InventoryCollectible,
                           CollectibleDeal,CoinOffer, CardCooldown, PetExpedition, FavoriteGame, FavoriteChampion, FavoritePokemon, TradeReward, Trade, MissionProgress, Claim, UserAchievement,
                           AchievementProgress, UserPet, OwnedCard):
                 db.execute(delete(table))
@@ -4591,4 +4626,4 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         pokemon_catalog=pokemon_catalog,pokemon_entry=pokemon_entry,wallet=wallet,
         require_coins=require_coins,publish_feed=publish_feed,stock=stock,grant_card=grant_card,
         Card=Card,Collectible=Collectible,InventoryCollectible=InventoryCollectible,
-        pokemon_generation=pokemon_generation,feed_card=feed_card)
+        pokemon_generation=pokemon_generation,feed_card=feed_card,progress=progress)

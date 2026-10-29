@@ -4121,3 +4121,201 @@ body.dark-mode .recanto-battle-slot.enemy{background:#5e4151;border-color:#8a667
   .recanto-wild-card-large .recanto-wild-scene{min-height:240px;}
   .recanto-pokemon-bag{grid-template-columns:1fr;}
 }
+
+
+/* Recanto 0.3.25 — mesma estrutura de cartão das Expedições dos Pets.
+   Os cartões Pokémon usam .poro-expedition-card > .expedition-choice >
+   .expedition-cover + .expedition-info, exatamente como os Pets. */
+#petPane .recanto-pokemon-expedition-card .expedition-choice {
+  display:grid!important;
+  grid-template-columns:minmax(145px,34%) minmax(0,1fr)!important;
+  align-items:start!important;
+  gap:16px!important;
+  margin:13px 0 0!important;
+  padding:14px!important;
+  border:1px solid var(--rc-ui-afe7c7521b,#dce3f9)!important;
+  border-radius:16px!important;
+  background:var(--rc-ui-6345633e28,#f7f9ff)!important;
+  min-width:0;
+}
+#petPane .recanto-pokemon-expedition-card .expedition-cover {
+  grid-column:1!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  min-height:180px!important;
+  max-height:280px!important;
+  aspect-ratio:4/5!important;
+  height:100%!important;
+  align-self:start!important;
+  object-fit:cover;
+  border-radius:12px;
+  margin:0!important;
+}
+#petPane .recanto-pokemon-expedition-card .expedition-cover img {
+  width:100%;height:100%;object-fit:cover;
+  position:absolute;inset:0;z-index:2;
+}
+#petPane .recanto-pokemon-expedition-card .expedition-info {
+  grid-column:2!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:12px!important;
+  min-width:0!important;
+  align-items:stretch!important;
+}
+#petPane .recanto-pokemon-expedition-card .expedition-info .expedition-send {
+  align-self:flex-start!important;
+  margin-top:4px!important;
+  min-height:38px!important;
+  padding:9px 17px!important;
+}
+/* O tabuleiro permanece dentro da coluna direita e não força o cartão a transbordar. */
+#petPane .recanto-pokemon-expedition-card .recanto-battle-board {
+  width:100%;max-width:360px;min-width:0;margin:0;
+}
+#petPane .recanto-pokemon-expedition-card .recanto-battle-side {
+  min-width:0;padding:8px;gap:5px;
+}
+#petPane .recanto-pokemon-expedition-card .recanto-battle-slot {
+  height:27px;min-width:0;font-size:11px;
+}
+body.dark-mode #petPane .recanto-pokemon-expedition-card .expedition-choice {
+  background:var(--rc-ui-6325356cad,#1f2e50)!important;
+  border-color:var(--rc-ui-501538be55,#40527a)!important;
+}
+/* Abaixo de 1240 px, preservar cartões com a imagem à esquerda
+   colocando as duas seções uma abaixo da outra. */
+@media (min-width:768px) and (max-width:1240px){
+  #petPane .recanto-pokemon-adventure-columns {grid-template-columns:1fr!important;}
+}
+@media (min-width:768px){
+  #petPane .recanto-pokemon-expedition-card .expedition-choice {
+    display:grid!important;
+    grid-template-columns:minmax(145px,34%) minmax(0,1fr)!important;
+  }
+  #petPane .recanto-pokemon-expedition-card .expedition-cover {height:100%!important;max-height:280px!important;}
+  #petPane .recanto-pokemon-expedition-card .expedition-info {grid-column:2!important;}
+}
+@media (max-width:767px){
+  #petPane .recanto-pokemon-expedition-card .expedition-choice {
+    display:flex!important;flex-direction:column!important;align-items:stretch!important;
+  }
+  #petPane .recanto-pokemon-expedition-card .expedition-cover {
+    width:100%!important;min-height:180px!important;height:clamp(180px,46vw,225px)!important;
+    max-height:225px!important;aspect-ratio:auto!important;
+  }
+  #petPane .recanto-pokemon-expedition-card .expedition-info {width:100%!important;}
+}
+
+/* Recanto 0.3.25 — contraste do modo escuro na área Pokémon.
+   A 0.3.24 deixava o fundo das subtabs quase branco (#eef2ff) mesmo no tema escuro. */
+body.dark-mode #petPane .recanto-pet-tabs {
+  background: #172440 !important;
+  border: 1px solid #35476a;
+  padding: 8px;
+  border-radius: 16px;
+}
+body.dark-mode #petPane .recanto-pet-tabs .recanto-pet-tab,
+body.dark-mode #petPane .recanto-pet-tabs .recanto-pet-tab:not(.mini-active) {
+  background: #263959 !important;
+  border: 1px solid #485d89 !important;
+  color: #eef2ff !important;
+  opacity: 1;
+}
+body.dark-mode #petPane .recanto-pet-tabs .recanto-pet-tab.mini-active {
+  background: #5865f2 !important;
+  border-color: #7d89ff !important;
+  color: #fff !important;
+}
+body.dark-mode #petPane .recanto-pokemon-tabs,
+body.dark-mode #petPane .recanto-pokemon-tabs-wrap,
+body.dark-mode #petPane .recanto-pokemon-shell {
+  background: #172440 !important;
+  border: 1px solid #35476a;
+  border-radius: 16px;
+}
+body.dark-mode #petPane .recanto-pokemon-tabs {
+  padding: 10px;
+}
+body.dark-mode #petPane .recanto-pokemon-tabs .recanto-pokemon-tab,
+body.dark-mode #petPane .recanto-pokemon-tabs .recanto-pokemon-tab:not(.selected) {
+  background: #263959 !important;
+  border-color: #4b6090 !important;
+  color: #edf2ff !important;
+}
+body.dark-mode #petPane .recanto-pokemon-tabs .recanto-pokemon-tab.selected {
+  background: #5865f2 !important;
+  border-color: #7e8aff !important;
+  color: #fff !important;
+}
+body.dark-mode #petPane .recanto-pokemon-tab-content,
+body.dark-mode #petPane .recanto-pokemon-summary {
+  color: #edf2ff !important;
+}
+body.dark-mode #petPane .recanto-pokemon-summary {
+  background: #25365b !important;
+  border: 1px solid #43577d;
+}
+body.dark-mode #petPane .recanto-pokemon-expedition-card {
+  background: #1b2949 !important;
+  border-color: #405376 !important;
+  color: #f6f8ff !important;
+}
+body.dark-mode #petPane .recanto-pokemon-expedition-card .expedition-choice {
+  background: #253758 !important;
+  border-color: #465b83 !important;
+  color: #f6f8ff !important;
+}
+body.dark-mode #petPane .recanto-pokemon-expedition-card .expedition-info,
+body.dark-mode #petPane .recanto-pokemon-expedition-card .expedition-title {
+  color: #f6f8ff !important;
+}
+body.dark-mode #petPane .recanto-pokemon-expedition-card .expedition-section-label {
+  color: #c3d2f2 !important;
+}
+body.dark-mode #petPane .recanto-pokemon-expedition-card .expedition-tag {
+  color: #f4f7ff !important;
+  background: #32476d !important;
+  border-color: #526991 !important;
+}
+body.dark-mode #petPane .recanto-pokemon-expedition-card .expedition-duration {
+  color: #f0f3ff !important;
+  background: #3b5386 !important;
+}
+body.dark-mode #petPane .recanto-pokemon-expedition-card .recanto-battle-side {
+  background: #304568 !important;
+  border-color: #526891 !important;
+}
+body.dark-mode #petPane .recanto-pokemon-expedition-card .recanto-battle-side.enemy {
+  background: #4b354b !important;
+  border-color: #765474 !important;
+}
+body.dark-mode #petPane .recanto-pokemon-expedition-card .recanto-battle-slot {
+  background: #253758 !important;
+  color: #e7ecff !important;
+  border-color: #5a72a0 !important;
+}
+body.dark-mode #petPane .recanto-pokemon-expedition-card .recanto-battle-slot.enemy {
+  background: #5d4054 !important;
+  border-color: #946f85 !important;
+}
+
+/* 0.3.25 — tipos Pokémon legíveis em português, contorno na cor do tipo. */
+.recanto-pokemon-types {display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;margin:4px 0 10px;}
+.recanto-pokemon-type {display:inline-flex;padding:4px 10px;border:2px solid var(--type-color,#929cae);
+  background:color-mix(in srgb,var(--type-color,#929cae) 14%,transparent);
+  color:inherit;border-radius:999px;line-height:1.25;font-size:12px;font-weight:750;white-space:nowrap;}
+.type-normal{--type-color:#a8a77a}.type-fire{--type-color:#ee8130}.type-water{--type-color:#6390f0}
+.type-electric{--type-color:#f7d02c}.type-grass{--type-color:#7ac74c}.type-ice{--type-color:#96d9d6}
+.type-fighting{--type-color:#c22e28}.type-poison{--type-color:#a33ea1}.type-ground{--type-color:#e2bf65}
+.type-flying{--type-color:#a98ff3}.type-psychic{--type-color:#f95587}.type-bug{--type-color:#a6b91a}
+.type-rock{--type-color:#b6a136}.type-ghost{--type-color:#735797}.type-dragon{--type-color:#6f35fc}
+.type-dark{--type-color:#705746}.type-steel{--type-color:#b7b7ce}.type-fairy{--type-color:#d685ad}
+.recanto-capture-timer {font-weight:800;}
+.recanto-capture-expired .recanto-wild-scene{filter:grayscale(.65);}
+@media(min-width:1024px){#petPane .recanto-wild-card-large .recanto-wild-scene{min-height:410px;}}
+@media(max-width:767px){#petPane .recanto-wild-card-large .recanto-wild-scene{min-height:295px!important;}}
+#petPane .recanto-wild-card-large{display:flex;flex-direction:column;gap:14px;}
+#petPane .recanto-wild-card-large .recanto-wild-scene{width:100%;background-size:cover;background-position:center;}
+#petPane .recanto-wild-card-large>h3,#petPane .recanto-wild-card-large>p {margin:2px 0;}
