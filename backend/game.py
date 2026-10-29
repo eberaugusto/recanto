@@ -311,6 +311,12 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         name: Mapped[str] = mapped_column(String(100), nullable=False)
         image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
+    class CardFrameSetting(Base):
+        """Cards sem moldura. Ausência de registro significa usar a moldura normal."""
+        __tablename__ = 'recanto_card_frame_settings'
+        card_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+        frame_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
     class CollectionCardStyle(Base):
         """Visual separado da arte do Card: moldura e emblema por coleção."""
         __tablename__ = 'collection_card_styles'
@@ -1014,6 +1020,27 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             raise HTTPException(422, detail='Tipo de petisco invalido')
         give_treat(db, uid, sku, -1)
 
+    def frame_enabled(db, card_id):
+        setting = db.get(CardFrameSetting, card_id)
+        return bool(setting.frame_enabled) if setting else True
+
+    def set_card_frame(db, card_id, enabled):
+        # Somente cards sem moldura precisam de registro; todos os antigos mantêm a moldura.
+        existing = db.get(CardFrameSetting, card_id)
+        if enabled:
+            if existing is not None:
+                db.delete(existing)
+        elif existing is None:
+            db.add(CardFrameSetting(card_id=card_id, frame_enabled=False))
+        else:
+            existing.frame_enabled = False
+
+    def parse_frame_enabled(payload, default=True):
+        value = payload.get('frame_enabled', default)
+        if type(value) is not bool:
+            raise HTTPException(422, detail='A opção de moldura deve ser verdadeira ou falsa')
+        return value
+
     def favorite_info(db, uid):
         fav = db.get(FavoriteCard, uid)
         if not fav: return None
@@ -1021,7 +1048,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if not owned or owned.user_id != uid: return None
         card = db.get(Card, owned.card_id)
         return {'owned_id':owned.id, 'card_id':card.id, 'name':card.name,
-                'rarity':card.rarity, 'image_url':card.image_url, 'collection':card.collection_name} if card else None
+                'rarity':card.rarity, 'image_url':card.image_url, 'collection':card.collection_name, 'frame_enabled':frame_enabled(db,card.id)} if card else None
 
     def local_day():
         return utcnow().astimezone(GAME_TZ).date().isoformat()
@@ -1265,7 +1292,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             trim_feed(db)
 
     def feed_card(card):
-        return {'name': card['name'], 'rarity': card.get('rarity', 'comum'), 'image_url': card.get('image_url')}
+        return {'name': card['name'], 'rarity': card.get('rarity', 'comum'), 'image_url': card.get('image_url'),
+                'card_id': card.get('card_id') or card.get('id'), 'frame_enabled':card.get('frame_enabled', True)}
 
     def feed_pet_item(db, sku):
         sku = str(sku)
@@ -1315,7 +1343,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if not card or not card.active:
             raise HTTPException(409,detail='Card indisponível no catálogo')
         return {'id':card.id,'name':card.name,'rarity':card.rarity,
-                'image_url':card.image_url,'collection':card.collection_name}
+                'image_url':card.image_url,'collection':card.collection_name,'frame_enabled':frame_enabled(db,card.id)}
 
     def member_offered_card(db,uid,owned_id):
         owned=db.get(OwnedCard,owned_id)
@@ -1662,10 +1690,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
     def stock(db):
         # Emissão global: 3 cópias por título Comum; 2 Raro; 1 Lendário/Prismático.
         rows = db.execute(select(Card.id, Card.name, Card.rarity, Card.image_url, Card.collection_name, Card.created_at).where(Card.active.is_(True))).all()
+        disabled_frames = set(db.scalars(select(CardFrameSetting.card_id).where(CardFrameSetting.frame_enabled.is_(False))).all())
         counts = dict(db.execute(select(OwnedCard.card_id, func.count(OwnedCard.id)).group_by(OwnedCard.card_id)).all())
         reserved = dict(db.execute(select(ReservedCard.card_id, func.count(ReservedCard.id)).join(InventoryPack, InventoryPack.id == ReservedCard.pack_id).where(InventoryPack.opened_at.is_(None)).group_by(ReservedCard.card_id)).all())
         return [{'id': r[0], 'name': r[1], 'rarity': r[2], 'image_url': r[3],
-                 'collection': r[4] or 'Recanto Original', 'created_at': naive_to_utc(r[5]).isoformat() if r[5] else None,
+                 'collection': r[4] or 'Recanto Original', 'frame_enabled':r[0] not in disabled_frames, 'created_at': naive_to_utc(r[5]).isoformat() if r[5] else None,
                  'max_copies': TIERS.get(r[2], 1), 'minted': counts.get(r[0], 0),
                  'reserved': reserved.get(r[0], 0),
                  'remaining': max(0, TIERS.get(r[2], 1) - counts.get(r[0], 0) - reserved.get(r[0], 0))} for r in rows]
@@ -1692,7 +1721,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         achievement_event(db, uid, 'card')
         xp_action(db,uid,'card_'+str(chosen['rarity']),'card_'+str(chosen['rarity']))
         return {'owned_id': own.id, 'card_id': chosen['id'], 'name': chosen['name'],
-                'rarity': chosen['rarity'], 'image_url': chosen['image_url'], 'collection': chosen.get('collection','Recanto Original')}
+                'rarity': chosen['rarity'], 'image_url': chosen['image_url'], 'collection': chosen.get('collection','Recanto Original'), 'frame_enabled':chosen['frame_enabled'] if 'frame_enabled' in chosen else frame_enabled(db, chosen['id'])}
 
     def pet_tick(db, obj, rules=None):
         if obj is None:
@@ -2032,7 +2061,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     offer.user_id, want.user_id = t.receiver_id, t.sender_id
                     offer.acquired_at = want.acquired_at = utcnow()
                     t.status = 'aceita'
-                    publish_feed(db,t.sender_id,'trade_cards',card_a=feed_card({'name':db.get(Card,offer.card_id).name,'rarity':db.get(Card,offer.card_id).rarity,'image_url':db.get(Card,offer.card_id).image_url}),card_b=feed_card({'name':db.get(Card,want.card_id).name,'rarity':db.get(Card,want.card_id).rarity,'image_url':db.get(Card,want.card_id).image_url}),other=db.get(User,t.receiver_id).username)
+                    publish_feed(db,t.sender_id,'trade_cards',card_a=feed_card({'name':db.get(Card,offer.card_id).name,'rarity':db.get(Card,offer.card_id).rarity,'image_url':db.get(Card,offer.card_id).image_url,'card_id':offer.card_id,'frame_enabled':frame_enabled(db,offer.card_id)}),card_b=feed_card({'name':db.get(Card,want.card_id).name,'rarity':db.get(Card,want.card_id).rarity,'image_url':db.get(Card,want.card_id).image_url,'card_id':want.card_id,'frame_enabled':frame_enabled(db,want.card_id)}),other=db.get(User,t.receiver_id).username)
                     for user in (t.sender_id, t.receiver_id):
                         day = local_day()
                         reward_state = db.get(TradeReward, (user, day))
@@ -2103,7 +2132,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 if fav and fav.owned_id==owned.id:db.delete(fav)
                 offer.status='aceita'
                 card_row=db.get(Card,owned.card_id)
-                if card_row:publish_feed(db,offer.seller_id,'trade_coins',card=feed_card({'name':card_row.name,'rarity':card_row.rarity,'image_url':card_row.image_url}),coins=offer.amount,other=db.get(User,offer.buyer_id).username)
+                if card_row:publish_feed(db,offer.seller_id,'trade_coins',card=feed_card({'name':card_row.name,'rarity':card_row.rarity,'image_url':card_row.image_url,'card_id':card_row.id,'frame_enabled':frame_enabled(db,card_row.id)}),coins=offer.amount,other=db.get(User,offer.buyer_id).username)
                 for who in (offer.buyer_id,offer.seller_id):
                     progress(db,who,'trade');achievement_event(db,who,'trade')
                     xp_action(db,who,'trade_coins','troca_por_moedas')
@@ -2284,9 +2313,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         me(request)
         with SessionLocal() as db:
             rows=db.scalars(select(CollectionCardStyle).order_by(CollectionCardStyle.collection_name)).all()
+            disabled = db.scalars(select(CardFrameSetting.card_id).where(CardFrameSetting.frame_enabled.is_(False))).all()
             return {'styles': {row.collection_name: {
                 'frame_url': row.frame_url
-            } for row in rows}}
+            } for row in rows}, 'card_frames': {str(card_id): False for card_id in disabled}}
 
     @app.post('/api/admin/collections/card-styles')
     async def save_collection_card_style(request: Request):
@@ -2952,7 +2982,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 .order_by(OwnedCard.acquired_at.desc(),OwnedCard.id.desc())
             ).all()
             public_cards=[{'card_id':row[0], 'name':row[1], 'rarity':row[2],
-                           'image_url':row[3], 'collection':row[4] or 'Recanto Original'}
+                           'image_url':row[3], 'collection':row[4] or 'Recanto Original', 'frame_enabled':frame_enabled(db,row[0])}
                           for row in holdings]
             # Totais públicos necessários para que o resumo do perfil visitado
             # tenha a mesma composição de Moedas / Cards / Petiscos do perfil próprio.
@@ -3525,6 +3555,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         rarity = str(data['rarity']).lower().strip()
         picture = str(data.get('image_url', '')).strip() or None
         collection = str(data.get('collection') or 'Recanto Original').strip()
+        with_frame = parse_frame_enabled(data)
         if not 2 <= len(collection) <= 100:
             raise HTTPException(422, detail='Coleção deve ter entre 2 e 100 caracteres')
         if not 2 <= len(name) <= 120 or rarity not in TIERS:
@@ -3543,8 +3574,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                         image_url=safe_artwork(picture), collection_name=collection)
             db.add(card)
             db.flush()
+            set_card_frame(db, card.id, with_frame)
             cid = card.id
-        return {'ok': True, 'id': cid}
+        return {'ok': True, 'id': cid, 'frame_enabled':with_frame, 'rarity':rarity}
 
     @app.post('/api/admin/cards/collection')
     async def admin_update_card_collection(request: Request):
@@ -4013,7 +4045,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             seals = db.scalars(select(Achievement).order_by(Achievement.id.desc())).all()
             items=[{'id':p['sku'],**p} for p in shop_products(db,include_inactive=True)]
             return {
-                'cards':[{'id':c.id,'name':c.name,'rarity':c.rarity,'collection':c.collection_name,'image_url':c.image_url,'active':bool(c.active)} for c in cards],
+                'cards':[{'id':c.id,'name':c.name,'rarity':c.rarity,'collection':c.collection_name,'image_url':c.image_url,'frame_enabled':frame_enabled(db,c.id),'active':bool(c.active)} for c in cards],
                 'pets':[{'id':p.id,'name':p.name,'emoji':p.emoji,'image_url':p.image_url,'active':bool(p.active),**model_fields(p)} for p in pets],
                 'achievements':[{'id':a.id,'title':a.title,'description':a.description,'icon':a.icon,'event':a.event,'target':a.target,'image_url':a.image_url,'active':bool(a.active)} for a in seals],
                 'items':items,
@@ -4067,6 +4099,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                        .values(reward_card_id=None))
             db.execute(update(ExpeditionConfig).where(ExpeditionConfig.featured_card_id.is_not(None))
                        .values(featured_card_id=None))
+            db.execute(delete(CardFrameSetting))
             removed = db.execute(delete(Card)).rowcount or 0
             return {'cards_deleted': removed, 'refunded_coins': refunded}
         selected_owned = select(OwnedCard.id)
@@ -4096,6 +4129,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                    .values(reward_card_id=None))
         db.execute(update(ExpeditionConfig).where(ExpeditionConfig.featured_card_id.in_(selected_cards))
                    .values(featured_card_id=None))
+        db.execute(delete(CardFrameSetting).where(CardFrameSetting.card_id.in_(selected_cards)))
         removed = db.execute(delete(Card).where(Card.id.in_(selected_cards))).rowcount or 0
         return {'cards_deleted': removed, 'refunded_coins': refunded}
 
@@ -4186,6 +4220,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                         raise HTTPException(422,detail='Nome, raridade ou coleção inválidos')
                     obj.name=name;obj.rarity=rarity;obj.collection_name=collection
                     obj.image_url=safe_artwork(payload.get('image_url'))
+                    set_card_frame(db, item_id, parse_frame_enabled(payload))
                 elif group=='pets':
                     name=str(payload.get('name','')).strip()
                     if not 2<=len(name)<=100:raise HTTPException(422,detail='Nome inválido')

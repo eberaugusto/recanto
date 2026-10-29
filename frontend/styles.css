@@ -4486,3 +4486,22 @@ body.dark-mode .recanto-pokemon-gender.unknown{background:#344560;color:#e0e6ef;
     overflow-wrap:anywhere!important;
   }
 }
+
+
+/* Recanto v0.4.4 — moldura opcional por card; a raridade continua preservada. */
+.recanto-framed-art.no-card-frame,
+.recanto-framed-art.no-card-frame.custom-collection-frame {
+  padding:0!important; border:0!important;
+  background:transparent!important; background-image:none!important;
+  box-shadow:none!important;
+}
+.recanto-framed-art.no-card-frame>.recanto-card-photo {
+  position:relative!important; inset:auto!important;
+  width:100%!important; height:100%!important;
+  border-radius:inherit!important;
+  background:transparent!important;
+}
+.recanto-framed-art.no-card-frame::before,
+.recanto-framed-art.no-card-frame::after {
+  content:none!important; background:none!important; display:none!important;
+}

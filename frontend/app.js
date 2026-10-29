@@ -460,6 +460,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   const state={dailyReward:0,claimMinutes:300,dailyClaimInFlight:false,events:[],eventEffects:null,assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:6,cardPage:1,cardPageSize:12,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:matchMedia('(min-width:768px)').matches?'raridade':'padrao',missing:false,newOnly:false},detailClosing:false};
   // RECANTO 0.2.5 — molduras prontas por raridade/coleção, sem emblema separado.
   let collectionStyles={};
+  let cardFrameFlags={};
   let collectionStylesLoaded=false;
   let collectionStylesRequest=null;
   function cardVisualStyle(collection, rarity){
@@ -471,6 +472,14 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     if(!art?.classList?.contains('recanto-framed-art'))return;
     const collection=art.dataset.collection||'Recanto Original';
     const rarity=art.dataset.rarity||'comum';
+    const cardId = art.dataset.cardId;
+    const isFrameless = art.dataset.frameEnabled==='false' || (cardId && cardFrameFlags[cardId]===false);
+    art.classList.toggle('no-card-frame', Boolean(isFrameless));
+    if(isFrameless){
+      art.style.removeProperty('--recanto-custom-frame');
+      art.classList.remove('custom-collection-frame');
+      return;
+    }
     const visual=cardVisualStyle(collection, rarity);
     if(visual.frame_url){art.style.setProperty('--recanto-custom-frame',`url(${JSON.stringify(visual.frame_url)})`);art.classList.add('custom-collection-frame');}
     else{art.style.removeProperty('--recanto-custom-frame');art.classList.remove('custom-collection-frame');}
@@ -481,7 +490,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     if(collectionStylesLoaded&&!force)return collectionStyles;
     const request=(force?fetchJson:API)('/api/collections/card-styles');
     collectionStylesRequest=request.then(data=>{
-      collectionStyles=data.styles||{};collectionStylesLoaded=true;updateAllCardFrames();return collectionStyles;
+      collectionStyles=data.styles||{};cardFrameFlags=data.card_frames||{};collectionStylesLoaded=true;updateAllCardFrames();return collectionStyles;
     }).catch(()=>collectionStyles).finally(()=>{collectionStylesRequest=null;});
     return collectionStylesRequest;
   }
@@ -489,6 +498,9 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const art=h('div',kind+' recanto-framed-art tier-'+(item.rarity||'comum'));
     art.dataset.collection=item.collection||'Recanto Original';
     art.dataset.rarity=item.rarity||'comum';
+    const cardId=item.card_id||item.id;
+    if(cardId)art.dataset.cardId=String(cardId);
+    if(item.frame_enabled===false)art.dataset.frameEnabled='false';
     const photo=h('div','recanto-card-photo');
     if(item.image_url){const img=h('img','recanto-card-photo-image');img.src=item.image_url;img.alt=item.name||'Card';img.loading=kind==='detail-art'?'eager':'lazy';photo.append(img);}
     else photo.append(h('span','recanto-card-placeholder','✦'));
@@ -3312,6 +3324,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       if(!current)return;
       const data=Object.fromEntries(spec.map(([key,,kind])=>[key,kind==='number'?Number(inputs[key].value):inputs[key].value.trim()]));
       data.action='save';
+      if(group==='cards')data.frame_enabled=data.frame_enabled==='true';
       const result=await safeRun(async()=>{
         if(imageFile?.files.length)data.image_url=await uploadArtwork(imageFile.files[0]);
         if(modelFile?.files.length)data.model_url=await uploadModel(modelFile.files);
@@ -3321,7 +3334,10 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
         }
         return API('/api/admin/catalog-management/'+group+'/'+encodeURIComponent(current.id),data);
       },'Alterações salvas.');
-      if(result)await refresh(current.id);
+      if(result){
+        if(group==='cards'){collectionStylesLoaded=false;loadCollectionCardStyles(true).catch(()=>{});}
+        await refresh(current.id);
+      }
     });
     const archive=button('Remover (arquivar)',async()=>{
       const current=rows.find(row=>String(row.id)===chooser.value);
@@ -3370,7 +3386,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       form.hidden=!current;
       if(!current){status.textContent='Nenhum registro para editar.';return;}
       for(const [key,,kind] of spec){
-        inputs[key].value=current[key]??(kind==='number'?0:'');
+        inputs[key].value=key==='frame_enabled'?String(current[key]!==false):(current[key]??(kind==='number'?0:''));
       }
       if(inputs.image_url)inputs.image_url.dispatchEvent(new Event('change'));
       status.textContent=current.active?'● Ativo':'● Arquivado (não aparece em novos catálogos)';
@@ -3548,7 +3564,19 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     adminBox.append(button('Autorizar ID',()=>safeRun(()=>API('/api/admin/authorized-ids',{discord_id:adminInput.value,action:'add'}),'ID autorizado!')),
       button('Revogar ID adicional',()=>safeRun(()=>API('/api/admin/authorized-ids',{discord_id:adminInput.value,action:'remove'}),'Permissão revogada.')));
     pane.append(adminBox);
-    const card=block('Cadastrar card','Nome, raridade e imagem (opcional).');const [n,ni]=adminField('Nome','');const [url,ui]=adminField('URL HTTPS da imagem PNG/JPG/WEBP/GIF ou /uploads/...','');const [collectionRow,collectionInput]=adminField('Coleção do card','Recanto Original');card.append(n,collectionRow,url);attachArtworkPreview(ui,url);const cardFile=h('input','text-input');cardFile.type='file';cardFile.accept='image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif';card.append(h('label','','Ou envie imagem PNG/JPG/WEBP/GIF (até 4 MB)'),cardFile);const rarity=h('select','select-input');['comum','raro','lendário','prismático'].forEach(t=>{const o=h('option','',tierLabels[t]);o.value=t;rarity.append(o);});card.append(rarity,button('Cadastrar card',()=>safeRun(async()=>{const image_url=cardFile.files.length?await uploadArtwork(cardFile.files[0]):ui.value;return API('/api/admin/cards',{name:ni.value,rarity:rarity.value,collection:collectionInput.value,image_url});},'Card cadastrado!')));pane.append(card);
+    const card=block('Cadastrar card','Nome, raridade e imagem (opcional).');const [n,ni]=adminField('Nome','');const [url,ui]=adminField('URL HTTPS da imagem PNG/JPG/WEBP/GIF ou /uploads/...','');const [collectionRow,collectionInput]=adminField('Coleção do card','Recanto Original');card.append(n,collectionRow,url);attachArtworkPreview(ui,url);const cardFile=h('input','text-input');cardFile.type='file';cardFile.accept='image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif';card.append(h('label','','Ou envie imagem PNG/JPG/WEBP/GIF (até 4 MB)'),cardFile);const rarity=h('select','select-input');['comum','raro','lendário','prismático'].forEach(t=>{const o=h('option','',tierLabels[t]);o.value=t;rarity.append(o);});
+    const frameRow=h('label','admin-field','Moldura do card');
+    const cardFrame=h('select','select-input');
+    for(const [value,title] of [['true','Com moldura (padrão da raridade ou da coleção)'],['false','Sem moldura (exibir somente a arte)']]){
+      const option=h('option','',title);option.value=value;cardFrame.append(option);
+    }
+    frameRow.append(cardFrame,h('small','','A raridade do card permanece a mesma, com ou sem moldura.'));
+    card.append(rarity,frameRow,button('Cadastrar card',()=>safeRun(async()=>{
+      const image_url=cardFile.files.length?await uploadArtwork(cardFile.files[0]):ui.value;
+      const result=await API('/api/admin/cards',{name:ni.value,rarity:rarity.value,collection:collectionInput.value,image_url,frame_enabled:cardFrame.value==='true'});
+      collectionStylesLoaded=false;loadCollectionCardStyles(true).catch(()=>{});
+      return result;
+    },'Card cadastrado!')));pane.append(card);
     const deleteAllCards=block('⚠ Excluir TODOS os Cards','Operação permanente. Apaga o catálogo inteiro, cópias dos membros, Cards favoritos, reservas, trocas e ofertas de moedas relacionadas. Ofertas pendentes são reembolsadas. Pacotes comprados e ainda fechados permanecem no inventário e serão completados com novos Cards quando abertos.');
     deleteAllCards.classList.add('admin-card-bulk-delete');
     deleteAllCards.append(button('Apagar todos os Cards de uma vez',async()=>{
@@ -3587,6 +3615,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const existingCatalog=API('/api/admin/catalog-management');
     pane.append(adminCatalogEditor('cards','Gerenciar cards cadastrados',[
       ['name','Nome','text'],['rarity','Raridade','select',Object.entries(tierLabels)],
+      ['frame_enabled','Moldura','select',[['true','Com moldura'],['false','Sem moldura']]],
       ['collection','Coleção','text'],['image_url','Imagem HTTPS ou /uploads/... (vazio remove)','text']
     ],existingCatalog));
     pane.append(adminShopEditor());
