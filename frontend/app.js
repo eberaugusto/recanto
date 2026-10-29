@@ -782,7 +782,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
 
   async function loadProfileExtras(){
     loadOwnLevel().catch(()=>{});
-    const [ach,game,prefs,champions]=await Promise.all([API('/api/achievements'),API('/api/game/config'),API('/api/games/preferences'),API('/api/champions/preferences')]);state.game=game;
+    const [ach,game,prefs,champions,pokemonPrefs]=await Promise.all([API('/api/achievements'),API('/api/game/config'),API('/api/games/preferences'),API('/api/champions/preferences'),API('/api/pokemon/preferences').catch(()=>({selected:[]}))]);state.game=game;
     if(!$('badgesSection')){const b=h('section','profile-badges');b.id='badgesSection';$('desktopLeftColumn').append(b);}
     const b=$('badgesSection');b.replaceChildren();
     const heading=h('div','badge-title');heading.append(h('strong','','🏅 Selos'),h('small','',`${ach.unlocked}/${ach.total} desbloqueados`));b.append(heading);
@@ -815,7 +815,17 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const lineGames=h('div','game-icons');
     if(!prefs.selected.length)lineGames.append(h('p','', 'Escolha até seis jogos para exibir no seu perfil.'));
     for(const g of prefs.selected){const chip=h('button','game-icon');chip.append(gameIcon(g));makeProfileItemInteractive(chip,g,'game');lineGames.append(chip);}
-    gamesSection.append(lineGames);applyUiAssets();
+    gamesSection.append(lineGames);
+    // A posição precisa ser restaurada depois de montar Campeões e Jogos:
+    // ambos usam b.after(...), que pode deslocar o novo painel.
+    let pokemonSection=$('pokemonTeamSection');
+    if(!pokemonSection){pokemonSection=h('section','profile-games profile-pokemon-team');pokemonSection.id='pokemonTeamSection';}
+    pokemonSection.replaceChildren();
+    const pokemonHead=h('div','badge-title');
+    pokemonHead.append(h('strong','','⚡ Meu Time Pokémon'),button('Editar',()=>editPokemonTeam(),'game-edit'));
+    pokemonSection.append(pokemonHead,renderPokemonTeam(pokemonPrefs.selected||[]));
+    b.after(pokemonSection);
+    applyUiAssets();
     if(!state.discordWidgetStarted)startDiscordWidget();
     if(!state.petPreviewLoaded)loadPetPreview().catch(()=>{});
   }
@@ -1255,6 +1265,124 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       state.petPreviewLoaded=true;
     }catch(_){content.replaceChildren(h('p','', 'Pet temporariamente indisponível. Abra a aba Pets para tentar novamente.'));}
     finally{state.petPreviewLoading=false;}
+  }
+
+  // Recanto 0.3.18 — Sprite normal do Pokémon Database. O URL vem
+  // do catálogo validado no servidor, nunca de texto arbitrário do usuário.
+  function pokemonImage(pokemon){
+    const img=h('img','pokemon-sprite');
+    img.alt=pokemon.name||'Pokémon';img.loading='lazy';
+    img.src=pokemon.image_url;
+    img.addEventListener('error',()=>{
+      // Pokémon HOME pode não disponibilizar algumas espécies/variantes.
+      if(img.dataset.fallback)return;
+      img.dataset.fallback='1';
+      img.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/'+Number(pokemon.id)+'.png';
+    });
+    return img;
+  }
+  function renderPokemonTeam(team){
+    const grid=h('div','pokemon-team-grid');
+    if(!team.length){grid.append(h('p','pokemon-team-empty','Nenhum Pokémon escolhido para o time.'));return grid;}
+    for(const pokemon of team.slice(0,6)){
+      const item=h('div','pokemon-team-member');
+      const art=h('a','pokemon-team-art');
+      art.href=pokemon.source_url||'https://pokemondb.net/sprites';
+      art.target='_blank';art.rel='noopener noreferrer';
+      art.title='Ver sprite de '+pokemon.name+' no Pokémon Database';
+      art.append(pokemonImage(pokemon));
+      const name=h('span','pokemon-team-name',pokemon.name);
+      item.title=pokemon.name+' · Geração '+pokemon.generation;
+      item.append(art,name);grid.append(item);
+    }
+    return grid;
+  }
+  let cachedPokemonCatalog=null;
+  async function editPokemonTeam(){
+    const pane=$('profilesPane');$('profilesModal').hidden=false;
+    pane.replaceChildren(h('h3','','Meu Time Pokémon'),h('p','','Carregando os Pokémon das nove gerações…'));
+    try{
+      const [profile,catalog]=await Promise.all([
+        API('/api/pokemon/preferences'),
+        cachedPokemonCatalog?Promise.resolve(cachedPokemonCatalog):API('/api/pokemon/catalog')
+      ]);
+      cachedPokemonCatalog=catalog;
+      if($('profilesModal').hidden)return;
+      const all=catalog.items||[];
+      const index=new Map(all.map(p=>[p.id,p]));
+      const selected=(profile.selected||[]).map(p=>p.id).filter(id=>index.has(id)).slice(0,6);
+      pane.replaceChildren(h('h3','','⚡ Meu Time Pokémon'),h('p','','Escolha até 6 Pokémon, organize as posições e salve seu time.'));
+      const selectedHeading=h('strong','pokemon-editor-heading','Seu time · 0/6');
+      const selectedLine=h('div','pokemon-editor-selected');
+      pane.append(selectedHeading,selectedLine);
+      const search=h('input','text-input');search.type='search';search.placeholder='Buscar Pokémon por nome ou número…';
+      search.setAttribute('aria-label','Buscar Pokémon');
+      const generation=h('select','select-input');generation.setAttribute('aria-label','Filtrar por geração');
+      for(const [value,label] of [['0','Todas as 9 gerações'],...Array.from({length:9},(_,i)=>[String(i+1),'Geração '+(i+1)])]){
+        const opt=h('option','',label);opt.value=value;generation.append(opt);
+      }
+      const filters=h('div','pokemon-editor-filters');filters.append(search,generation);
+      const listing=h('div','pokemon-editor-list');
+      const count=h('p','pokemon-editor-count');
+      const more=button('Mostrar mais Pokémon',()=>{limit+=48;renderResults();},'soft-action pokemon-editor-more');
+      let limit=48;
+      const renderSelected=()=>{
+        selectedHeading.textContent='Seu time · '+selected.length+'/6';selectedLine.replaceChildren();
+        for(let position=0;position<6;position++){
+          const pokemon=index.get(selected[position]);
+          const tile=h('div','pokemon-editor-slot');
+          if(!pokemon){tile.append(h('span','pokemon-slot-number',String(position+1)),h('span','pokemon-empty-slot','Vaga livre'));}
+          else{
+            tile.append(pokemonImage(pokemon),h('span','pokemon-editor-name',pokemon.name));
+            const controls=h('div','pokemon-slot-controls');
+            const up=button('↑',()=>{if(position>0){[selected[position-1],selected[position]]=[selected[position],selected[position-1]];renderSelected();}},'soft-action');
+            up.title='Mover para cima';up.disabled=position===0;
+            const down=button('↓',()=>{if(position<selected.length-1){[selected[position],selected[position+1]]=[selected[position+1],selected[position]];renderSelected();}},'soft-action');
+            down.title='Mover para baixo';down.disabled=position===selected.length-1;
+            const remove=button('×',()=>{selected.splice(position,1);renderSelected();renderResults();},'soft-action');
+            remove.title='Remover do time';
+            controls.append(up,down,remove);tile.append(controls);
+          }
+          selectedLine.append(tile);
+        }
+      };
+      const renderResults=()=>{
+        const query=search.value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+        const gen=Number(generation.value);
+        const candidates=all.filter(p=>(!gen||p.generation===gen)&&(!query||p.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(query)||String(p.id)===query));
+        listing.replaceChildren();
+        for(const pokemon of candidates.slice(0,limit)){
+          const chosen=selected.includes(pokemon.id);
+          const item=button('',()=>{
+            const position=selected.indexOf(pokemon.id);
+            if(position!==-1)selected.splice(position,1);
+            else if(selected.length<6)selected.push(pokemon.id);
+            else{toast('Seu time já possui 6 Pokémon. Remova um antes.');return;}
+            renderSelected();renderResults();
+          },'pokemon-editor-choice'+(chosen?' selected':''));
+          item.setAttribute('aria-label',(chosen?'Remover ':'Adicionar ')+pokemon.name);
+          item.append(pokemonImage(pokemon),h('span','',pokemon.name));
+          listing.append(item);
+        }
+        count.textContent=candidates.length+' Pokémon encontrados';
+        more.hidden=candidates.length<=limit;
+        if(!candidates.length)listing.append(h('p','','Nenhum Pokémon encontrado.'));
+      };
+      search.addEventListener('input',()=>{limit=48;renderResults();});
+      generation.addEventListener('change',()=>{limit=48;renderResults();});
+      renderSelected();renderResults();
+      const attribution=h('a','pokemon-attribution','Sprites: Pokémon Database');
+      attribution.href='https://pokemondb.net/sprites';attribution.target='_blank';attribution.rel='noopener noreferrer';
+      const actions=h('div','game-choice-actions');
+      actions.append(button('Salvar meu time',async()=>{
+        const result=await safeRun(()=>API('/api/pokemon/preferences',{pokemon:[...selected]}),'Time Pokémon atualizado!');
+        if(result){$('profilesModal').hidden=true;await loadProfileExtras();}
+      }),button('Cancelar',()=>{$('profilesModal').hidden=true;},'soft-action'));
+      pane.append(filters,count,listing,more,attribution,actions);
+    }catch(error){
+      pane.replaceChildren(h('h3','','Meu Time Pokémon'),h('p','',error?.message||'Não foi possível carregar a lista Pokémon.'),
+        button('Fechar',()=>{$('profilesModal').hidden=true;},'soft-action'));
+    }
   }
 
   async function editFavoriteGames(prefs){
@@ -1842,6 +1970,10 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       (d.badges||[]).forEach(b=>{const badge=h('span','badge-chip');badge.append(iconArtwork(b.image_url,b.icon||'🏅'));makeProfileItemInteractive(badge,b,'badge');line.append(badge);});
       if(!d.badges?.length)line.append(h('p','public-empty-description','Nenhum selo por enquanto.'));
       badges.append(line);main.append(badges);
+      const visitorPokemon=block('⚡ Meu Time Pokémon');
+      visitorPokemon.classList.add('public-section','public-pokemon-team');
+      visitorPokemon.append(renderPokemonTeam(d.pokemon_team||[]));
+      main.append(visitorPokemon);
       const champions=block('⚔️ Campeões favoritos');champions.classList.add('public-section','public-champions');
       const championList=h('div','game-icons');
       if(!d.favorite_champions?.length)championList.append(h('p','public-empty-description','Nenhum campeão selecionado.'));

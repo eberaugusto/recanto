@@ -287,6 +287,15 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         champion_id: Mapped[str] = mapped_column(String(40), primary_key=True)
         position: Mapped[int] = mapped_column(Integer, nullable=False)
 
+    class FavoritePokemon(Base):
+        """Time escolhido pelo usuário; sprites servidos pelo Pokemon Database."""
+        __tablename__ = 'recanto_favorite_pokemon'
+        user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
+        pokemon_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+        slug: Mapped[str] = mapped_column(String(80), nullable=False)
+        display_name: Mapped[str] = mapped_column(String(100), nullable=False)
+        position: Mapped[int] = mapped_column(Integer, nullable=False)
+
     class FeaturedCollection(Base):
         __tablename__ = 'featured_collections'
         id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -733,7 +742,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                                  (TradeReward, 'user_id'), (MissionProgress, 'user_id'), (MissionActionDaily,'user_id'), (RecantoMissionExtraProgress,'user_id'), (UserExperience,'user_id'), (ExperienceOnce,'user_id'), (ExperienceLog,'user_id'),
                                  (Claim, 'user_id'), (UserAchievement, 'user_id'),
                                  (AchievementProgress, 'user_id'), (DiscordActivityEvent, 'user_id'), (DiscordMessageRate, 'user_id'), (UserPet, 'user_id'),
-                                 (OwnedCard, 'user_id'), (CardCooldown, 'user_id'), (FavoriteGame,'user_id'), (FavoriteChampion,'user_id'), (InventoryCollectible,'user_id'),
+                                 (OwnedCard, 'user_id'), (CardCooldown, 'user_id'), (FavoriteGame,'user_id'), (FavoriteChampion,'user_id'), (FavoritePokemon,'user_id'), (InventoryCollectible,'user_id'),
                                  (CoinOffer,'buyer_id'), (CoinOffer,'seller_id'), (PetExpedition,'user_id')):
                     if cls is ReservedCard:
                         packids = db.scalars(select(InventoryPack.id).where(InventoryPack.user_id == uid)).all()
@@ -885,6 +894,67 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         entries=sorted(db.scalars(select(FavoriteChampion).where(FavoriteChampion.user_id==uid)).all(),key=lambda x:x.position)
         options={slug:row for row in CHAMPIONS for slug in [row[1]]}
         return [champion_entry(db,options[item.champion_id]) for item in entries if item.champion_id in options]
+
+    POKEMON_GEN_ENDS = (151, 251, 386, 493, 649, 721, 809, 905, 1025)
+    _pokemon_catalog_cache = {'items': None, 'until': 0.0}
+
+    def pokemon_generation(pokemon_id):
+        return next((generation for generation, high in enumerate(POKEMON_GEN_ENDS, 1)
+                     if pokemon_id <= high), None)
+
+    def pokemon_sprite(slug):
+        # Nome é sempre validado pela Pokédex oficial antes de ser salvo.
+        return 'https://img.pokemondb.net/sprites/home/normal/' + slug + '.png'
+
+    def pokemon_entry(pokemon_id, slug, name):
+        return {'id': pokemon_id, 'slug': slug, 'name': name,
+                'generation': pokemon_generation(pokemon_id),
+                'image_url': pokemon_sprite(slug),
+                'source_url': 'https://pokemondb.net/sprites/' + slug}
+
+    def user_pokemon(db, uid):
+        entries = db.scalars(select(FavoritePokemon).where(FavoritePokemon.user_id == uid)
+                             .order_by(FavoritePokemon.position)).all()
+        return [pokemon_entry(row.pokemon_id, row.slug, row.display_name) for row in entries]
+
+    def pokemon_catalog():
+        """Uma chamada externa por dia; nunca bloquear leitura de times já salvos."""
+        if _pokemon_catalog_cache['items'] is not None and time.monotonic() < _pokemon_catalog_cache['until']:
+            return _pokemon_catalog_cache['items']
+        try:
+            response = httpx.get('https://pokeapi.co/api/v2/pokemon-species',
+                                 params={'limit': 1025, 'offset': 0}, timeout=12,
+                                 follow_redirects=True)
+            response.raise_for_status()
+            items = []
+            for pokemon in response.json().get('results', []):
+                slug = str(pokemon.get('name', '')).strip().lower()
+                url = str(pokemon.get('url', ''))
+                match = re.search(r'/pokemon-species/(\d+)/?$', url)
+                if not match or not re.fullmatch(r'[a-z0-9-]{1,80}', slug):
+                    continue
+                number = int(match.group(1))
+                if not 1 <= number <= 1025:
+                    continue
+                # Nomes legíveis para espécies com pontuação própria.
+                special = {'mr-mime':'Mr. Mime', 'mime-jr':'Mime Jr.',
+                           'mr-rime':'Mr. Rime', 'nidoran-f':'Nidoran♀',
+                           'nidoran-m':'Nidoran♂', 'type-null':'Type: Null',
+                           'farfetchd':"Farfetch'd", 'sirfetchd':"Sirfetch'd",
+                           'flabebe':'Flabébé', 'ho-oh':'Ho-Oh',
+                           'porygon-z':'Porygon-Z'}
+                name = special.get(slug) or slug.replace('-', ' ').title()
+                items.append(pokemon_entry(number, slug, name))
+            items.sort(key=lambda pokemon: pokemon['id'])
+            if len(items) < 1025:
+                raise ValueError('A Pokédex retornou uma lista incompleta')
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+            if _pokemon_catalog_cache['items'] is not None:
+                return _pokemon_catalog_cache['items']
+            logging.getLogger('recanto.pokemon').warning('Pokédex indisponível: %s', exc)
+            raise HTTPException(503, detail='Lista Pokémon temporariamente indisponível. Tente novamente.') from exc
+        _pokemon_catalog_cache.update(items=items, until=time.monotonic()+86400)
+        return items
 
     def wallet(db, uid):
         obj = db.get(Wallet, uid)
@@ -2369,6 +2439,39 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 xp_action(db,uid,'favorite_game','favorito_jogo',once_key='favgame:'+game)
         return {'ok':True}
 
+    @app.get('/api/pokemon/preferences')
+    def pokemon_preferences(request: Request):
+        uid = me(request)
+        with SessionLocal() as db:
+            return {'selected': user_pokemon(db, uid), 'max': 6,
+                    'source': 'https://pokemondb.net/sprites'}
+
+    @app.get('/api/pokemon/catalog')
+    def list_pokemon_catalog(request: Request):
+        me(request)
+        return {'items': pokemon_catalog(), 'generations': 9, 'max': 6,
+                'source': 'https://pokemondb.net/sprites'}
+
+    @app.post('/api/pokemon/preferences')
+    async def save_pokemon_preferences(request: Request):
+        uid = me(request)
+        data = json_body(await request.json(), ('pokemon',))
+        chosen = data['pokemon']
+        if (not isinstance(chosen, list) or len(chosen) > 6
+                or any(type(pid) is not int or not 1 <= pid <= 1025 for pid in chosen)
+                or len(set(chosen)) != len(chosen)):
+            raise HTTPException(422, detail='Escolha até 6 Pokémon diferentes da Pokédex.')
+        official = {row['id']: row for row in pokemon_catalog()} if chosen else {}
+        if any(pid not in official for pid in chosen):
+            raise HTTPException(422, detail='Pokémon não encontrado nas nove gerações.')
+        with writing() as db:
+            db.execute(delete(FavoritePokemon).where(FavoritePokemon.user_id == uid))
+            for position, pokemon_id in enumerate(chosen):
+                item = official[pokemon_id]
+                db.add(FavoritePokemon(user_id=uid, pokemon_id=pokemon_id,
+                                       slug=item['slug'], display_name=item['name'], position=position))
+        return {'ok': True, 'selected': [official[pid] for pid in chosen]}
+
     @app.get('/api/champions/preferences')
     def champion_preferences(request: Request):
         uid=me(request)
@@ -2809,6 +2912,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     'favorite':favorite_info(db,member_id),
                     'pet':pet_dict(db,obj), 'favorite_games':user_games(db,member_id),
                     'favorite_champions':user_champions(db,member_id),
+                    'pokemon_team':user_pokemon(db,member_id),
                     'collectibles':owned_collectibles(db,member_id),
                     'level_info':level_info(db,member_id)}
 
@@ -4339,7 +4443,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if 'badges' in selected:
                 for cls in (UserAchievement,AchievementProgress):purge(db,cls,uid_predicate(cls))
             if 'favorites' in selected:
-                for cls in (FavoriteCard,FavoriteChampion,FavoriteGame):purge(db,cls,uid_predicate(cls))
+                for cls in (FavoriteCard,FavoriteChampion,FavoriteGame,FavoritePokemon):purge(db,cls,uid_predicate(cls))
             if 'feed' in selected:
                 if target:
                     post_ids=select(FeedEvent.id).where(FeedEvent.user_id==target)
@@ -4425,7 +4529,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             raise HTTPException(422, detail='Confirme digitando LIMPAR TUDO')
         with writing() as db:
             for table in (MissionActionDaily,RecantoMissionExtraProgress,VisitorCare, FavoriteCard, ReservedCard, InventoryPack, InventoryTreat, InventoryCollectible,
-                          CollectibleDeal,CoinOffer, CardCooldown, PetExpedition, FavoriteGame, FavoriteChampion, TradeReward, Trade, MissionProgress, Claim, UserAchievement,
+                          CollectibleDeal,CoinOffer, CardCooldown, PetExpedition, FavoriteGame, FavoriteChampion, FavoritePokemon, TradeReward, Trade, MissionProgress, Claim, UserAchievement,
                           AchievementProgress, UserPet, OwnedCard):
                 db.execute(delete(table))
             # 0.3.1: limpeza local completa também reinicia nível, EXP, Feed
