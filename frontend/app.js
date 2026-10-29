@@ -432,7 +432,8 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const options = { credentials: 'same-origin', cache:'no-store', headers: {Accept:'application/json'} };
     if (data !== undefined) {options.method='POST';options.headers['Content-Type']='application/json';options.body=JSON.stringify(data);}
     const controller=new AbortController();
-    const timeout=setTimeout(()=>controller.abort(),18000);
+    const isLargeCatalog=url.startsWith('/api/admin/catalog-management');
+    const timeout=setTimeout(()=>controller.abort(),isLargeCatalog?45000:18000);
     let response;
     try{response=await fetch(url,{...options,signal:controller.signal});}finally{clearTimeout(timeout);}
     let result;try{result=await response.json();}catch(_){result={detail:'O servidor não respondeu corretamente.'};}
@@ -3429,9 +3430,11 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   function adminCatalogEditor(group,title,spec,collectionPromise){
     const box=block(title,group==='cards'?'Edite, arquive ou exclua permanentemente um card. Excluir apaga também cópias, reservas, favoritos, trocas e ofertas relacionadas.':'Editar ou remover do catálogo sem apagar dados já obtidos pelos usuários. Remover significa arquivar; é possível restaurar.');
     const wrap=h('div','admin-catalog-tools');
-    const chooser=h('select','select-input');chooser.append(h('option','','Carregando registros...'));
+    const chooser=h('select','select-input');chooser.append(h('option','','Carregando registros...'));chooser.disabled=true;
     const form=h('div','admin-editor-form');form.hidden=true;
     const status=h('p','admin-entry-status');
+    const retryButton=button('Tentar novamente',async()=>{await refresh().catch(()=>{});},'soft-action');
+    retryButton.hidden=true;
     const inputs={};
     for(const [key,label,kind,options] of spec){
       const field=h('label','admin-field',label);
@@ -3527,7 +3530,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       destroy.classList.add('admin-permanent-delete');
       actions.append(destroy);
     }
-    form.append(actions);wrap.append(chooser,status,form);box.append(wrap);
+    form.append(actions);wrap.append(chooser,status,retryButton,form);box.append(wrap);
     let rows=[];
     const updateForm=()=>{
       const current=rows.find(row=>String(row.id)===chooser.value);
@@ -3553,15 +3556,27 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       chooser.replaceChildren();
       for(const item of rows){const option=h('option','',`${item.id} · ${item.name||item.title}${item.active?'':' (arquivado)'}`);option.value=String(item.id);chooser.append(option);}
       if(rows.some(item=>String(item.id)===selected))chooser.value=selected;
+      chooser.disabled=!rows.length;
+      if(!rows.length)chooser.append(h('option','','Nenhum registro cadastrado'));
+      retryButton.hidden=true;
       updateForm();
     };
-    const refresh=async(id)=>{
-      const data=await API('/api/admin/catalog-management');
-      if(id!=null)chooser.value=String(id);
-      load(data);
-      if(id!=null){chooser.value=String(id);updateForm();}
+    const loadError=err=>{
+      if(!rows.length){chooser.replaceChildren(h('option','','Falha ao carregar registros'));chooser.disabled=true;form.hidden=true;}
+      status.textContent='Não foi possível carregar registros: '+(err?.name==='AbortError'?'a consulta demorou demais. Tente novamente.':err.message);
+      retryButton.hidden=false;
     };
-    collectionPromise.then(load).catch(err=>{status.textContent='Não foi possível carregar registros: '+err.message;});
+    const refresh=async(id)=>{
+      retryButton.hidden=true;
+      if(!rows.length){chooser.replaceChildren(h('option','','Carregando registros...'));chooser.disabled=true;}
+      try{
+        const data=await API('/api/admin/catalog-management');
+        if(id!=null)chooser.value=String(id);
+        load(data);
+        if(id!=null){chooser.value=String(id);updateForm();}
+      }catch(err){loadError(err);}
+    };
+    collectionPromise.then(load).catch(loadError);
     return box;
   }
 

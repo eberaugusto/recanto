@@ -4256,11 +4256,22 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         only_admin(request)
         with SessionLocal() as db:
             cards = db.scalars(select(Card).order_by(Card.id.desc())).all()
+            # Não consultar db.get() duas vezes PARA CADA card: com centenas
+            # de registros isto gerava centenas de idas ao PostgreSQL remoto
+            # e estourava o timeout de 18s do editor administrativo.
+            # Carregar molduras e escolhas em apenas duas consultas para TODO
+            # o catálogo. Cards antigos continuam com moldura por padrão.
+            disabled_frames = {
+                row.card_id for row in db.scalars(select(CardFrameSetting)
+                    .where(CardFrameSetting.frame_enabled.is_(False))).all()
+            }
+            frame_choices = dict(db.execute(select(
+                CardFrameChoice.card_id, CardFrameChoice.variant_id)).all())
             pets = db.scalars(select(PetSpecies).order_by(PetSpecies.id.desc())).all()
             seals = db.scalars(select(Achievement).order_by(Achievement.id.desc())).all()
             items=[{'id':p['sku'],**p} for p in shop_products(db,include_inactive=True)]
             return {
-                'cards':[{'id':c.id,'name':c.name,'rarity':c.rarity,'collection':c.collection_name,'image_url':c.image_url,'frame_enabled':frame_enabled(db,c.id),'frame_variant_id':card_frame_choice(db,c.id),'active':bool(c.active)} for c in cards],
+                'cards':[{'id':c.id,'name':c.name,'rarity':c.rarity,'collection':c.collection_name,'image_url':c.image_url,'frame_enabled':c.id not in disabled_frames,'frame_variant_id':frame_choices.get(c.id,0),'active':bool(c.active)} for c in cards],
                 'pets':[{'id':p.id,'name':p.name,'emoji':p.emoji,'image_url':p.image_url,'active':bool(p.active),**model_fields(p)} for p in pets],
                 'achievements':[{'id':a.id,'title':a.title,'description':a.description,'icon':a.icon,'event':a.event,'target':a.target,'image_url':a.image_url,'active':bool(a.active)} for a in seals],
                 'items':items,
