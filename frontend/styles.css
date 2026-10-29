@@ -4522,3 +4522,15 @@ body.dark-mode .recanto-mission-description{color:#d3def6;}
 @keyframes rc-achievement-appear{from{opacity:0;transform:translateX(35px)}to{opacity:1;transform:translateX(0)}}
 @media(max-width:600px){.recanto-achievement-alerts{top:calc(env(safe-area-inset-top) + 9px);right:8px;max-width:calc(100vw - 16px);}.recanto-achievement-alert{padding:11px;}}
 @media(prefers-reduced-motion:reduce){.recanto-achievement-alert{animation:none;}.recanto-achievement-exit{transition:none;}}
+
+
+/* 0.4.7 — Abas da Gestão em DOM persistente: sem repintura a cada clique. */
+#adminModal #adminContent .admin-masonry-grid{display:block!important;}
+#adminModal #adminContent .admin-group-view{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;width:100%;min-width:0;align-items:start;}
+#adminModal #adminContent .admin-group-view[hidden]{display:none!important;}
+@media (min-width:768px) and (max-width:1129px){
+  #adminModal #adminContent .admin-group-view{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+}
+@media (max-width:767px){
+  #adminModal #adminContent .admin-group-view{grid-template-columns:minmax(0,1fr);gap:12px;}
+}

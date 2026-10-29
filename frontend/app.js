@@ -386,7 +386,18 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   };
   function invalidateAfterMutation(url){
     if(url==='/api/admin/management-layout')return;
-    if(url.startsWith('/api/admin/')){resetCachedData();return;}
+    if(url.startsWith('/api/admin/')){
+      // Alterar um editor não deve descartar o cache de todas as telas do app.
+      // A invalidação é feita somente para os domínios afetados pela alteração.
+      if(/reset-progress|cards\/delete-all|cards\/\d+\/delete/.test(url)){resetCachedData();return;}
+      if(/cards|catalog|collections/.test(url))invalidateCached(['/api/catalog','/api/cards','/api/inventory','/api/collections','/api/me'],['cards','inventario','perfil']);
+      else if(/mission/.test(url))invalidateCached(['/api/missions','/api/me'],['missoes','perfil']);
+      else if(/shop|claim-settings|events|settings|authorized-ids/.test(url))invalidateCached(['/api/shop','/api/daily/status','/api/game/config','/api/me'],['loja','cards']);
+      else if(/pets|expeditions|collectibles|pokemon/.test(url))invalidateCached(['/api/pets','/api/inventory'],['pet','inventario']);
+      else if(/assets|personalization|colors/.test(url))invalidateCached(['/api/assets'],[]);
+      else if(/feed/.test(url))invalidateCached(['/api/me'],['feed']);
+      return;
+    }
     if(url.startsWith('/api/shop/purchase')){invalidateCached(['/api/inventory','/api/me','/api/shop'],['inventario','perfil']);return;}
     if(url.startsWith('/api/daily/')){invalidateCached(['/api/daily/status','/api/me','/api/inventory','/api/cards'],['cards','inventario','perfil']);return;}
     if(url.startsWith('/api/inventory/packs/')){invalidateCached(['/api/inventory','/api/cards','/api/me'],['inventario','cards','perfil']);return;}
@@ -617,7 +628,10 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       const result=await action();
       if(onConfirmed)onConfirmed(result);
       if(success)toast(typeof success==='function'?success(result):success);
-      reconcileAfterAction();return result;
+      // Editores administrativos permanecem no DOM. GET /me não precisa bloquear
+      // nem competir com as próximas alterações enquanto a Gestão está aberta.
+      if($('adminModal').hidden)reconcileAfterAction();
+      return result;
     }catch(err){toast('⚠ '+(err?.message||'Não foi possível concluir.'));return null;}
   };
   function countdown(iso){if(!iso)return '—';const delta=new Date(iso).getTime()-Date.now();if(delta<=0)return 'Disponível agora';let s=Math.ceil(delta/1000);const d=Math.floor(s/86400);s%=86400;const hour=Math.floor(s/3600);s%=3600;const minute=Math.floor(s/60);const sec=s%60;return (d?`${d}d `:'')+`${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;}
@@ -3013,8 +3027,8 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     }
   }
 
-  async function buildPokemonAdminEditor(){
-    const cfg=await API('/api/admin/pokemon/adventure');
+  async function buildPokemonAdminEditor(preloadedConfig=null){
+    const cfg=await (preloadedConfig||API('/api/admin/pokemon/adventure'));
     const box=block('⚡ Gestão Pokémon','Controle encontros, Pokébolas, doenças, expedições e chefes sem alterar os Pokémons Favoritos do perfil.');
     const settings=h('div','recanto-pokemon-admin-settings');
     const values={};
@@ -3569,7 +3583,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
         if(file.files[0])payload.image_url=await uploadArtwork(file.files[0]);
         return API('/api/admin/shop/products'+(active?'/'+encodeURIComponent(active.sku):''),payload);
       },active?'Produto atualizado!':'Produto criado!');
-      if(result){resetCachedData();await refresh(result.sku);}
+      if(result){await refresh(result.sku);}
     });
     const archive=button('Arquivar produto',async()=>{
       if(!picker.value)return;
@@ -3643,6 +3657,26 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       const gamesTask=API('/api/games/preferences');
     const championsTask=API('/api/champions/preferences');
       const [opts,game]=await Promise.all([API('/api/admin/settings'),API('/api/game/config')]);
+      // Preparar dados dos editores enquanto a interface é construída. Mantém
+      // cada GET e seus erros independentes e elimina uma fila de waits em cascata.
+      const preloadUrls=['/api/admin/collectibles','/api/admin/expeditions',
+        '/api/assets','/api/admin/events','/api/admin/pokemon/adventure',
+        '/api/admin/management-layout'];
+      let preloadActive=0;
+      const preloadQueue=[];
+      const schedulePreload=url=>new Promise((resolve,reject)=>{
+        const run=()=>{
+          preloadActive++;
+          API(url).then(resolve,reject).finally(()=>{
+            preloadActive--;
+            const next=preloadQueue.shift();if(next)next();
+          });
+        };
+        if(preloadActive<3)run();else preloadQueue.push(run);
+      });
+      const preload=new Map(preloadUrls.map(url=>{
+        const task=schedulePreload(url);task.catch(()=>{});return [url,task];
+      }));
       pane.replaceChildren();
       pane.append(h('p','', 'Apenas IDs do Discord autorizados podem administrar os catálogos e as configurações.'));
     const adminBox=block('Administradores por Discord ID','Somente IDs autorizados podem editar o Recanto. O ID principal é permanente.');
@@ -3749,7 +3783,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       const saveBtn=button('Salvar '+tierLabels[tier],async()=>{
         const frame_url=file.files[0]?await uploadArtwork(file.files[0]):input.value.trim();
         const result=await safeRun(()=>API('/api/admin/collections/card-styles',{collection:'__rarity__'+tier,frame_url}),'Moldura salva!');
-        if(result){collectionStylesLoaded=false;resetCachedData();await loadCollectionCardStyles(true);fillRarityRows();}
+        if(result){collectionStylesLoaded=false;await loadCollectionCardStyles(true);fillRarityRows();}
       },'soft-action');
       wrap.append(label,input,h('label','','Ou envie a moldura pronta'),file,saveBtn);
       rarityRows[tier]=input;rarityFiles[tier]=file;frameRarityBox.append(wrap);
@@ -3907,7 +3941,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
 
     // 0.1.21 — Colecionáveis estáticos e resultados das expedições.
     const collectibleBlock=block('Gerenciar Colecionáveis','Defina a raridade (Comum, Raro, Lendário ou Prismático). Itens novos são obtidos exclusivamente nas expedições; os já obtidos podem ser negociados. Arquivar preserva os inventários.');
-    const currentCollectibles=(await API('/api/admin/collectibles')).items||[];
+    let currentCollectibles=(await preload.get('/api/admin/collectibles')).items||[];
     const collectiblesChoice=h('select','select-input');
     const refreshCollectibles=()=>{collectiblesChoice.replaceChildren();const empty=h('option','','+ Novo colecionável');empty.value='';collectiblesChoice.append(empty);
       for(const item of currentCollectibles){const opt=h('option','',`${item.id} · ${item.name}${item.active?'':' (arquivado)'}`);opt.value=String(item.id);collectiblesChoice.append(opt);}};
@@ -3929,11 +3963,18 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       return API('/api/admin/collectibles',payload);};
     collectibleBlock.append(h('label','','Editar existente ou criar novo'),collectiblesChoice,collectName,collectInfo,collectEmoji,h('label','','Raridade do colecionável'),collectRarity,collectCover,
       h('label','','Ou enviar imagem'),collectFile,h('label','admin-check','Ativo'),collectEnabled,
-      button('Salvar colecionável',async()=>{const result=await safeRun(saveCollectibles,'Colecionável salvo!');if(result){state.adminReady=false;state.adminGroup='Pets';await openAdmin(true);}}));
+      button('Salvar colecionável',async()=>{const result=await safeRun(saveCollectibles,'Colecionável salvo!');
+        if(result){
+          const latest=(await API('/api/admin/collectibles')).items||[];
+          currentCollectibles.splice(0,currentCollectibles.length,...latest);
+          refreshCollectibles();collectiblesChoice.value=String(result.id||'');
+          collectiblesChoice.onchange();collectFile.value='';
+        }
+      }));
     pane.append(collectibleBlock);
 
     const expeditionBlock=block('Configurar Expedições','A chance de card e de colecionável são independentes. Em cada expedição, o resultado é definido no servidor.');
-    const expData=await API('/api/admin/expeditions');
+    let expData=await preload.get('/api/admin/expeditions');
     const expChoice=h('select','select-input');
     const addExpOpt=(record)=>{const item=h('option','',record.name);item.value=record.id;expChoice.append(item);};
     expData.items.forEach(addExpOpt);
@@ -3987,7 +4028,12 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
           rarity_weights:Object.fromEntries(Object.entries(weights).map(([tier,input])=>[tier,Number(input.value)])),
           featured_card_id:cardChoice.value?Number(cardChoice.value):null,collectible_id:collectibleChoice.value?Number(collectibleChoice.value):null};
         const result=await safeRun(()=>API('/api/admin/expeditions/'+encodeURIComponent(code),payload),'Expedição salva!');
-        if(result){state.adminReady=false;state.adminGroup='Pets';await openAdmin(true);}
+        if(result){
+          expData=await API('/api/admin/expeditions');
+          expChoice.replaceChildren();for(const row of expData.items)addExpOpt(row);
+          newExpMode.checked=false;expChoice.value=code;
+          updateMode();showExpedition();expFile.value='';
+        }
       }));
     pane.append(expeditionBlock);
     const covers=block('Capas da Loja e Missões','As capas são opcionais. Elas aparecem nos produtos e nas missões, sem alterar as regras.');
@@ -4003,7 +4049,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const ach=block('Criar selo','Conquistas de voz e mensagens são atualizadas pelos eventos autenticados do bot Discord.');const [an,ani]=adminField('Título','');const [ad,adi]=adminField('Descrição','');const [ai,aii]=adminField('Emoji','🏅');const [at,ati]=adminField('Meta numérica','1','number');const type=h('select','select-input');for(const [code,label] of Object.entries({trade:'Trocas',card:'Cards recebidos',adopt:'Pets adotados',pet:'Carinhos',feed:'Alimentações',mission:'Missões resgatadas',voice_minutes:'Minutos em canal de voz',message_count:'Mensagens no Discord'})){const o=h('option','',label);o.value=code;type.append(o);}ach.append(an,ad,ai,at,type,button('Criar selo',()=>safeRun(()=>API('/api/admin/achievements',{title:ani.value,description:adi.value,icon:aii.value,event:type.value,target:Number(ati.value)}),'Selo criado!')));pane.append(ach);
     // Gerenciador de assets: aplica a arte a elementos sem alterar seus cliques ou regras.
     const assetPane=block('🖼️ Central de Assets','Personalize o favicon, menus de PC e celular, logos, jogos e fundos. Envie PNG/JPG/WEBP ou SVG seguro; as artes ficam salvas no servidor (Cloudinary em produção).');
-    const existingAssets=(await API('/api/assets')).items;
+    const existingAssets=(await preload.get('/api/assets')).items;
     const baseSlots=[
       ['favicon','link[rel="icon"]','image','Favicon (aba do navegador)'],
       ['logo-login','#loginScreen .brand-logo','image','Logo na tela de login'],
@@ -4069,11 +4115,23 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const missionBlock=block('Missões do Recanto','Crie quantas missões diárias desejar. As diárias renovam à meia-noite e as semanais às segundas-feiras, no horário de Brasília.');
     const existing=h('select','select-input');
     existing.append(Object.assign(h('option','','Nova missão'),{value:''}));
-    Promise.all([missionsTask,extraMissionsTask,API('/api/mission-descriptions').catch(()=>({items:{}}))]).then(([data,extraData,descs])=>{
+    const populateMissionChoice=(data,extraData,descs,preferred='')=>{
       fillMissionEvents(extraData.events||{});
       missionData.items=[...(data.items||[]).map(row=>({...row,source:'main'})),...(extraData.items||[])];
       for(const row of missionData.items)row.description=descs.items?.[row.code]||row.description||defaultMissionDescriptions[row.code]||'';
-      for(const row of missionData.items){const o=h('option','',poroLegacyText(row.title)+' ['+row.code+']');o.value=row.code;existing.append(o);}})
+      existing.replaceChildren(Object.assign(h('option','','Nova missão'),{value:''}));
+      for(const row of missionData.items){const o=h('option','',poroLegacyText(row.title)+' ['+row.code+']'+(row.enabled===false?' (inativa)':''));o.value=row.code;existing.append(o);}
+      if(preferred && missionData.items.some(row=>row.code===preferred)){existing.value=preferred;existing.onchange();}
+      else existing.value='';
+    };
+    const reloadMissionChoice=async(preferred=existing.value)=>{
+      const [main,extra,descs]=await Promise.all([
+        API('/api/admin/missions'),API('/api/admin/recanto-extra-missions').catch(()=>({items:[]})),
+        API('/api/mission-descriptions').catch(()=>({items:{}}))]);
+      populateMissionChoice(main,extra,descs,preferred);
+    };
+    Promise.all([missionsTask,extraMissionsTask,API('/api/mission-descriptions').catch(()=>({items:{}}))])
+      .then(([data,extraData,descs])=>populateMissionChoice(data,extraData,descs))
       .catch(err=>{missionBlock.append(h('p','', 'Missões indisponíveis: '+err.message));});
     const mFields={};
     for(const [key,label,value] of [['code','Código único (ex: voz_30)',''],['title','Título',''],['goal','Meta numérica','1'],['reward','Recompensa em moedas','10'],['emoji','Emoji','🎯'],['image_url','Capa URL HTTPS (opcional)','']]){
@@ -4126,7 +4184,9 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
           const saved=await API(useExtra?'/api/admin/recanto-extra-missions':'/api/admin/missions',payload);
           await API('/api/admin/mission-descriptions',{code:payload.code,description});
           return saved;
-        },'Missão cadastrada/atualizada!');if(result){state.adminReady=false;await openAdmin(true);}}));
+        },'Missão cadastrada/atualizada!');
+        if(result){imageUpload.value='';await reloadMissionChoice(payload.code);}
+      }));
     const missionVisibility=h('div','admin-action-row');
     missionVisibility.append(
       button('Remover missão (desativar)',async()=>{
@@ -4135,14 +4195,14 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
         const chosen=missionData.items.find(m=>m.code===existing.value);
         const path=chosen?.source==='extra'?'/api/admin/recanto-extra-missions/':'/api/admin/missions/';
         const result=await safeRun(()=>API(path+encodeURIComponent(existing.value)+'/visibility',{enabled:false}),'Missão removida da lista ativa.');
-        if(result){state.adminReady=false;await openAdmin(true);}
+        if(result)await reloadMissionChoice(existing.value);
       },'danger-action'),
       button('Restaurar missão',async()=>{
         if(!existing.value){toast('Selecione uma missão cadastrada.');return;}
         const chosen=missionData.items.find(m=>m.code===existing.value);
         const path=chosen?.source==='extra'?'/api/admin/recanto-extra-missions/':'/api/admin/missions/';
         const result=await safeRun(()=>API(path+encodeURIComponent(existing.value)+'/visibility',{enabled:true}),'Missão reativada.');
-        if(result){state.adminReady=false;await openAdmin(true);}
+        if(result)await reloadMissionChoice(existing.value);
       },'soft-action')
     );
     missionBlock.append(missionVisibility);
@@ -4155,7 +4215,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       if(typed!==chosen.code){if(typed!==null)toast('Código diferente. Exclusão cancelada.');return;}
       const path=chosen.source==='extra'?'/api/admin/recanto-extra-missions/':'/api/admin/missions/';
       const result=await safeRun(()=>API(path+encodeURIComponent(chosen.code)+'/delete',{}),'Missão excluída permanentemente.');
-      if(result){state.adminReady=false;await openAdmin(true);}
+      if(result){await reloadMissionChoice('');existing.value='';}
     },'danger-action'));
     pane.append(missionBlock);
     const integrations=block('Integrações','Voz e mensagens: configure RECANTO_BOT_SECRET e DISCORD_GUILD_ID no Render. O bot original da Oracle é compatível e não precisa de módulo adicional. Não execute dois coletores. O segredo jamais vai no navegador. Consulte o guia da versão 0.2.25.');
@@ -4283,7 +4343,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
 
     // Eventos: vários registros, horários de Brasília e ativação automática no backend.
     const eventBlock=block('Eventos da Comunidade','Crie eventos ilimitados. Programados ligam e desligam automaticamente nas datas definidas; manuais podem ser ativados e pausados. Benefícios de mesmo tipo não se acumulam: vale o melhor.');
-    const eventsData=await API('/api/admin/events');
+    const eventsData=await preload.get('/api/admin/events');
     const eventItems=eventsData.items||[],kinds=eventsData.kinds||{};
     const eventList=h('div','recanto-admin-event-list');
     const eventChoice=h('select','select-input');
@@ -4314,12 +4374,12 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const eventSave=button('Salvar evento',async()=>{
       const payload={id:eventChoice.value?Number(eventChoice.value):null,name:eventName.value.trim(),description:eventDescription.value.trim(),emoji:eventEmoji.value.trim()||'✨',kind:eventKind.value,value:Number(eventValue.value),mode:eventMode.value,enabled:eventEnabled.checked,starts_at:eventStart.value||null,ends_at:eventEnd.value||null};
       const result=await safeRun(()=>API('/api/admin/events',payload),'Evento salvo!');
-      if(result){state.adminReady=false;state.adminGroup='Eventos';await openAdmin(true);refreshCommunityEvents().catch(()=>{});}
+      if(result){await refreshEventEditor(result.id);refreshCommunityEvents().catch(()=>{});}
     });
     const eventDelete=button('Excluir evento',async()=>{
       if(!eventChoice.value||!confirm('Excluir este evento definitivamente?'))return;
       const result=await safeRun(()=>API('/api/admin/events/delete',{id:Number(eventChoice.value)}),'Evento excluído!');
-      if(result){state.adminReady=false;state.adminGroup='Eventos';await openAdmin(true);refreshCommunityEvents().catch(()=>{});}
+      if(result){await refreshEventEditor('');refreshCommunityEvents().catch(()=>{});}
     },'soft-action');eventButtons.append(eventSave,eventDelete);
     const eventStatus=h('p','recanto-event-status');
     const chooseEvent=()=>{
@@ -4334,14 +4394,22 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     eventBlock.append(h('label','','Criar ou selecionar evento'),eventChoice,eventStatus,eventNameRow,eventDescriptionRow,eventEmojiRow,
       h('label','','Tipo de benefício'),eventKind,eventValueRow,eventKindHint,h('label','','Modo de ativação'),eventMode,
       eventActiveLabel,eventStartRow,eventEndRow,eventDateHelp,eventButtons);
+    const renderEventItems=()=>{eventList.replaceChildren();
     for(const item of eventItems){const line=h('div','recanto-admin-event-item');line.append(h('strong','',`${item.emoji||'✨'} ${item.name}`),
       h('small','',item.active?'ATIVO':item.enabled?'AGENDADO / FUTURO':'PAUSADO'),
       h('p','',`${item.description||'Sem descrição'}${item.starts_at?' · '+eventTimeLabel(item.starts_at):''}${item.ends_at?' até '+eventTimeLabel(item.ends_at):''}`));
       line.addEventListener('click',()=>{eventChoice.value=String(item.id);chooseEvent();eventChoice.scrollIntoView({block:'center',behavior:'smooth'});});
       line.setAttribute('role','button');line.tabIndex=0;line.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();line.click();}});
       eventList.append(line);
+    }};
+    renderEventItems();
+    async function refreshEventEditor(id){
+      const latest=await API('/api/admin/events');
+      eventItems.splice(0,eventItems.length,...(latest.items||[]));
+      rebuildChoice();eventChoice.value=id?String(id):'';
+      chooseEvent();renderEventItems();
     }
-    if(eventItems.length)eventBlock.append(h('h4','','Eventos cadastrados'),eventList);
+    eventBlock.append(h('h4','','Eventos cadastrados'),eventList);
     pane.append(eventBlock);
     const settings=block('Outros valores configuráveis','Preços, prazos e demais recompensas.');
     for(const [key,value] of Object.entries(opts.settings)){
@@ -4360,7 +4428,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const tools=block('Ferramentas administrativas','Operações destinadas a administradores Discord. Funcionam também em celulares.');
     tools.append(button('Reiniciar meus resgates diários',async()=>{
       const result=await safeRun(()=>API('/api/admin/reset-daily',{}),'Seus resgates foram reiniciados!');
-      if(result)await openAdmin(true);
+      if(result){invalidateCached(['/api/daily/status','/api/missions'],['missoes','cards']);}
     }));
     pane.append(tools);
     // Ajuste manual de moedas: permitido apenas para administradores no backend.
@@ -4489,7 +4557,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       }
     }).catch(()=>{});
     updateResetConfirmation();
-    try{pane.append(await buildPokemonAdminEditor());}
+    try{pane.append(await buildPokemonAdminEditor(preload.get('/api/admin/pokemon/adventure')));}
     catch(error){pane.append(block('⚡ Pokémon — Gestão',`Não foi possível abrir o gerenciador Pokémon: ${error.message}`));}
     // V0.3.15 — Administração configurável sem apagar painéis.
     const groupNames=['Geral','Loja','Economia','Cards','Pets','Pokémon','Missões','Eventos','Selos','Aparência','Textos','Cores','Feed','Níveis','Usuários','Integrações','Avançado'];
@@ -4515,7 +4583,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     };
     const slugName=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,76)||'editor';
     const defaults=groupNames.map(name=>({id:slugName(name),name}));
-    const configured=await API('/api/admin/management-layout').catch(()=>({tabs:null,placements:{}}));
+    const configured=await preload.get('/api/admin/management-layout').catch(()=>({tabs:null,placements:{}}));
     // Permanência garantida da aba Geral, mesmo que uma configuração antiga esteja incompleta.
     let layoutTabs=Array.isArray(configured.tabs)&&configured.tabs.some(t=>t.id==='geral')
       ?configured.tabs.map(t=>({id:String(t.id),name:String(t.name)}))
@@ -4558,22 +4626,40 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       return writeLayout;
     };
     const countColumns=()=>matchMedia('(max-width:767px)').matches?1:matchMedia('(max-width:1129px)').matches?2:3;
+    // Cada aba mantém seus editores montados. Alternar abas só alterna 'hidden',
+    // sem reconstruir o DOM, reiniciar formulários ou disparar MutationObserver.
+    const groupViews=new Map();
+    const mountGroups=()=>{
+      currentColumnCount=countColumns();groupViews.clear();
+      const fragment=document.createDocumentFragment();
+      for(const category of layoutTabs){
+        const view=h('div','admin-group-view');view.dataset.group=category.id;
+        const columns=Array.from({length:currentColumnCount},()=>h('div','admin-masonry-column'));
+        const weights=Array(currentColumnCount).fill(0);
+        let countBoxes=0;
+        for(const box of boxes){
+          if(box.dataset.adminGroup!==category.id)continue;
+          countBoxes++;
+          const weight=Math.max(1,Math.ceil(box.querySelectorAll('input,textarea,select,button').length/7));
+          let target=0;
+          for(let i=1;i<weights.length;i++)if(weights[i]<weights[target])target=i;
+          weights[target]+=weight;
+          box.hidden=false;columns[target].append(box);
+        }
+        if(!countBoxes)columns[0].append(h('div','admin-layout-empty','Esta aba ainda não possui editores. Você pode movê-los usando o seletor “Categoria” dos outros painéis.'));
+        view.append(...columns);view.hidden=category.id!==state.adminGroup;
+        fragment.append(view);groupViews.set(category.id,view);
+      }
+      masonry.replaceChildren(fragment);
+    };
     const showGroup=group=>{
       const selected=layoutTabs.some(t=>t.id===group)?group:'geral';
+      const changed=state.adminGroup!==selected;
       state.adminGroup=selected;
-      const count=countColumns();currentColumnCount=count;
-      const columns=Array.from({length:count},()=>h('div','admin-masonry-column'));
-      masonry.replaceChildren(...columns);
-      let countBoxes=0;
-      for(const box of boxes){
-        if(box.dataset.adminGroup!==selected)continue;
-        box.hidden=false;countBoxes++;
-        const target=columns.reduce((best,col)=>col.getBoundingClientRect().height<best.getBoundingClientRect().height?col:best,columns[0]);
-        target.append(box);
-      }
-      if(!countBoxes){columns[0].append(h('div','admin-layout-empty','Esta aba ainda não possui editores. Você pode movê-los usando o seletor “Categoria” dos outros painéis.'));}
+      if(!groupViews.size||currentColumnCount!==countColumns()||!groupViews.has(selected))mountGroups();
+      for(const [key,view] of groupViews)view.hidden=key!==selected;
       for(const btn of nav.querySelectorAll('[data-group]'))btn.classList.toggle('selected',btn.dataset.group===selected);
-      pane.scrollTop=0;
+      if(changed)pane.scrollTop=0;
     };
     function rebuildNav(){
       nav.replaceChildren();
@@ -4596,7 +4682,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
           const sel=h('select','select-input');sel.setAttribute('aria-label','Categoria do editor '+box.dataset.adminEditorTitle);
           sel.addEventListener('change',()=>{
             box.dataset.adminGroup=sel.value;places[box.dataset.adminEditorId]=sel.value;
-            saveLayout();showGroup(state.adminGroup);
+            saveLayout();mountGroups();showGroup(state.adminGroup);
           });
           row.append(label,sel);
           const heading=box.querySelector(':scope > h3');if(heading)heading.after(row);else box.prepend(row);
@@ -4624,7 +4710,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
           for(const key of Object.keys(places))if(places[key]===category.id)places[key]='geral';
           layoutTabs=layoutTabs.filter(t=>t.id!==category.id);
           if(state.adminGroup===category.id)state.adminGroup='geral';
-          saveLayout();rebuildNav();rebuildAssignments();rebuildManager();showGroup(state.adminGroup);
+          saveLayout();rebuildNav();rebuildAssignments();rebuildManager();mountGroups();showGroup(state.adminGroup);
         },'soft-action admin-layout-delete'));
         else line.append(h('span','admin-layout-protected','Aba obrigatória'));
         tabEditor.append(line);
@@ -4636,10 +4722,10 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       let id=slugName(name).slice(0,48),suffix=2;
       if(!/^[a-z]/.test(id))id='aba-'+id;
       while(layoutTabs.some(t=>t.id===id))id=slugName(name).slice(0,43)+'-'+suffix++;
-      layoutTabs.push({id,name});newCategory.value='';saveLayout();rebuildNav();rebuildAssignments();rebuildManager();showGroup(id);
+      layoutTabs.push({id,name});newCategory.value='';saveLayout();rebuildNav();rebuildAssignments();rebuildManager();mountGroups();showGroup(id);
     }));
     if(state.adminMasonryResize)window.removeEventListener('resize',state.adminMasonryResize);
-    state.adminMasonryResize=()=>{if(!dialog.hidden&&countColumns()!==currentColumnCount)showGroup(state.adminGroup);};
+    state.adminMasonryResize=()=>{if(!dialog.hidden&&countColumns()!==currentColumnCount){mountGroups();showGroup(state.adminGroup);}};
     window.addEventListener('resize',state.adminMasonryResize);
     rebuildNav();rebuildAssignments();
     const adminDialog=$('adminModal').querySelector('.admin-dialog');
