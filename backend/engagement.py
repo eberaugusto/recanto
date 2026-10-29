@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 from urllib.parse import urlsplit
 
 from fastapi import HTTPException, Request
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, select, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, select, func, delete
 from sqlalchemy.orm import Mapped, mapped_column
 
 VALID_EVENTS={'daily_card','daily_coins','trade','pet','feed','adopt','pack','voice_minutes','message_count'}
@@ -35,6 +35,12 @@ def register_engagement(*, app, Base, engine, SessionLocal, User, Wallet, curren
         image_url:Mapped[str | None]=mapped_column(String(512),nullable=True)
         enabled:Mapped[bool]=mapped_column(Boolean,default=True,nullable=False)
         week_tag:Mapped[str | None]=mapped_column(String(12),nullable=True)
+
+    class MissionDeleted(Base):
+        # Persisted tombstones keep built-in missions deleted across Render restarts.
+        __tablename__='recanto_deleted_missions'
+        code:Mapped[str]=mapped_column(String(48),primary_key=True)
+        deleted_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=utcnow)
 
     class Counter(Base):
         __tablename__='recanto_mission_counters'
@@ -82,7 +88,8 @@ def register_engagement(*, app, Base, engine, SessionLocal, User, Wallet, curren
     ]
     with SessionLocal.begin() as db:
         for code,title,kind,event,goal,reward,emoji in defaults:
-            if not db.get(Mission,code):db.add(Mission(code=code,title=title,kind=kind,event=event,goal=goal,reward=reward,emoji=emoji))
+            if not db.get(Mission,code) and not db.get(MissionDeleted,code):
+                db.add(Mission(code=code,title=title,kind=kind,event=event,goal=goal,reward=reward,emoji=emoji))
 
     def period_key(kind, now=None):
         now=(now or utcnow()).astimezone(tz)
@@ -123,11 +130,11 @@ def register_engagement(*, app, Base, engine, SessionLocal, User, Wallet, curren
 
     def shown_missions(db):
         entries=db.scalars(select(Mission).where(Mission.enabled.is_(True)).order_by(Mission.code)).all()
-        wk=period_key('semanal')
-        daily=[m for m in entries if m.kind=='diaria']
-        # Exatamente 3 missões diárias dentre as missões cadastradas.
-        daily.sort(key=lambda m:hashlib.sha256((period_key('diaria')+m.code).encode()).hexdigest())
-        return [m for m in entries if m.kind=='unica']+daily[:3]+[m for m in entries if m.kind=='semanal' and m.week_tag==wk]
+        # Show all registered missions. Daily and weekly counters use distinct
+        # time buckets, so weekly missions remain active and reset automatically.
+        return ([m for m in entries if m.kind=='semanal']+
+                [m for m in entries if m.kind=='diaria']+
+                [m for m in entries if m.kind=='unica'])
 
     @app.get('/api/missions')
     def list_missions(request:Request):
@@ -194,6 +201,8 @@ def register_engagement(*, app, Base, engine, SessionLocal, User, Wallet, curren
         if image and not (image.startswith('https://') or image.startswith('/uploads/')):raise HTTPException(422,detail='Imagem deve ser HTTPS')
         with SessionLocal.begin() as db:
             m=db.get(Mission,code)
+            tombstone=db.get(MissionDeleted,code)
+            if tombstone:db.delete(tombstone)
             if not m:m=Mission(code=code);db.add(m)
             m.title=title;m.kind=kind;m.event=event;m.goal=goal;m.reward=reward;m.emoji=emoji;m.image_url=image
             m.enabled=bool(data.get('enabled',True))
@@ -212,6 +221,22 @@ def register_engagement(*, app, Base, engine, SessionLocal, User, Wallet, curren
             mission.enabled=data['enabled']
             if mission.enabled and mission.kind=='semanal':mission.week_tag=period_key('semanal')
         return {'ok':True,'code':code,'enabled':data['enabled']}
+
+    @app.post('/api/admin/missions/{code}/delete')
+    def delete_mission(code:str,request:Request):
+        admin(request)
+        with SessionLocal.begin() as db:
+            m=db.get(Mission,code)
+            if not m:raise HTTPException(404,detail='Missão inexistente')
+            # Progress counters are shared across missions with the same event;
+            # never erase them or other missions could lose their progress.
+            db.execute(delete(MissionClaim).where(MissionClaim.code==code))
+            db.delete(m)
+            # Built-in defaults must not be re-created on next server boot.
+            if not db.get(MissionDeleted,code):db.add(MissionDeleted(code=code))
+            desc=Base.metadata.tables.get('recanto_mission_descriptions')
+            if desc is not None:db.execute(delete(desc).where(desc.c.code==code))
+        return {'ok':True,'code':code,'deleted':True}
 
     @app.post('/api/integrations/discord/event')
     async def discord_event(request:Request):
@@ -309,6 +334,19 @@ def register_engagement(*, app, Base, engine, SessionLocal, User, Wallet, curren
                 if pet and pet[1]=='ativo' and estimated_food<=30:
                     # no máximo 1 aviso a cada 12h de fome persistente
                     alerts.append(('hunger:'+now.date().isoformat()+('am' if now.hour<12 else 'pm'),'Seu pet está com fome','Sua Pequena Lenda precisa de alimentação!'))
+                # 0.4.6: conquistas ainda não exibidas no aplicativo aberto
+                # tornam-se Web Push na rotina agendada, sem envio duplicado.
+                # Não apagar avisos aqui: eles continuam na caixa de avisos do app.
+                achievement=Base.metadata.tables.get('recanto_achievement_notices')
+                if achievement is not None:
+                    pending=db.execute(select(achievement.c.key,achievement.c.kind,achievement.c.title)
+                        .where(achievement.c.user_id==uid,
+                               achievement.c.read_at.is_(None),
+                               achievement.c.created_at>=now-timedelta(days=7))
+                        .order_by(achievement.c.created_at).limit(12)).all()
+                    for key,kind,event_title in pending:
+                        label='Selo conquistado!' if kind=='badge' else 'Missão concluída!'
+                        alerts.append(('achievement:'+key,label,event_title))
                 for key,title,body in alerts:
                     if db.get(NotificationSent,(uid,key)):continue
                     success=False

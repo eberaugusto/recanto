@@ -461,7 +461,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   const poroSpeciesName = value => String(value ?? '');
   const labels={feed:'Feed',perfil:'Perfil',cards:'Cards',inventario:'Inventário',pet:'Pets',loja:'Loja',missoes:'Missões'};
   const tierLabels={comum:'Comum',raro:'Raro',lendário:'Lendário',prismático:'Prismático'};
-  const state={dailyReward:0,claimMinutes:300,dailyClaimInFlight:false,events:[],eventEffects:null,assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:6,cardPage:1,cardPageSize:12,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:matchMedia('(min-width:768px)').matches?'raridade':'padrao',missing:false,newOnly:false},detailClosing:false};
+  const state={dailyReward:0,claimMinutes:300,dailyClaimInFlight:false,events:[],eventEffects:null,assets:[],account:null,config:{},game:null,tab:'perfil',cardTab:'colecao',reset:null,cardReset:null,missionReset:null,weeklyMissionReset:null,installEvent:null,notification:false,notificationBusy:false,tabTransition:0,focusShop:null,petAction:null,inventoryTab:'packs',reveal:null,revealIndex:0,revealFace:false,badgesVisible:6,cardPage:1,cardPageSize:12,darkMode:false,cardFilters:{rarity:'todos',collection:'todas',alphabetical:matchMedia('(min-width:768px)').matches?'raridade':'padrao',missing:false,newOnly:false},detailClosing:false};
   // RECANTO 0.2.5 — molduras prontas por raridade/coleção, sem emblema separado.
   let collectionStyles={};
   let cardFrameFlags={};
@@ -622,7 +622,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   };
   function countdown(iso){if(!iso)return '—';const delta=new Date(iso).getTime()-Date.now();if(delta<=0)return 'Disponível agora';let s=Math.ceil(delta/1000);const d=Math.floor(s/86400);s%=86400;const hour=Math.floor(s/3600);s%=3600;const minute=Math.floor(s/60);const sec=s%60;return (d?`${d}d `:'')+`${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;}
   function claimDurationText(minutes){const n=Number(minutes)||300;return n%60===0?`${n/60}h`:n>60?`${Math.floor(n/60)}h${n%60}min`:`${n}min`;}
-  function updateCountdowns(){const cardTitle=$('cardClaimTitle');if(cardTitle)cardTitle.textContent=`Resgate de Cards · ${claimDurationText(state.claimMinutes)}`;if(state.reset){const t=countdown(state.reset);$('cardCountdown').textContent=$('dailyCard').disabled?'Novo card em '+countdown(state.cardReset):`Disponível agora (a cada ${claimDurationText(state.claimMinutes)})!`;$('coinCountdown').textContent=$('dailyCoins').disabled?'Próximo resgate: '+t:'Resgate disponível!';}if(state.missionReset)$('missionTimer').textContent='Resetam em: '+countdown(state.missionReset);}
+  function updateCountdowns(){const cardTitle=$('cardClaimTitle');if(cardTitle)cardTitle.textContent=`Resgate de Cards · ${claimDurationText(state.claimMinutes)}`;if(state.reset){const t=countdown(state.reset);$('cardCountdown').textContent=$('dailyCard').disabled?'Novo card em '+countdown(state.cardReset):`Disponível agora (a cada ${claimDurationText(state.claimMinutes)})!`;$('coinCountdown').textContent=$('dailyCoins').disabled?'Próximo resgate: '+t:'Resgate disponível!';}if(state.missionReset||state.weeklyMissionReset)$('missionTimer').textContent=[state.missionReset?'Diárias reiniciam em: '+countdown(state.missionReset):'',state.weeklyMissionReset?'Semanais reiniciam em: '+countdown(state.weeklyMissionReset):''].filter(Boolean).join('   ·   ');}
 
   function eventTimeLabel(iso){if(!iso)return '';return new Date(iso).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
   function paintCommunityEvents(){
@@ -3250,11 +3250,11 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     data.items=[...(data.items||[]),...(extras.items||[])];
     for(const mission of data.items)
       mission.description=descriptions.items?.[mission.code]||mission.description||defaultMissionDescriptions[mission.code]||'Complete esta tarefa para receber sua recompensa.';
-    state.missionReset=data.next_reset;
+    state.missionReset=data.next_reset;state.weeklyMissionReset=data.weekly_reset;
     const pane=$('missionPane');pane.replaceChildren();
     const completed=data.items.filter(x=>x.claimed).length;
     $('missionCount').textContent=`${completed}/${data.items.length} resgatadas`;
-    for(const [kind,label] of [['semanal','Missões Semanais'],['diaria','Missões Diárias (3 por dia)'],['unica','Missões Únicas']]){
+    for(const [kind,label] of [['semanal','Missões Semanais'],['diaria','Missões Diárias'],['unica','Missões Únicas']]){
       const section=h('section','mission-category');section.append(h('h2','mission-category-title',label));
       const items=data.items.filter(x=>x.kind===kind);
       if(!items.length)section.append(h('p','mission-placeholder','Nenhuma missão disponível nesta categoria.'));
@@ -4066,7 +4066,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     assetPane.append(h('p','asset-help','Os ícones de menu alteram PC e celular juntos. O favicon muda a aba do navegador; o ícone de instalação do PWA continua separado. SVGs perigosos são recusados. Para outros elementos, use chave e seletor CSS.'));
     pane.append(assetPane);
     const missionData={items:[]};
-    const missionBlock=block('Missões do Recanto','Crie e edite missões únicas, diárias ou semanais. As semanais entram na semana atual; após a próxima segunda-feira, cadastre/reative as missões da nova semana.');
+    const missionBlock=block('Missões do Recanto','Crie quantas missões diárias desejar. As diárias renovam à meia-noite e as semanais às segundas-feiras, no horário de Brasília.');
     const existing=h('select','select-input');
     existing.append(Object.assign(h('option','','Nova missão'),{value:''}));
     Promise.all([missionsTask,extraMissionsTask,API('/api/mission-descriptions').catch(()=>({items:{}}))]).then(([data,extraData,descs])=>{
@@ -4146,6 +4146,17 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       },'soft-action')
     );
     missionBlock.append(missionVisibility);
+    missionBlock.append(button('Excluir missão permanentemente',async()=>{
+      if(!existing.value){toast('Selecione uma missão cadastrada.');return;}
+      const chosen=missionData.items.find(m=>m.code===existing.value);
+      if(!chosen){toast('Missão indisponível.');return;}
+      if(!window.confirm(`Excluir permanentemente a missão “${chosen.title}” para todos os usuários? Isso não pode ser desfeito.`))return;
+      const typed=window.prompt(`Para confirmar a exclusão, digite o código: ${chosen.code}`);
+      if(typed!==chosen.code){if(typed!==null)toast('Código diferente. Exclusão cancelada.');return;}
+      const path=chosen.source==='extra'?'/api/admin/recanto-extra-missions/':'/api/admin/missions/';
+      const result=await safeRun(()=>API(path+encodeURIComponent(chosen.code)+'/delete',{}),'Missão excluída permanentemente.');
+      if(result){state.adminReady=false;await openAdmin(true);}
+    },'danger-action'));
     pane.append(missionBlock);
     const integrations=block('Integrações','Voz e mensagens: configure RECANTO_BOT_SECRET e DISCORD_GUILD_ID no Render. O bot original da Oracle é compatível e não precisa de módulo adicional. Não execute dois coletores. O segredo jamais vai no navegador. Consulte o guia da versão 0.2.25.');
     const discordState=h('p','admin-style-help','Verificando conexão com o bot...');

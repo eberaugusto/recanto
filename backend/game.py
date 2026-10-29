@@ -3812,6 +3812,18 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             row.enabled=data['enabled']
         return {'ok':True,'code':code,'enabled':data['enabled']}
 
+    @app.post('/api/admin/recanto-extra-missions/{code}/delete')
+    def admin_delete_extra_mission(code:str,request:Request):
+        only_admin(request)
+        with writing() as db:
+            mission=db.get(RecantoMissionExtra,code)
+            if not mission:raise HTTPException(404,detail='Missão não encontrada')
+            db.execute(delete(RecantoMissionExtraProgress).where(RecantoMissionExtraProgress.code==code))
+            description=db.get(RecantoMissionDescription,code)
+            if description:db.delete(description)
+            db.delete(mission)
+        return {'ok':True,'code':code,'deleted':True}
+
     # 0.1.21 — expedicoes e colecionaveis, gerenciados apenas por administradores.
     @app.get('/api/admin/expeditions')
     def admin_expeditions(request: Request):
