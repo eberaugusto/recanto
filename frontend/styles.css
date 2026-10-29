@@ -4069,3 +4069,55 @@ body:not(.dark-mode) .recanto-pokemon-tile,body:not(.dark-mode) .recanto-pokemon
 .recanto-pokemon-shop-item.is-empty{opacity:.7;}
 @media(max-width:900px){.recanto-pokemon-two-col{grid-template-columns:1fr;}}
 @media(max-width:500px){.recanto-joy-hero{grid-template-columns:72px 1fr;}.recanto-joy-avatar{width:72px;height:72px;font-size:32px;}.recanto-battle-board{grid-template-columns:1fr;}}
+
+
+/* Recanto 0.3.24 — refinamentos Pokémon */
+.recanto-pet-tabs.mini-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.recanto-pet-tabs .recanto-pet-tab{min-height:54px;font-size:16px;font-weight:800;}
+body:not(.dark-mode) .recanto-pet-tabs .recanto-pet-tab{background:#2a3e84;border-color:#4059aa;color:#eef2ff;opacity:1;}
+body:not(.dark-mode) .recanto-pet-tabs .recanto-pet-tab.mini-active{background:#5865f2;border-color:#5865f2;color:#fff;}
+body.dark-mode .recanto-pet-tabs .recanto-pet-tab{background:#eef2ff;border-color:#aebeea;color:#2c428b;opacity:1;}
+body.dark-mode .recanto-pet-tabs .recanto-pet-tab.mini-active{background:#5865f2;border-color:#5865f2;color:#fff;}
+
+.recanto-wild-card-large{max-width:none;}
+.recanto-wild-card-large .recanto-wild-scene{width:100%;min-height:320px;border-radius:24px;}
+.recanto-pokemon-bag{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:12px 0;}
+.recanto-bag-item{display:flex;flex-direction:column;gap:8px;padding:16px;border-radius:18px;border:1px solid #cad4ee;background:#eef2ff;min-height:150px;}
+.recanto-bag-item.is-empty{opacity:.72;}
+.recanto-bag-item button{margin-top:auto;}
+body.dark-mode .recanto-bag-item{background:#263658;border-color:#48577c;color:#fff;}
+body.dark-mode .recanto-bag-item small{color:#cad6f1;}
+
+.pokemon-expedition-cover{width:245px;min-width:245px;min-height:250px;border-radius:18px;display:grid;place-items:center;font-size:62px;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);overflow:hidden;position:relative;background:linear-gradient(180deg,#8bbf7c,#4f8a50);}
+.pokemon-expedition-cover::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 20% 15%, rgba(255,255,255,.22), transparent 35%),radial-gradient(circle at 70% 100%, rgba(0,0,0,.18), transparent 38%),linear-gradient(180deg,rgba(255,255,255,.05),rgba(0,0,0,.1));}
+.pokemon-expedition-cover::after{content:'';position:absolute;inset:auto 0 0 0;height:28%;background:radial-gradient(circle at 10% 100%, rgba(50,92,55,.65) 0 20%, transparent 21%),radial-gradient(circle at 35% 100%, rgba(50,92,55,.58) 0 23%, transparent 24%),radial-gradient(circle at 65% 100%, rgba(50,92,55,.65) 0 20%, transparent 21%),radial-gradient(circle at 90% 100%, rgba(50,92,55,.58) 0 23%, transparent 24%);}
+.pokemon-expedition-cover{isolation:isolate;}
+.pokemon-expedition-cover{font-size:72px;}
+.pokemon-expedition-cover>*{position:relative;z-index:1;}
+.pokemon-expedition-cover.water{background:linear-gradient(180deg,#7fc5ef,#4875b9);}
+.pokemon-expedition-cover.fire{background:linear-gradient(180deg,#ffb25f,#d85a33);}
+.pokemon-expedition-cover.forest{background:linear-gradient(180deg,#9dd47f,#56894c);}
+.pokemon-expedition-cover.neutral{background:linear-gradient(180deg,#a8b7d8,#6178a2);}
+.pokemon-expedition-cover.battle{background:linear-gradient(180deg,#a6a9c9,#6d537f);}
+.pokemon-expedition-cover.active{background:linear-gradient(180deg,#d9cf96,#91854e);}
+
+body:not(.dark-mode) .recanto-pokemon-tabs{background:#2c428b;padding:10px;border-radius:18px;}
+body:not(.dark-mode) .recanto-pokemon-tab{background:#e8eeff;color:#2c428b;border-color:#aebeea;}
+body:not(.dark-mode) .recanto-pokemon-tab.selected{background:#5865f2;color:#fff;}
+body.dark-mode .recanto-pokemon-tabs{background:#eef2ff;padding:10px;border-radius:18px;}
+body.dark-mode .recanto-pokemon-tab{background:#eef2ff;color:#2c428b;border-color:#aebeea;}
+body.dark-mode .recanto-pokemon-tab.selected{background:#5865f2;color:#fff;}
+
+body.dark-mode .pokemon-expedition-cover{box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);}
+body.dark-mode .recanto-battle-side{background:#31466f;border-color:#4f628d;}
+body.dark-mode .recanto-battle-side.enemy{background:#4b3649;border-color:#735170;}
+body.dark-mode .recanto-battle-slot{background:#24365c;color:#dce6ff;border-color:#50658f;}
+body.dark-mode .recanto-battle-slot.enemy{background:#5e4151;border-color:#8a667b;}
+
+@media(max-width:900px){
+  .pokemon-expedition-cover{width:100%;min-width:0;min-height:220px;}
+}
+@media(max-width:620px){
+  .recanto-wild-card-large .recanto-wild-scene{min-height:240px;}
+  .recanto-pokemon-bag{grid-template-columns:1fr;}
+}
