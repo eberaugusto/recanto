@@ -362,6 +362,23 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         image_url: Mapped[str | None]=mapped_column(String(512), nullable=True)
         enabled: Mapped[bool]=mapped_column(Boolean, nullable=False, default=True)
 
+    class RecantoMissionDescription(Base):
+        """Descrição editável independente da missão e de seu progresso."""
+        __tablename__='recanto_mission_descriptions'
+        code: Mapped[str]=mapped_column(String(40), primary_key=True)
+        description: Mapped[str]=mapped_column(String(240), nullable=False, default='')
+
+    class RecantoAchievementNotice(Base):
+        """Fila de conquistas transacional, consumida uma vez por usuário."""
+        __tablename__='recanto_achievement_notices'
+        user_id: Mapped[str]=mapped_column(String(80), primary_key=True)
+        key: Mapped[str]=mapped_column(String(100), primary_key=True)
+        kind: Mapped[str]=mapped_column(String(12), nullable=False)
+        title: Mapped[str]=mapped_column(String(120), nullable=False)
+        icon: Mapped[str]=mapped_column(String(30), nullable=False, default='🎯')
+        created_at: Mapped[datetime]=mapped_column(DateTime(timezone=True), nullable=False)
+        read_at: Mapped[datetime | None]=mapped_column(DateTime(timezone=True), nullable=True)
+
     class RecantoMissionExtraProgress(Base):
         __tablename__='recanto_extra_mission_progress'
         user_id: Mapped[str]=mapped_column(ForeignKey('users.id'), primary_key=True)
@@ -1209,6 +1226,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         'favorite_champion':'Definir campeões favoritos',
         'favorite_pokemon':'Definir Pokémons Favoritos',
         # Metas Pokémon (progresso persistente e atualizado somente pelo backend).
+        'pokemon_starter':'Escolher seu Pokémon inicial',
         'pokemon_catch':'Capturar Pokémon',
         'pokemon_trade':'Trocar Pokémon com outro jogador',
         'pokemon_evolve':'Evoluir Pokémon',
@@ -1242,6 +1260,58 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         today_date=datetime.strptime(today,'%Y-%m-%d').date()
         return (today_date-timedelta(days=today_date.weekday())).isoformat()
 
+    def mission_description(db, code):
+        row=db.get(RecantoMissionDescription,code)
+        return (row.description or '') if row else ''
+
+    def add_achievement_notice(db,uid,key,kind,title,emoji):
+        # Todas as mutações ocorrem na mesma transação da recompensa. A chave
+        # inclui período/identificador, evitando mensagens repetidas.
+        if not db.get(RecantoAchievementNotice,(uid,key)):
+            db.add(RecantoAchievementNotice(user_id=uid,key=key,kind=kind,
+                title=title[:120],icon=str(emoji or '🎯')[:30],created_at=utcnow()))
+
+    @app.post('/api/recanto/alerts/consume')
+    def consume_recanto_alerts(request:Request):
+        uid=me(request)
+        with writing() as db:
+            # Consume de forma atômica no banco de dados, sem repetir após refresh.
+            rows=db.scalars(select(RecantoAchievementNotice).where(
+                RecantoAchievementNotice.user_id==uid,
+                RecantoAchievementNotice.read_at.is_(None),
+                RecantoAchievementNotice.created_at>=utcnow()-timedelta(days=7))
+                .order_by(RecantoAchievementNotice.created_at,RecantoAchievementNotice.key)
+                .limit(20).with_for_update()).all()
+            now=utcnow()
+            out=[{'key':r.key,'kind':r.kind,'title':r.title,'icon':r.icon} for r in rows]
+            for row in rows:row.read_at=now
+            return {'items':out}
+
+    @app.get('/api/mission-descriptions')
+    def list_mission_descriptions(request:Request):
+        me(request)
+        with SessionLocal() as db:
+            return {'items':{r.code:r.description for r in db.scalars(select(RecantoMissionDescription)).all()}}
+
+    @app.post('/api/admin/mission-descriptions')
+    async def save_mission_description(request:Request):
+        only_admin(request)
+        data=json_body(await request.json(),('code','description'))
+        code=str(data.get('code') or '').strip().lower()
+        description=str(data.get('description') or '').strip()
+        if not re.fullmatch(r'[a-z][a-z0-9_-]{2,39}',code) or len(description)>240:
+            raise HTTPException(422,detail='Código ou descrição inválidos (máximo 240 caracteres)')
+        # Nomes de missões extras e tradicionais compartilham o mesmo catálogo.
+        with writing() as db:
+            if code not in {row[0] for row in MISSIONS} and db.get(RecantoMissionExtra,code) is None:
+                # Missões principais adicionadas pelo backend/main.py podem ter
+                # códigos distintos; permitimos a descrição por código válido.
+                pass
+            row=db.get(RecantoMissionDescription,code)
+            if row is None:db.add(RecantoMissionDescription(code=code,description=description))
+            else:row.description=description
+        return {'ok':True,'code':code,'description':description}
+
     def extra_mission_progress(db, uid, event, amount):
         for mission in db.scalars(select(RecantoMissionExtra).where(
                 RecantoMissionExtra.event==event,RecantoMissionExtra.enabled.is_(True))).all():
@@ -1251,15 +1321,25 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                 row=RecantoMissionExtraProgress(user_id=uid,code=mission.code,
                     period=key[2],amount=0,claimed=False)
                 db.add(row)
+            before=row.amount
             row.amount=min(mission.goal,max(0,row.amount+amount))
+            if before<mission.goal<=row.amount:
+                add_achievement_notice(db,uid,'mission:'+mission.code+':'+key[2],
+                    'mission',mission.title,mission.emoji)
 
     def progress(db, uid, mission, amount=1):
         day = local_day()
         obj = db.get(MissionProgress, (uid, day, mission))
+        previous=obj.progress if obj else 0
         if obj is None:
             db.add(MissionProgress(user_id=uid, day=day, mission=mission, progress=amount, claimed=False))
         else:
             obj.progress = min(9999, obj.progress + amount)
+        definitions={item[0]:item for item in MISSIONS}
+        definition=definitions.get(mission)
+        if definition and previous<definition[2]<=min(9999,previous+amount):
+            add_achievement_notice(db,uid,'mission:'+mission+':'+day,'mission',definition[1],
+                MISSION_EMOJI.get(mission,'🎯'))
         if mission in EXTRA_EVENTS:
             # As missões configuráveis compartilham eventos com as missões antigas.
             extra_mission_progress(db,uid,mission,amount)
@@ -1473,6 +1553,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                                                               Achievement.target <= obj.counter)).all():
             if not db.get(UserAchievement, (uid, award.id)):
                 db.add(UserAchievement(user_id=uid, achievement_id=award.id, unlocked_at=utcnow()))
+                add_achievement_notice(db,uid,'badge:'+str(award.id),'badge',award.title,award.icon)
                 publish_feed(db,uid,'badge',badge={'name':award.title,'icon':award.icon,'image_url':award.image_url})
                 xp_action(db,uid,'achievement','selo',once_key='badge:'+str(award.id))
 
@@ -3340,8 +3421,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             rows = {m.mission: m for m in db.scalars(select(MissionProgress).where(
                  MissionProgress.user_id == uid, MissionProgress.day == local_day())).all()}
             covers = {c.code:c.image_url for c in db.scalars(select(MissionCover)).all()}
+            descriptions={m.code:m.description for m in db.scalars(select(RecantoMissionDescription)).all()}
             return {'next_reset': reset_iso(), 'items': [
-                {'code': code, 'title': title, 'goal': goal, 'reward': reward,
+                {'code': code, 'title': title, 'description': descriptions.get(code,''),
+                 'goal': goal, 'reward': reward,
                  'image_url': covers.get(code), 'emoji': MISSION_EMOJI.get(code, '🎯'),
                  'progress': min(goal, rows[code].progress) if code in rows else 0,
                  'claimed': rows[code].claimed if code in rows else False}
@@ -3632,10 +3715,20 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             missions=db.scalars(select(RecantoMissionExtra).where(
                 RecantoMissionExtra.enabled.is_(True)).order_by(RecantoMissionExtra.code)).all()
             items=[]
+            descriptions={m.code:m.description for m in db.scalars(select(RecantoMissionDescription)).all()}
             for mission in missions:
                 period=extra_period(mission.kind)
                 row=db.get(RecantoMissionExtraProgress,(uid,mission.code,period))
-                items.append({'code':mission.code,'title':mission.title,'goal':mission.goal,
+                # Quem já escolheu o inicial pode cumprir a missão Única sem
+                # precisar apagar seu Pokémon; nunca reconta missões diárias.
+                if mission.event=='pokemon_starter' and mission.kind=='unica' and not row:
+                    if db.get(PokemonModels['Account'],uid):
+                        row=RecantoMissionExtraProgress(user_id=uid,code=mission.code,period=period,
+                            amount=mission.goal,claimed=False)
+                        # Somente as ações futuras originam aviso, não as retroativas.
+                        # O progresso retroativo é retornado, mas não exige gravar em GET.
+                items.append({'code':mission.code,'title':mission.title,
+                    'description':descriptions.get(mission.code,''),'goal':mission.goal,
                     'kind':mission.kind,'event':mission.event,'reward':mission.reward,
                     'emoji':mission.emoji,'image_url':mission.image_url,
                     'progress':min(mission.goal,row.amount) if row else 0,
@@ -3649,6 +3742,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             mission=db.get(RecantoMissionExtra,code)
             if not mission or not mission.enabled:raise HTTPException(404,detail='Missão indisponível')
             row=db.get(RecantoMissionExtraProgress,(uid,code,extra_period(mission.kind)))
+            if not row and mission.event=='pokemon_starter' and mission.kind=='unica' and db.get(PokemonModels['Account'],uid):
+                row=RecantoMissionExtraProgress(user_id=uid,code=code,period='ever',amount=mission.goal,claimed=False)
+                db.add(row)
             if not row or row.amount<mission.goal:raise HTTPException(409,detail='Missão ainda não concluída')
             if row.claimed:raise HTTPException(409,detail='Recompensa já resgatada')
             row.claimed=True
@@ -3662,8 +3758,10 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         only_admin(request)
         with SessionLocal() as db:
             rows=db.scalars(select(RecantoMissionExtra).order_by(RecantoMissionExtra.code)).all()
+            descriptions={m.code:m.description for m in db.scalars(select(RecantoMissionDescription)).all()}
             return {'events':EXTRA_EVENTS,'items':[
-                {'code':m.code,'title':m.title,'kind':m.kind,'event':m.event,
+                {'code':m.code,'title':m.title,'description':descriptions.get(m.code,''),
+                 'kind':m.kind,'event':m.event,
                  'goal':m.goal,'reward':m.reward,'emoji':m.emoji,
                  'image_url':m.image_url,'enabled':m.enabled,'source':'extra'} for m in rows]}
 
@@ -3683,6 +3781,12 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             raise HTTPException(422,detail='Código, título, tipo, evento ou metas inválidos')
         image=safe_artwork(data.get('image_url'))
         with writing() as db:
+            if 'description' in data:
+                description=str(data.get('description') or '').strip()
+                if len(description)>240:raise HTTPException(422,detail='Descrição muito longa (máximo 240 caracteres)')
+                desc=db.get(RecantoMissionDescription,code)
+                if desc:desc.description=description
+                else:db.add(RecantoMissionDescription(code=code,description=description))
             row=db.get(RecantoMissionExtra,code)
             if row:
                 # Não alterar evento/tipo/meta de uma missão com progresso já existente.

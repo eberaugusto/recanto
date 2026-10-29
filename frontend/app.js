@@ -410,7 +410,11 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       return task;
     }
     const result=await fetchJson(url,data);
-    if(data!==undefined)invalidateAfterMutation(url);
+    if(data!==undefined){
+      if(!url.startsWith('/api/recanto/alerts/'))invalidateAfterMutation(url);
+      if(!url.startsWith('/api/recanto/alerts/')&&!url.startsWith('/api/notifications/')&&!url.startsWith('/api/push/'))
+        scheduleAchievementAlerts();
+    }
     return result;
   };
   const fetchJson=async (url, data) => {
@@ -510,6 +514,51 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   }
 
 
+  // 0.4.5 — Avisos de conquistas em tempo real, persistidos no servidor.
+  // Não exigem permissão Web Push: o toast no Recanto funciona sempre.
+  let alertsTimer=null,alertsBusy=false;
+  const alertQueue=[];
+  let alertShowing=false;
+  function showNextAchievementAlert(){
+    if(alertShowing||!alertQueue.length)return;
+    const notice=alertQueue.shift();alertShowing=true;
+    let host=$('recantoAchievementAlerts');
+    if(!host){host=h('div','recanto-achievement-alerts');host.id='recantoAchievementAlerts';
+      host.setAttribute('aria-live','polite');document.body.append(host);}
+    const card=h('section','recanto-achievement-alert recanto-achievement-'+notice.kind);
+    const emblem=h('div','recanto-achievement-alert-icon',notice.icon||'🏅');
+    const body=h('div','recanto-achievement-alert-copy');
+    body.append(h('strong','',notice.kind==='badge'?'Selo conquistado!':'Missão concluída!'),
+      h('span','',notice.title));
+    const dismiss=button('×',()=>finish(),'recanto-achievement-close');
+    dismiss.setAttribute('aria-label','Fechar notificação');
+    card.append(emblem,body,dismiss);host.append(card);
+    let timer;
+    const finish=()=>{if(timer)clearTimeout(timer);card.classList.add('recanto-achievement-exit');
+      setTimeout(()=>{card.remove();alertShowing=false;showNextAchievementAlert();},230);};
+    timer=setTimeout(finish,6500);
+    if(state.notification && window.isSecureContext && 'Notification' in window && Notification.permission==='granted'){
+      const title=notice.kind==='badge'?'🏅 Selo conquistado!':'🎯 Missão concluída!';
+      const options={body:notice.title,icon:'/icons/icon-192.png',badge:'/icons/icon-192.png',tag:'recanto-'+notice.key.replace(/[^a-z0-9_-]/gi,'-'),renotify:false};
+      // showNotification funciona em PWA instalado, inclusive em mobile.
+      if('serviceWorker' in navigator){navigator.serviceWorker.ready.then(reg=>reg.showNotification(title,options)).catch(()=>{
+        try{new Notification(title,options);}catch(_){}
+      });}else{try{new Notification(title,options);}catch(_){}}
+    }
+  }
+  async function refreshAchievementAlerts(){
+    if(!state.account||document.hidden||alertsBusy)return;
+    alertsBusy=true;
+    try{
+      const result=await API('/api/recanto/alerts/consume',{});
+      if(result?.items?.length){alertQueue.push(...result.items);showNextAchievementAlert();}
+    }catch(error){console.debug('[Recanto alertas]',error.message);}
+    finally{alertsBusy=false;}
+  }
+  function scheduleAchievementAlerts(){
+    if(alertsTimer)clearTimeout(alertsTimer);
+    alertsTimer=setTimeout(()=>{alertsTimer=null;refreshAchievementAlerts();},550);
+  }
   const toast=(message)=>{const el=$('toast');el.textContent=message;el.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>{el.hidden=true;},4000);};
   $('toast').addEventListener('click',()=>{$('toast').hidden=true;clearTimeout(toast.timer);});
   $('toast').title='Clique para dispensar';
@@ -642,7 +691,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     btn.disabled=installed;
     btn.querySelector('span').textContent='Instalar';
   }
-  function renderProfile(me){loadCollectionCardStyles().catch(()=>{});state.account=me;loadOwnLevel().catch(()=>{});$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);$('desktopWallet').textContent=money(me.coins);$('desktopCards').textContent=money(me.cards);$('desktopTreats').textContent=money(me.treats);$('desktopUserName').textContent=me.name;$('desktopProfileName').textContent=me.name;avatar($('userAvatar'),me.name,me.avatar_url);avatar($('desktopAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.remove('recanto-favorite-frame');recent.classList.toggle('has-card',false);recent.setAttribute('aria-label','Nenhum card favorito selecionado');recent.onclick=()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};recent.textContent='?';paintCoins();const profileId=me.name;API('/api/cards/favorite').then(({card})=>{if(state.account?.name!==profileId)return;recent.replaceChildren();recent.classList.toggle('has-card',!!card);recent.setAttribute('aria-label',card?'Ampliar card favorito: '+card.name:'Nenhum card favorito selecionado');recent.onclick=card?()=>showCard(card,'Card favorito',true):()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};if(card){recent.classList.add('recanto-favorite-frame');recent.append(frameCardArt(card,'recanto-favorite-art'));}else{recent.classList.remove('recanto-favorite-frame');recent.textContent='?';}}).catch(()=>{});}
+  function renderProfile(me){loadCollectionCardStyles().catch(()=>{});state.account=me;loadNotification().catch(()=>{});scheduleAchievementAlerts();loadOwnLevel().catch(()=>{});$('loginScreen').hidden=true;$('homeScreen').hidden=false;$('modal').hidden=true;$('userName').textContent='Olá, '+me.name;$('valMoedas').textContent=money(me.coins);$('valCards').textContent=money(me.cards);$('valPetiscos').textContent=money(me.treats);$('desktopWallet').textContent=money(me.coins);$('desktopCards').textContent=money(me.cards);$('desktopTreats').textContent=money(me.treats);$('desktopUserName').textContent=me.name;$('desktopProfileName').textContent=me.name;avatar($('userAvatar'),me.name,me.avatar_url);avatar($('desktopAvatar'),me.name,me.avatar_url);const recent=$('latestCard');recent.replaceChildren();recent.classList.remove('recanto-favorite-frame');recent.classList.toggle('has-card',false);recent.setAttribute('aria-label','Nenhum card favorito selecionado');recent.onclick=()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};recent.textContent='?';paintCoins();const profileId=me.name;API('/api/cards/favorite').then(({card})=>{if(state.account?.name!==profileId)return;recent.replaceChildren();recent.classList.toggle('has-card',!!card);recent.setAttribute('aria-label',card?'Ampliar card favorito: '+card.name:'Nenhum card favorito selecionado');recent.onclick=card?()=>showCard(card,'Card favorito',true):()=>toast('Escolha um card da sua coleção e toque em Favoritar card.');recent.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();recent.click();}};if(card){recent.classList.add('recanto-favorite-frame');recent.append(frameCardArt(card,'recanto-favorite-art'));}else{recent.classList.remove('recanto-favorite-frame');recent.textContent='?';}}).catch(()=>{});}
 
   async function refreshProfile(){
     if(!state.account)return;
@@ -662,7 +711,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       if(state.tab==='perfil')loadOwnLevel().catch(()=>{});
     }else showLogin();
   }
-  function showLogin(){resetCachedData();state.adminReady=false;state.petPreviewLoaded=false;$('adminModal').hidden=true;document.body.classList.remove('page-open');$('settingsAdmin').hidden=true;state.account=null;$('loginScreen').hidden=false;$('splashScreen').hidden=true;$('homeScreen').hidden=true;$('modal').hidden=true;}
+  function showLogin(){alertQueue.length=0;document.querySelectorAll('.recanto-achievement-alert').forEach(n=>n.remove());alertShowing=false;resetCachedData();state.adminReady=false;state.petPreviewLoaded=false;$('adminModal').hidden=true;document.body.classList.remove('page-open');$('settingsAdmin').hidden=true;state.account=null;$('loginScreen').hidden=false;$('splashScreen').hidden=true;$('homeScreen').hidden=true;$('modal').hidden=true;}
   async function refreshActive(force=false){if(!state.account)return;
     if(!force && tabLoadedAt[state.tab] && Date.now()-tabLoadedAt[state.tab]<TAB_SOFT_TTL)return;
     if(state.tab==='feed')await loadFeed();
@@ -3184,9 +3233,23 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       }
     }catch(error){/* Conta sem jogo Pokémon ou integração indisponível: Loja normal segue funcionando. */}
     if(state.focusShop){const selected=$('shop-'+state.focusShop);state.focusShop=null;if(selected){selected.classList.add('shop-focus');selected.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});setTimeout(()=>selected.classList.remove('shop-focus'),1800);}}}
+  const defaultMissionDescriptions={
+    daily_card:'Resgate um card disponível na seção de Cards.',
+    daily_coins:'Colete sua recompensa diária de moedas.',
+    trade:'Conclua uma troca de cards com outro membro.',
+    pet:'Faça carinho no seu Pet ou no Pet de outro membro.',
+    feed:'Alimente seu Pet ou o Pet de outro membro.',
+    adopt:'Adote um Pet para sua conta.',
+    pack:'Abra um pacote de cards no Inventário.',
+    pokemon_starter:'Escolha seu primeiro Pokémon inicial de qualquer geração.'
+  };
   async function loadMissions(){
-    const [data,extras]=await Promise.all([API('/api/missions'),API('/api/recanto-extra-missions').catch(()=>({items:[]}))]);
+    const [data,extras,descriptions]=await Promise.all([API('/api/missions'),
+      API('/api/recanto-extra-missions').catch(()=>({items:[]})),
+      API('/api/mission-descriptions').catch(()=>({items:{}}))]);
     data.items=[...(data.items||[]),...(extras.items||[])];
+    for(const mission of data.items)
+      mission.description=descriptions.items?.[mission.code]||mission.description||defaultMissionDescriptions[mission.code]||'Complete esta tarefa para receber sua recompensa.';
     state.missionReset=data.next_reset;
     const pane=$('missionPane');pane.replaceChildren();
     const completed=data.items.filter(x=>x.claimed).length;
@@ -3197,7 +3260,11 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       if(!items.length)section.append(h('p','mission-placeholder','Nenhuma missão disponível nesta categoria.'));
       for(const m of items){
         const box=block(poroLegacyText(m.title),`Progresso: ${m.progress}/${m.goal} · Recompensa: 🪙 ${m.reward}`);
-        box.classList.add('mission-card');box.prepend(mediaCover(m.image_url,m.emoji||'🎯',poroLegacyText(m.title),'mission-cover'));
+        box.classList.add('mission-card');
+        const description=String(m.description||'').trim();
+        if(description){const detail=h('p','recanto-mission-description',description);
+          const first=box.querySelector('p');if(first)first.before(detail);else box.append(detail);}
+        box.prepend(mediaCover(m.image_url,m.emoji||'🎯',poroLegacyText(m.title),'mission-cover'));
         const bar=h('div','mission-meter');const fill=h('div','mission-fill');fill.style.width=Math.min(100,100*m.progress/m.goal)+'%';bar.append(fill);box.append(bar);
         const action=button(m.claimed?'✓ Resgatada':m.progress>=m.goal?'Resgatar recompensa':'Em andamento',()=>safeRun(()=>API((m.source==='extra'?'/api/recanto-extra-missions/':'/api/missions/')+encodeURIComponent(m.code)+'/claim',{}),`+${m.reward} moedas!`,result=>{applyConfirmedCoins(result,m.reward);action.textContent='✓ Resgatada';action.dataset.keepDisabled='1';action.disabled=true;}));
         action.disabled=m.claimed||m.progress<m.goal;box.append(action);section.append(box);
@@ -3207,19 +3274,21 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     updateCountdowns();
   }
   async function loadNotification(){
-    try{
-      const d=await API('/api/notifications/preferences');state.notification=!!d.enabled;
-      // V1.0 concedia permissão sem registrar subscription Web Push.
-      // Converte a antiga preferência em opt-in novo e efetivo neste dispositivo.
-      if(state.notification && 'serviceWorker' in navigator && 'PushManager' in window){
-        const reg=await navigator.serviceWorker.ready;
-        const subscription=await reg.pushManager.getSubscription();
-        if(!subscription){state.notification=false;await API('/api/notifications/preferences',{enabled:false});}
-      }
-    }catch(_){state.notification=false;}
+    try{const d=await API('/api/notifications/preferences');state.notification=!!d.enabled;}
+    catch(_){state.notification=false;}
     updateNotificationUI();
   }
-  function updateNotificationUI(message){const permitted=window.isSecureContext&&'Notification' in window;const active=state.notification&&permitted&&Notification.permission==='granted';$('notificationsToggle').classList.toggle('on',!!active);$('notificationsToggle').setAttribute('aria-checked',String(!!active));$('notificationsStatus').textContent=message||(!permitted?'Notificações exigem HTTPS e navegador compatível.':'');$('notificationsStatus').hidden=!$('notificationsStatus').textContent;}
+  function updateNotificationUI(message){
+    const available=window.isSecureContext&&'Notification' in window;
+    const active=state.notification&&available&&Notification.permission==='granted';
+    $('notificationsToggle').classList.toggle('on',!!active);
+    $('notificationsToggle').setAttribute('aria-checked',String(!!active));
+    let status=message||(!available?'Seu navegador não oferece notificações do aparelho; os avisos dentro do Recanto continuam ativos.':
+      state.notification&&Notification.permission!=='granted'?'Permissão de notificação não concedida pelo navegador.':
+      active?'Alertas do aparelho ativos enquanto o Recanto estiver aberto. Push com o app fechado depende de VAPID no servidor.':'');
+    $('notificationsStatus').textContent=status;
+    $('notificationsStatus').hidden=!status;
+  }
   function vapidBytes(key){
     const normalized=(key+'='.repeat((4-key.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/');
     const decoded=atob(normalized);return Uint8Array.from(decoded,c=>c.charCodeAt(0));
@@ -3227,23 +3296,43 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   async function toggleNotifications(){
     if(state.notificationBusy)return;state.notificationBusy=true;
     try{
-      if(!window.isSecureContext||!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window))throw Error('Este navegador não suporta notificações Web Push.');
-      const reg=await navigator.serviceWorker.ready;
+      if(!window.isSecureContext||!('Notification' in window))
+        throw Error('Este navegador não permite notificações do aparelho. Os avisos no Recanto continuam funcionando.');
       if(!state.notification){
-        const key=await API('/api/push/key');
-        if(!key.enabled)throw Error('O administrador precisa configurar as chaves VAPID no Render.');
-        if(await Notification.requestPermission()!=='granted')throw Error('Permissão não concedida.');
-        const sub=await reg.pushManager.getSubscription()||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapidBytes(key.public_key)});
-        await API('/api/push/subscribe',sub.toJSON());
-        await API('/api/notifications/preferences',{enabled:true});state.notification=true;
-        updateNotificationUI('Notificações ativadas! Você receberá alertas dos eventos configurados.');
+        const permission=await Notification.requestPermission();
+        if(permission!=='granted')throw Error('Permissão não concedida. Ative nas configurações do navegador.');
+        // Notificação local NÃO depende das credenciais VAPID.
+        await API('/api/notifications/preferences',{enabled:true});
+        state.notification=true;
+        let pushEnabled=false;
+        if('serviceWorker' in navigator&&'PushManager' in window){
+          try{
+            const key=await API('/api/push/key');
+            if(key.enabled&&key.public_key){
+              const reg=await navigator.serviceWorker.ready;
+              const sub=await reg.pushManager.getSubscription()||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapidBytes(key.public_key)});
+              await API('/api/push/subscribe',sub.toJSON());pushEnabled=true;
+            }
+          }catch(error){console.debug('[Recanto Push]',error.message);}
+        }
+        updateNotificationUI(pushEnabled?'Avisos no dispositivo ativados, com assinatura Web Push.':'Avisos no dispositivo ativados com o app aberto. Push com app fechado precisa de VAPID.');
       } else {
-        const sub=await reg.pushManager.getSubscription();
-        if(sub){await API('/api/push/unsubscribe',{endpoint:sub.endpoint});await sub.unsubscribe();}
-        await API('/api/notifications/preferences',{enabled:false});state.notification=false;
-        updateNotificationUI('Notificações desativadas.');
+        if('serviceWorker' in navigator&&'PushManager' in window){
+          try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();
+            if(sub){await API('/api/push/unsubscribe',{endpoint:sub.endpoint}).catch(()=>{});await sub.unsubscribe();}}catch(_){}
+        }
+        await API('/api/notifications/preferences',{enabled:false});
+        state.notification=false;updateNotificationUI('Notificações do dispositivo desativadas. Avisos dentro do Recanto continuam disponíveis.');
       }
     }catch(err){updateNotificationUI(err.message);}finally{state.notificationBusy=false;}
+  }
+  async function testNotifications(){
+    const sample={key:'test-'+Date.now(),kind:'badge',icon:'🏅',title:'Exemplo: você desbloqueou um novo selo!'};
+    alertQueue.push(sample);showNextAchievementAlert();
+    if(!state.notification)updateNotificationUI('O aviso no Recanto foi exibido. Ative a chave acima para notificações do aparelho.');
+    else if(!('Notification' in window)||Notification.permission!=='granted')
+      updateNotificationUI('O aviso no Recanto foi exibido, mas o navegador bloqueou a notificação do aparelho.');
+    else updateNotificationUI('Teste enviado para o Recanto e para as notificações do aparelho.');
   }
     function login(){if(state.config.discord_configured)location.assign('/auth/discord/start');else report('Configure as credenciais do Discord no arquivo backend/.env antes de entrar.');}
   async function logout(){await safeRun(()=>API('/api/auth/logout',{}));showLogin();}
@@ -3980,9 +4069,10 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const missionBlock=block('Missões do Recanto','Crie e edite missões únicas, diárias ou semanais. As semanais entram na semana atual; após a próxima segunda-feira, cadastre/reative as missões da nova semana.');
     const existing=h('select','select-input');
     existing.append(Object.assign(h('option','','Nova missão'),{value:''}));
-    Promise.all([missionsTask,extraMissionsTask]).then(([data,extraData])=>{
+    Promise.all([missionsTask,extraMissionsTask,API('/api/mission-descriptions').catch(()=>({items:{}}))]).then(([data,extraData,descs])=>{
       fillMissionEvents(extraData.events||{});
       missionData.items=[...(data.items||[]).map(row=>({...row,source:'main'})),...(extraData.items||[])];
+      for(const row of missionData.items)row.description=descs.items?.[row.code]||row.description||defaultMissionDescriptions[row.code]||'';
       for(const row of missionData.items){const o=h('option','',poroLegacyText(row.title)+' ['+row.code+']');o.value=row.code;existing.append(o);}})
       .catch(err=>{missionBlock.append(h('p','', 'Missões indisponíveis: '+err.message));});
     const mFields={};
@@ -3990,6 +4080,9 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       const [wrap,inp]=adminField(label,value,(['goal','reward'].includes(key)?'number':'text'));
       mFields[key]=inp;missionBlock.append(wrap);
     }
+    const [descriptionWrap,descriptionInput]=adminField('Descrição curta (até 240 caracteres)','');
+    descriptionInput.maxLength=240;descriptionInput.placeholder='Explique rapidamente o que o jogador precisa fazer';
+    mFields.description=descriptionInput;missionBlock.append(descriptionWrap);
     const missionType=h('select','select-input');for(const [v,t] of [['unica','Única'],['diaria','Diária'],['semanal','Semanal']]){const opt=h('option','',t);opt.value=v;missionType.append(opt);}
     const missionEvent=h('select','select-input');
     const traditionalEvents=[['adopt','Adotar Pet'],['trade','Trocar card'],['daily_card','Resgatar card'],
@@ -4028,7 +4121,11 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
         }
         const result=await safeRun(async()=>{
           if(imageUpload.files.length)payload.image_url=await uploadArtwork(imageUpload.files[0]);
-          return API(useExtra?'/api/admin/recanto-extra-missions':'/api/admin/missions',payload);
+          const description=String(payload.description||'').trim();
+          delete payload.description;
+          const saved=await API(useExtra?'/api/admin/recanto-extra-missions':'/api/admin/missions',payload);
+          await API('/api/admin/mission-descriptions',{code:payload.code,description});
+          return saved;
         },'Missão cadastrada/atualizada!');if(result){state.adminReady=false;await openAdmin(true);}}));
     const missionVisibility=h('div','admin-action-row');
     missionVisibility.append(
@@ -4567,6 +4664,11 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   if(matchMedia('(min-width:768px)').matches){const t=$('missionTimer');const title=$('missionsScreen').querySelector('.content-head h1');if(t&&title)title.after(t);}
   $('logout').onclick=async()=>{try{await API('/api/auth/logout',{});showLogin();}catch(err){toast(err.message);}};
   $('notificationsToggle').onclick=toggleNotifications;
+  const testNotificationButton=$('testNotifications');
+  if(testNotificationButton)testNotificationButton.onclick=testNotifications;
+  // A fila fica ativa enquanto o usuário utiliza o PWA; não força refresh de telas.
+  setInterval(()=>{if(state.account&&!document.hidden)refreshAchievementAlerts();},15000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleAchievementAlerts();});
   $('darkModeToggle').onclick=toggleDarkMode;
   $('checkUpdates').onclick=async()=>{
     if(!('serviceWorker' in navigator)){toast('Atualizações automáticas disponíveis apenas no PWA instalado/HTTPS.');return;}

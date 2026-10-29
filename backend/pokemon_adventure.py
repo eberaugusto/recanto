@@ -298,6 +298,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
                 gender=gender,shiny=draw_shiny(db))
             db.add(M['Account'](user_id=uid,starter_id=sid,next_encounter=now()+timedelta(minutes=RNG.randint(3,8))))
             db.add(record);item_change(db,uid,'pokebola',params(db,'starter_balls'))
+            progress(db,uid,'pokemon_starter')
             note(db,uid,'pokemon_starter',pokemon={'name':name,'slug':name.lower(),'species_id':sid,'gender':record.gender,'shiny':record.shiny})
         return {'ok':True}
     @app.post('/api/pokemon/adventure/seek')

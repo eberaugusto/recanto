@@ -4505,3 +4505,20 @@ body.dark-mode .recanto-pokemon-gender.unknown{background:#344560;color:#e0e6ef;
 .recanto-framed-art.no-card-frame::after {
   content:none!important; background:none!important; display:none!important;
 }
+
+/* Recanto 0.4.5 — descrição de missão e avisos de conquistas. */
+.recanto-mission-description{font-size:13px;color:var(--rc-ui-5667e19816,#53618a);line-height:1.5;margin:7px 0;overflow-wrap:anywhere;}
+body.dark-mode .recanto-mission-description{color:#d3def6;}
+.settings-notification-test{display:flex;align-items:center;justify-content:center;margin:8px auto 12px;min-height:38px;}
+.recanto-achievement-alerts{position:fixed;top:max(16px,env(safe-area-inset-top));right:16px;display:flex;flex-direction:column;gap:10px;z-index:99998;max-width:min(365px,calc(100vw - 32px));pointer-events:none;}
+.recanto-achievement-alert{display:grid;grid-template-columns:46px minmax(0,1fr) 22px;gap:12px;align-items:center;padding:14px;background:#243f83;color:#fff;border:1px solid #7090d6;border-left:4px solid #89d1ff;border-radius:16px;box-shadow:0 12px 32px rgba(0,0,0,.24);pointer-events:auto;animation:rc-achievement-appear .25s ease-out both;}
+.recanto-achievement-alert.recanto-achievement-badge{border-left-color:#ffd47e;}
+.recanto-achievement-alert-icon{display:grid;place-items:center;font-size:30px;width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,.13);}
+.recanto-achievement-alert-copy{min-width:0;display:flex;flex-direction:column;gap:4px;line-height:1.35;overflow-wrap:anywhere;}
+.recanto-achievement-alert-copy strong{color:#fff;font-weight:800;font-size:14px;}
+.recanto-achievement-alert-copy span{color:#e7f0ff;font-size:13px;}
+.recanto-achievement-close{border:0;background:transparent;color:#fff;font-size:22px;cursor:pointer;padding:0;align-self:start;}
+.recanto-achievement-exit{opacity:0;transform:translateX(22px);transition:opacity .22s,transform .22s;}
+@keyframes rc-achievement-appear{from{opacity:0;transform:translateX(35px)}to{opacity:1;transform:translateX(0)}}
+@media(max-width:600px){.recanto-achievement-alerts{top:calc(env(safe-area-inset-top) + 9px);right:8px;max-width:calc(100vw - 16px);}.recanto-achievement-alert{padding:11px;}}
+@media(prefers-reduced-motion:reduce){.recanto-achievement-alert{animation:none;}.recanto-achievement-exit{transition:none;}}
