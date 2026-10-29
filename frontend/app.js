@@ -2608,7 +2608,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   }
   // RECANTO 0.3.20 — Pokémon (jogo próprio, separado dos favoritos do perfil).
   let adventurePage='team';
-  const pokemonTabs=[['team','Meu Time'],['collection','Coleção'],['wild','Capturar'],['shop','Itens Pokémon'],['expedition','Expedições'],['battle','Batalhas'],['hospital','Enfermaria'],['trades','Trocas']];
+  const pokemonTabs=[['team','Meu Time'],['wild','Capturar'],['items','Itens Pokémon'],['adventures','Expedições'],['hospital','Enfermaria'],['trades','Trocas']];
   const pokemonPicture=data=>{
     const img=h('img','recanto-pokemon-image');img.loading='lazy';img.alt=data.name||'Pokémon';
     img.src=data.image_url||`https://img.pokemondb.net/sprites/home/normal/${data.slug}.png`;
@@ -2618,7 +2618,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   const pokemonInfo=p=>{
     const tile=h('article','recanto-pokemon-tile');tile.append(pokemonPicture(p));
     tile.append(h('strong','',p.name),h('small','',`Nv. ${p.level} · ${p.types.join(' / ')}`));
-    if(p.status!=='healthy')tile.append(h('small','recanto-pokemon-alert',
+    if(p.status && p.status!=='healthy')tile.append(h('small','recanto-pokemon-alert',
       p.status==='sick'?'Doente':p.status==='hospital'?'Na Enfermaria':'Em expedição'));
     return tile;
   };
@@ -2651,6 +2651,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       h('span','',`${info.owned.filter(p=>p.position>0).length}/6 na equipe`));pane.append(title);
     const all=info.owned;
     if(adventurePage==='team'){
+      const wrap=h('div','recanto-pokemon-two-col');
       const box=block('⚔️ Meu Time Pokémon','Até seis Pokémon capturados podem lutar e participar de expedições. Esta equipe não está relacionada aos Pokémons Favoritos do perfil.');
       const selected=all.filter(p=>p.position>0).sort((a,b)=>a.position-b.position).map(p=>p.id);
       const section=h('div','recanto-pokemon-gallery');
@@ -2661,19 +2662,23 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
             else if(selected.length<6)selected.push(p.id);
             else{toast('O time só pode ter seis Pokémon.');return;}
             repaint();
-          },'soft-action');btn.disabled=p.status!=='healthy';tile.append(btn);section.append(tile);}
-      };repaint();box.append(section,button('Salvar equipe',()=>pokemonCall('/team',{ids:selected},'Equipe Pokémon atualizada!')));pane.append(box);
-    }else if(adventurePage==='collection'){
-      const box=block('📚 Coleção de Pokémon','Somente Pokémon encontrados e capturados aparecem aqui. Evoluções dependem do nível e das regras de evolução da espécie.');
+          },'soft-action');btn.disabled=p.status && p.status!=='healthy';tile.append(btn);section.append(tile);}
+      };repaint();box.append(section,button('Salvar equipe',()=>pokemonCall('/team',{ids:selected},'Equipe Pokémon atualizada!')));
+      wrap.append(box);
+      const collection=block('📚 Coleção de Pokémon','Somente Pokémon encontrados e capturados aparecem aqui. Evoluções dependem do nível e das regras de evolução da espécie.');
       const gallery=h('div','recanto-pokemon-gallery');
       for(const p of all){const tile=pokemonInfo(p);tile.append(h('small','',`EXP ${p.xp}/${p.xp_next}`));
         const evolve=button('Evoluir',()=>pokemonCall('/evolve',{id:p.id},'Evolução concluída!'),'soft-action');
-        evolve.disabled=p.status!=='healthy';tile.append(evolve);gallery.append(tile);}
-      box.append(gallery);pane.append(box);
+        evolve.disabled=p.status && p.status!=='healthy';tile.append(evolve);gallery.append(tile);}
+      collection.append(gallery);
+      wrap.append(collection);
+      pane.append(wrap);
     }else if(adventurePage==='wild'){
       const box=block('🌿 Encontros selvagens','Encontros aparecem em horários variáveis. Pokémon Lendários e Míticos não podem ser encontrados nem capturados.');
       const wild=info.encounter;
-      if(wild){const card=h('div','recanto-wild-card');card.append(pokemonPicture(wild),h('h3','',wild.name),
+      if(wild){const card=h('div','recanto-wild-card');
+        const scene=h('div','recanto-wild-scene');scene.append(pokemonPicture(wild));
+        card.append(scene,h('h3','',wild.name),
         h('p','',`Nível ${wild.level} · ${wild.types.join(' / ')} · ${wild.attempts} tentativa(s)`),
         h('p','',`Vai embora em ${countdown(wild.expires_at)}`));
         const balls=h('div','recanto-pokemon-actions');
@@ -2682,21 +2687,31 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
           btn.disabled=!info.items[sku];balls.append(btn);
         }card.append(balls);box.append(card);
       }else{
-        box.append(h('p','',`Próximo encontro: ${new Date(info.next_encounter).getTime()<=Date.now()?'Disponível agora':countdown(info.next_encounter)}`));
+        const wait=h('div','recanto-wild-card');
+        const scene=h('div','recanto-wild-scene recanto-wild-empty');
+        scene.append(h('span','recanto-wild-placeholder','🌲'));
+        wait.append(scene,h('p','',`Próximo encontro: ${new Date(info.next_encounter).getTime()<=Date.now()?'Disponível agora':countdown(info.next_encounter)}`));
         const btn=button('Procurar Pokémon selvagem',()=>pokemonCall('/seek',{},'Um Pokémon selvagem apareceu!'));
-        btn.disabled=new Date(info.next_encounter).getTime()>Date.now();box.append(btn);
+        btn.disabled=new Date(info.next_encounter).getTime()>Date.now();wait.append(btn);box.append(wait);
       }
       pane.append(box);
-    }else if(adventurePage==='shop'){
-      const box=block('🎒 Itens de Pokémon','Inventário separado dos itens de Pet. Pokébolas para capturar Pokémon e itens especiais.');
+    }else if(adventurePage==='items'){
+      const box=block('🎒 Itens de Pokémon','Aqui ficam apenas os itens Pokémon que você já comprou e pode usar. A compra de itens acontece na Loja.');
       const gallery=h('div','recanto-pokemon-gallery');
-      for(const item of info.shop){const tile=h('article','recanto-pokemon-shop-item');
-        tile.append(h('strong','',`${item.emoji} ${item.name}`),h('small','',`Você possui ${info.items[item.sku]||0}`),
-          h('small','',`🪙 ${item.price}`));
-        tile.append(button('Comprar',()=>pokemonCall('/shop',{sku:item.sku,quantity:1},'Item Pokémon comprado!')));gallery.append(tile);}
-      box.append(gallery);pane.append(box);
+      for(const item of info.shop){const owned=Number(info.items[item.sku]||0);const tile=h('article','recanto-pokemon-shop-item');
+        tile.append(h('strong','',`${item.emoji} ${item.name}`),h('small','',`Você possui ${owned}`),
+          h('small','',item.sku==='cura'?'Use para recuperar Pokémon doentes.':'Disponível para capturas e evolução.'));
+        if(item.sku==='cura') tile.append(h('small','', 'Uso: aba Enfermeira Joy'));
+        if(owned<=0) tile.classList.add('is-empty');
+        gallery.append(tile);}
+      box.append(gallery,button('Abrir Loja',()=>chooseTab('loja'),'soft-action'));
+      pane.append(box);
     }else if(adventurePage==='hospital'){
       const box=block('💗 Enfermeira Joy','Envie Pokémon doentes para tratamento. Eles não poderão lutar ou participar de expedições enquanto se recuperam.');
+      const hero=h('div','recanto-joy-hero');
+      const joyText=h('div');joyText.append(h('strong','','Enfermeira Joy'),h('p','', 'Cuidados e recuperação dos seus Pokémon.'));
+      hero.append(h('div','recanto-joy-avatar','💗'),joyText);
+      box.append(hero);
       const sick=all.filter(p=>p.status==='sick'||p.status==='hospital');
       if(!sick.length)box.append(h('p','','Todos os seus Pokémon estão saudáveis.'));
       for(const p of sick){const row=h('div','recanto-pokemon-hospital');row.append(pokemonPicture(p),h('strong','',p.name));
@@ -2707,35 +2722,40 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
           btn.disabled=new Date(p.ready_at).getTime()>Date.now();row.append(btn);}
         box.append(row);
       }pane.append(box);
-    }else if(adventurePage==='expedition'){
-      const box=block('🗺️ Expedições Pokémon','Selecione seu time, cumpra requisitos de tipos e ganhe EXP e moedas, com chance de Card e Colecionável.');
+    }else if(adventurePage==='adventures'){
+      const wrap=h('div','recanto-pokemon-two-col');
+      const expBox=block('🗺️ Expedições Pokémon','Selecione seu time, cumpra requisitos de tipos e ganhe EXP e moedas, com chance de Card e Colecionável.');
+      const detailGroup=(label,values)=>{const group=h('div','expedition-section');group.append(h('span','expedition-section-label',label));const tags=h('div','expedition-tags');for(const value of values)tags.append(h('span','expedition-tag',value));group.append(tags);return group;};
       if(info.expedition){
-        box.append(h('p','',`Expedição em andamento: ${countdown(info.expedition.ends_at)}`));
-        const btn=button('Receber recompensas',async()=>{
-          const result=await pokemonCall('/expedition/collect',{},'Expedição concluída!');
-          if(result)toast(`+${result.coins} moedas · ${result.bonus.join(', ')||'EXP para equipe'}`);
-        });btn.disabled=new Date(info.expedition.ends_at).getTime()>Date.now();box.append(btn);
+        const current=h('div','expedition-option');const row=h('div','expedition-row');const infoCol=h('div','expedition-info');
+        const header=h('div','expedition-heading');header.append(h('strong','expedition-title','Expedição em andamento'));const timing=h('div','expedition-timing');timing.append(h('span','expedition-duration','🕒 '+countdown(info.expedition.ends_at)));header.append(timing);infoCol.append(header);
+        infoCol.append(detailGroup('Status',['Equipe enviada','Recompensas ao finalizar']));
+        const btn=button('Receber recompensas',async()=>{const result=await pokemonCall('/expedition/collect',{},'Expedição concluída!');if(result)toast(`+${result.coins} moedas · ${result.bonus.join(', ')||'EXP para equipe'}`);},'soft-action expedition-send');btn.disabled=new Date(info.expedition.ends_at).getTime()>Date.now();infoCol.append(btn);
+        row.append(mediaCover('', '🌲','Expedição em andamento','expedition-cover'), infoCol); current.append(row); expBox.append(current);
       }else{
-        const selected=all.filter(p=>p.position>0&&p.status==='healthy').map(p=>p.id);
-        for(const opt of info.expedition_options){const card=h('div','recanto-pokemon-quest');
-          card.append(h('strong','',opt.name),h('p','',`Requisito: ${opt.required_count} do tipo ${opt.required_type} · ${opt.minutes} minutos`),
-            h('p','',`Moedas: ${opt.min_coins}–${opt.max_coins} · Card: ${opt.card_chance}% · Colecionável: ${opt.collectible_chance}%`));
-          const btn=button('Enviar equipe',()=>pokemonCall('/expedition/start',{config_id:opt.id,ids:selected},'Sua expedição começou!'),'soft-action');
-          btn.disabled=!selected.length;card.append(btn);box.append(card);}
-      }pane.append(box);
-    }else if(adventurePage==='battle'){
-      const box=block('⚔️ Chefes Pokémon','Batalhas automáticas PvE. Organize até seis Pokémon: posições 1–3 na linha de frente e 4–6 na retaguarda.');
-      if(info.next_boss)box.append(h('p','',`Próxima batalha: ${countdown(info.next_boss)}`));
-      for(const boss of info.bosses){const row=h('div','recanto-pokemon-quest');
-        row.append(h('strong','',`${boss.name} · Nv. ${boss.level}`),h('p','',`Vitória: 🪙 ${boss.reward_coins} · sua equipe recebe EXP`));
-        const btn=button('Desafiar chefe',async()=>{
-          const result=await pokemonCall('/battle',{boss_id:boss.id},'Batalha concluída!');
-          if(result){const modal=$('profilesModal'),panel=$('profilesPane');modal.hidden=false;
-            panel.replaceChildren(h('h3','',result.won?'🏆 Vitória!':'⚔️ Derrota'),h('p','',`+${result.coins} moedas`));
-            for(const line of result.log)panel.append(h('p','',line));
-            panel.append(button('Fechar',()=>{modal.hidden=true;},'soft-action'));}
-        });btn.disabled=!!info.next_boss&&new Date(info.next_boss).getTime()>Date.now();row.append(btn);box.append(row);}
-      pane.append(box);
+        const selected=all.filter(p=>p.position>0&&(!p.status||p.status==='healthy')).map(p=>p.id);
+        for(const opt of info.expedition_options){const current=h('div','expedition-option');const row=h('div','expedition-row');const infoCol=h('div','expedition-info');
+          const header=h('div','expedition-heading');header.append(h('strong','expedition-title',opt.name));const timing=h('div','expedition-timing');timing.append(h('span','expedition-duration','🕒 '+opt.minutes+' min'));header.append(timing);infoCol.append(header);
+          infoCol.append(detailGroup('Requisitos',[`${opt.required_count} do tipo ${opt.required_type}`]),detailGroup('Recompensas possíveis',[`🪙 ${opt.min_coins}–${opt.max_coins} moedas`,`🃏 Card: ${opt.card_chance}%`,`🏆 Colecionável: ${opt.collectible_chance}%`]));
+          const btn=button('Enviar equipe',()=>pokemonCall('/expedition/start',{config_id:opt.id,ids:selected},'Sua expedição começou!'),'soft-action expedition-send');btn.disabled=!selected.length;infoCol.append(btn);
+          row.append(mediaCover('', opt.required_type==='water'?'🌊':opt.required_type==='fire'?'🔥':opt.required_type==='grass'?'🌿':'🧭',opt.name,'expedition-cover'), infoCol); current.append(row); expBox.append(current);}
+      }
+      wrap.append(expBox);
+      const battleBox=block('⚔️ Chefes Pokémon','Batalhas automáticas PvE. Organize até seis Pokémon: posições 1–3 na linha de frente e 4–6 na retaguarda.');
+      if(info.next_boss)battleBox.append(h('p','',`Próxima batalha: ${countdown(info.next_boss)}`));
+      const boardPreview=()=>{const board=h('div','recanto-battle-board');
+        const ally=h('div','recanto-battle-side');ally.append(h('span','recanto-battle-side-title','Seu time'));for(let i=0;i<6;i++) ally.append(h('div','recanto-battle-slot',String(i+1)));
+        const enemy=h('div','recanto-battle-side enemy');enemy.append(h('span','recanto-battle-side-title','Chefe'));for(let i=0;i<6;i++) enemy.append(h('div','recanto-battle-slot enemy',i<3?'?':''));
+        board.append(ally,enemy);return board;};
+      for(const boss of info.bosses){const current=h('div','expedition-option');const row=h('div','expedition-row');const infoCol=h('div','expedition-info');
+        const header=h('div','expedition-heading');header.append(h('strong','expedition-title',`${boss.name} · Nv. ${boss.level}`));const timing=h('div','expedition-timing');timing.append(h('span','expedition-duration','⏱️ PvE'));header.append(timing);infoCol.append(header);
+        infoCol.append(detailGroup('Recompensas',[`🪙 ${boss.reward_coins} moedas`,`✨ EXP para a equipe`]));
+        infoCol.append(boardPreview());
+        const btn=button('Desafiar chefe',async()=>{const result=await pokemonCall('/battle',{boss_id:boss.id},'Batalha concluída!');if(result){const modal=$('profilesModal'),panel=$('profilesPane');modal.hidden=false;panel.replaceChildren(h('h3','',result.won?'🏆 Vitória!':'⚔️ Derrota'),h('p','',`+${result.coins} moedas`));for(const line of result.log)panel.append(h('p','',line));panel.append(button('Fechar',()=>{modal.hidden=true;},'soft-action'));}},'soft-action expedition-send');
+        btn.disabled=!!info.next_boss&&new Date(info.next_boss).getTime()>Date.now();infoCol.append(btn);
+        row.append(mediaCover('', '⚔️', boss.name,'expedition-cover'), infoCol); current.append(row); battleBox.append(current);}
+      wrap.append(battleBox);
+      pane.append(wrap);
     }else if(adventurePage==='trades'){
       const box=block('🔄 Trocas de Pokémon','Proponha uma troca de Pokémon por Pokémon. Não é permitido vender Pokémon. Ambos precisam confirmar.');
       const [members,trades]=await Promise.all([API('/api/community/profiles?registered_only=true&limit=200'),API('/api/pokemon/adventure/trades')]);

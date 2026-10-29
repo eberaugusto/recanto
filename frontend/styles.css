@@ -3926,36 +3926,7 @@ body.dark-mode .feed-rarity-lendario{color:var(--rc-ui-aa0e9f0251,#ffdb80)!impor
 .pokemon-sprite {display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;image-rendering:auto;}
 .pokemon-team-art .pokemon-sprite{padding:4px;}
 .pokemon-team-name {font-size:clamp(10px,.8vw,12px);font-weight:700;line-height:1.3;overflow-wrap:anywhere;}
-/* 0.3.22 — Texto de favoritos vazios no mesmo padrão de Jogos/Campeões.
-   A mensagem ocupa as seis colunas e fica centralizada no perfil próprio e visitado. */
-.pokemon-team-grid > .pokemon-team-empty {
-  display:block!important;
-  box-sizing:border-box!important;
-  grid-column:1 / -1!important;
-  justify-self:stretch!important;
-  align-self:center!important;
-  width:100%!important;
-  min-width:0!important;
-  max-width:100%!important;
-  flex:0 0 100%!important;
-  text-align:center!important;
-  margin:0 auto!important;
-  padding:6px 8px!important;
-  color:var(--rc-ui-016e22dc92,#7880b1);
-  font-size:clamp(12px,1vw,15px)!important;
-  font-weight:400;
-  line-height:1.5!important;
-  white-space:normal!important;
-  overflow-wrap:normal!important;
-  opacity:1;
-}
-@media (max-width:767px) {
-  .pokemon-team-grid > .pokemon-team-empty {
-    font-size:13px!important;
-    padding:6px 10px!important;
-    overflow-wrap:anywhere!important;
-  }
-}
+.pokemon-team-empty {grid-column:1/-1;font-size:13px;margin:0;opacity:.85;}
 @media(max-width:600px){
   .pokemon-team-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
   .pokemon-team-art{max-width:110px;}
@@ -4071,3 +4042,30 @@ body.dark-mode .recanto-pokemon-tile small{color:#cad6f1;}
 @media(max-width:500px){.recanto-pokemon-starters,.recanto-pokemon-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
  .recanto-pokemon-tab{padding:9px;font-size:12px;}.recanto-pokemon-hospital{grid-template-columns:52px minmax(0,1fr);}
  .recanto-pokemon-hospital button{grid-column:1/-1;}}
+
+
+/* Recanto 0.3.23 — refinamento visual da área Pokémon no modo claro */
+.recanto-pokemon-shell,.recanto-pokemon-tabs-wrap{background:#dfe5f7;}
+.recanto-pokemon-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;}
+body:not(.dark-mode) .recanto-pokemon-tab{background:#eef2ff;color:#324793;border-color:#a8b6de;opacity:1;font-weight:700;}
+body:not(.dark-mode) .recanto-pokemon-tab.selected{background:#5865f2;color:#fff;border-color:#5865f2;}
+body:not(.dark-mode) .recanto-pokemon-summary{background:#e4eaf9;color:#263b7d;}
+body:not(.dark-mode) .recanto-pokemon-tile,body:not(.dark-mode) .recanto-pokemon-shop-item,body:not(.dark-mode) .recanto-pokemon-quest,body:not(.dark-mode) .recanto-pokemon-trade,body:not(.dark-mode) .recanto-pokemon-hospital{background:#eef2ff;border-color:#cad4ee;}
+.recanto-pokemon-two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;}
+.recanto-wild-card{max-width:780px;margin:auto;text-align:center;}
+.recanto-wild-scene{position:relative;display:flex;align-items:flex-end;justify-content:center;min-height:260px;border-radius:22px;padding:20px;overflow:hidden;background:linear-gradient(180deg,rgba(165,214,167,.92),rgba(102,187,106,.85)), radial-gradient(circle at 20% 20%, rgba(255,255,255,.35), transparent 35%), radial-gradient(circle at 80% 15%, rgba(255,255,255,.28), transparent 30%), linear-gradient(0deg,#486b39 0%,#74a55f 28%,#8cc47a 55%,#b8df9d 100%);}
+.recanto-wild-scene::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 10% 100%, rgba(60,90,45,.4) 0 12%, transparent 13%),radial-gradient(circle at 30% 100%, rgba(60,90,45,.45) 0 16%, transparent 17%),radial-gradient(circle at 70% 100%, rgba(60,90,45,.35) 0 14%, transparent 15%),radial-gradient(circle at 90% 100%, rgba(60,90,45,.4) 0 12%, transparent 13%);opacity:.9;}
+.recanto-wild-scene .recanto-pokemon-image{position:relative;z-index:1;max-height:220px;filter:drop-shadow(0 10px 14px rgba(0,0,0,.18));}
+.recanto-wild-empty{min-height:190px;}
+.recanto-wild-placeholder{position:relative;z-index:1;font-size:64px;opacity:.9;}
+.recanto-joy-hero{display:grid;grid-template-columns:90px 1fr;gap:14px;align-items:center;margin:8px 0 14px;}
+.recanto-joy-avatar{width:90px;height:90px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#ffd4e5,#ffb6d0);font-size:38px;border:3px solid #f3a1c2;box-shadow:0 8px 18px rgba(0,0,0,.08);}
+.recanto-battle-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0;}
+.recanto-battle-side{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px;border:1px solid #cad4ee;background:#f4f7ff;border-radius:16px;position:relative;}
+.recanto-battle-side.enemy{background:#fff3f3;border-color:#f0cccc;}
+.recanto-battle-side-title{grid-column:1/-1;font-size:12px;font-weight:700;color:#55618a;}
+.recanto-battle-slot{height:36px;border-radius:12px;background:#d7def3;border:1px dashed #a8b6de;display:grid;place-items:center;font-size:12px;color:#55618a;}
+.recanto-battle-slot.enemy{background:#f6dbdb;border-color:#e4b1b1;}
+.recanto-pokemon-shop-item.is-empty{opacity:.7;}
+@media(max-width:900px){.recanto-pokemon-two-col{grid-template-columns:1fr;}}
+@media(max-width:500px){.recanto-joy-hero{grid-template-columns:72px 1fr;}.recanto-joy-avatar{width:72px;height:72px;font-size:32px;}.recanto-battle-board{grid-template-columns:1fr;}}
