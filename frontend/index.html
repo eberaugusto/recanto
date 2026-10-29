@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=0.4.8">
+  <link rel="stylesheet" href="/styles.css?v=0.4.9">
 </head>
 <body>
 <!-- Recanto 0.1.2 — layout responsivo e gestão com carregamento progressivo. -->
@@ -36,6 +36,16 @@
     <img class="brand-logo" src="/recanto-logo.png" alt="Recanto">
     <div class="login-actions"><button type="button" class="discord-login" id="login"><svg class="discord-mark"><use href="#discord"/></svg><span>Login</span></button><button type="button" class="install-app" id="installApp"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 17v3h16v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Instalar</span></button><p class="system-message" id="message" role="status" aria-live="polite"></p></div>
   </main>
+  <div class="recanto-install-guide" id="installGuide" hidden role="dialog" aria-modal="true" aria-labelledby="installGuideTitle">
+    <div class="recanto-install-guide-panel" role="document">
+      <button type="button" class="recanto-install-guide-close" id="closeInstallGuide" aria-label="Fechar orientações de instalação">✕</button>
+      <h2 id="installGuideTitle">Instalar o Recanto</h2>
+      <p id="installGuideIntro"></p>
+      <ol id="installGuideSteps"></ol>
+      <p class="recanto-install-guide-note" id="installGuideNote"></p>
+      <a id="installGuideLink" href="https://support.mozilla.org/pt-BR/kb/web-apps-firefox-windows" rel="noopener noreferrer" target="_blank" hidden>Ajuda oficial do navegador</a>
+    </div>
+  </div>
   <main class="screen splash-screen" id="splashScreen" aria-live="polite"><img src="/recanto-logo.png" alt="Recanto" class="splash-logo"></main>
   <main class="screen home-screen" id="homeScreen" hidden>
     <aside class="desktop-sidebar" aria-label="Menu do Recanto">
@@ -144,9 +154,9 @@
       <button type="button" class="soft-action settings-notification-test" id="testNotifications">🔔 Testar notificação</button>
       <button type="button" class="soft-action settings-admin" id="settingsAdmin" hidden aria-label="Abrir Gestão do Recanto"><svg aria-hidden="true"><use href="#gear"/></svg><span>Gestão do Recanto</span></button>
       <button type="button" class="soft-action settings-update-check" id="checkUpdates"><svg aria-hidden="true"><use href="#missions"/></svg><span>Verificar atualizações</span></button>
-      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.4.8</p></section></div>
+      <button type="button" class="logout-button" id="logout">Trocar de conta</button><p class="version-note">Recanto · Versão 0.4.9</p></section></div>
   </main>
 </div>
-<script src="/app.js?v=0.4.8" defer></script>
+<script src="/app.js?v=0.4.9" defer></script>
 </body>
 </html>

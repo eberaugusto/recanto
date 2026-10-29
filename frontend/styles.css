@@ -4589,3 +4589,17 @@ body.dark-mode #adminModal #adminContent[data-admin-building="true"]::before {
   color: #d9e2ff;
   overflow-wrap: anywhere;
 }
+
+
+/* Recanto 0.4.9 — guia visível para instalar no Firefox e demais navegadores sem prompt. */
+.recanto-install-guide[hidden]{display:none!important;}
+.recanto-install-guide{position:fixed;inset:0;z-index:99999;background:rgba(13,22,61,.7);display:flex;align-items:center;justify-content:center;padding:20px;}
+.recanto-install-guide-panel{position:relative;width:min(100%,500px);max-height:min(85dvh,760px);overflow-y:auto;overscroll-behavior:contain;border-radius:22px;background:#fff;color:#263969;padding:28px;box-shadow:0 20px 65px rgba(0,0,0,.28);font-size:15px;line-height:1.5;}
+.recanto-install-guide-panel h2{font-size:23px;margin:0 40px 16px 0;color:#263969;}
+.recanto-install-guide-panel p{margin:10px 0 15px;color:#37446f;}
+.recanto-install-guide-panel ol{padding-left:22px;margin:12px 0;}
+.recanto-install-guide-panel li{margin:9px 0;padding-left:3px;}
+.recanto-install-guide-panel .recanto-install-guide-note{font-size:13px;padding:12px;border-radius:12px;background:#eef2ff;}
+.recanto-install-guide-panel a{color:#364dbb;font-weight:700;}
+.recanto-install-guide-close{position:absolute;right:17px;top:17px;width:36px;height:36px;border:0;border-radius:50%;background:#edf0fb;color:#2d4191;font-size:16px;display:grid;place-items:center;}
+@media(max-width:480px){.recanto-install-guide{padding:12px;}.recanto-install-guide-panel{padding:22px 18px;max-height:85dvh;}.recanto-install-guide-panel h2{font-size:20px;}}

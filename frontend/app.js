@@ -4800,13 +4800,67 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     try{const reg=await navigator.serviceWorker.getRegistration();if(!reg){toast('Abra o Recanto no endereço HTTPS e instale o aplicativo.');return;}await reg.update();toast('Verificação realizada. Se houver uma versão nova, aparecerá a opção Atualizar.');}
     catch(_){toast('Não foi possível verificar atualizações agora.');}
   };
-  $('installApp').onclick=async()=>{
-    if(matchMedia('(display-mode: standalone)').matches){toast('O Recanto já está instalado.');return;}
-    if(state.installEvent){
-      const ev=state.installEvent;state.installEvent=null;ev.prompt();
-      try{await ev.userChoice;}catch(_){}updateInstallButton();return;
+  // Firefox desktop usa a própria interface de apps (barra de endereço),
+  // e não implementa beforeinstallprompt. Exibir instruções persistentes.
+  function showInstallGuide(){
+    const guide=$('installGuide');
+    const intro=$('installGuideIntro'),steps=$('installGuideSteps'),note=$('installGuideNote'),link=$('installGuideLink');
+    if(!guide||!intro||!steps||!note||!link)return;
+    const ua=navigator.userAgent||'';
+    const firefox=/Firefox\/|FxiOS\//i.test(ua);
+    const windows=/Windows NT/i.test(ua);
+    const android=/Android/i.test(ua);
+    const ios=/iPhone|iPad|iPod/i.test(ua);
+    let instructions=[];
+    let explanation='';
+    let foot='';
+    link.hidden=true;
+    if(firefox&&windows){
+      explanation='O Firefox instala sites como aplicativos pela barra de endereços, não pelo botão Instalar do site.';
+      instructions=[
+        'Na barra de endereços do Firefox, procure o ícone para adicionar o site como aplicativo à barra de tarefas.',
+        'Clique nesse ícone e confirme a criação do aplicativo.',
+        'Abra o Recanto pela barra de tarefas ou pelo menu Iniciar do Windows.'
+      ];
+      foot='Se o ícone não aparecer, atualize o Firefox (versão 143 ou superior), abra uma janela normal, fora da navegação privativa, e reinicie o navegador. Instalações antigas da Microsoft Store podem não oferecer o recurso.';
+      link.href='https://support.mozilla.org/en-US/kb/web-apps-firefox-windows';
+      link.hidden=false;
+    }else if(firefox&&android){
+      explanation='No Firefox para Android, a instalação é feita pelo menu do navegador.';
+      instructions=['Abra o menu ⋮ do Firefox.','Toque em Instalar ou Adicionar à tela inicial, se a opção estiver disponível.','Confirme o atalho no seu celular.'];
+      foot='No Firefox para Android, o resultado pode ser um atalho para o site em vez de um aplicativo independente.';
+    }else if(ios){
+      explanation='A instalação no iPhone/iPad acontece pelo menu Compartilhar.';
+      instructions=['Abra o menu Compartilhar do navegador.','Escolha Adicionar à Tela de Início.','Confirme o nome Recanto e toque em Adicionar.'];
+      foot='No iPhone/iPad, essa opção exige uma versão do iOS que permita adicionar sites à Tela de Início pelo navegador.';
+    }else if(firefox){
+      explanation='Este Firefox não oferece a instalação direta pelo botão do Recanto.';
+      instructions=['Abra o Recanto no Chrome ou no Edge.','No menu do navegador, escolha Instalar aplicativo ou Aplicativos → Instalar este site.'];
+      foot='A instalação nativa de sites como aplicativos no Firefox é disponibilizada principalmente no Windows.';
+    }else{
+      explanation='A janela de instalação automática não está disponível neste momento.';
+      instructions=['Abra o menu ⋮ ou ⋯ do seu navegador.','Procure Instalar aplicativo, Aplicativos → Instalar este site ou Adicionar à tela inicial.','Confirme a instalação do Recanto.'];
+      foot='Se a opção não aparecer, confira se você está usando HTTPS, se o app já está instalado e se o navegador está atualizado.';
     }
-    toast(/iPhone|iPad/i.test(navigator.userAgent)?'No Safari, toque em Compartilhar → Adicionar à Tela de Início.':'No Chrome, abra o menu ⋮ e escolha Instalar aplicativo ou Adicionar à tela inicial.');
+    intro.textContent=explanation;
+    steps.replaceChildren();
+    for(const instruction of instructions){const li=document.createElement('li');li.textContent=instruction;steps.append(li);}
+    note.textContent=foot;
+    guide.hidden=false;
+    $('closeInstallGuide')?.focus();
+  }
+  function closeInstallGuide(){const guide=$('installGuide');if(!guide)return;guide.hidden=true;$('installApp')?.focus();}
+  $('closeInstallGuide').onclick=closeInstallGuide;
+  $('installGuide').addEventListener('click',e=>{if(e.target===$('installGuide'))closeInstallGuide();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('installGuide').hidden)closeInstallGuide();});
+  $('installApp').onclick=async()=>{
+    if(matchMedia('(display-mode: standalone)').matches||navigator.standalone===true){toast('O Recanto já está instalado.');return;}
+    if(state.installEvent){
+      const ev=state.installEvent;state.installEvent=null;
+      try{await ev.prompt();await ev.userChoice;}catch(_){showInstallGuide();}
+      updateInstallButton();return;
+    }
+    showInstallGuide();
   };
   $('searchUsers').onclick=searchProfiles;
   $('closeProfiles').onclick=()=>{$('profilesModal').hidden=true;};
