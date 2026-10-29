@@ -1613,7 +1613,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const chooser=(name,value,options,callback)=>{const wrapper=h('label','filter-label');wrapper.append(h('span','',name));const select=h('select','select-input');for(const [v,txt] of options){const opt=h('option','',txt);opt.value=v;select.append(opt);}select.value=value;select.addEventListener('change',()=>callback(select.value));wrapper.append(select);return wrapper;};
     const rerender=()=>{state.cardPage=1;paintCardGrid(items,ownedIds,tab,container);};
     line.append(chooser('Raridade',filters.rarity,[['todos','Todas'],...Object.entries(tierLabels)],v=>{filters.rarity=v;rerender();}));
-    const collections=[...new Set([...items.map(c=>c.collection||'Recanto Original'),'Celebridades','Personagens','Memes',filters.collection].filter(c=>c!=='todas'))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+    const collections=[...new Set(items.map(c=>c.collection||'Recanto Original').filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
     if(filters.collection!=='todas'&&!collections.includes(filters.collection))filters.collection='todas';
     line.append(chooser('Coleção',filters.collection,[['todas','Todas as coleções'],...collections.map(v=>[v,v])],v=>{filters.collection=v;rerender();}));
     line.append(chooser('Ordem',filters.alphabetical,[['raridade','Mais raros primeiro'],['padrao','Recentes / Catálogo'],['az','Alfabético A–Z'],['za','Alfabético Z–A']],v=>{filters.alphabetical=v;rerender();}));
@@ -3926,17 +3926,16 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     }
     variantChooser.addEventListener('change',renderSelectedVariant);
     styleName.addEventListener('change',refreshStyleInputs);
-    Promise.all([loadCollectionCardStyles(),catalogTask.catch(()=>({items:[]}))]).then(([styles,catalog])=>{
+    const refreshCollectionStyleOptions=async()=>{
+      const [styles,data]=await Promise.all([loadCollectionCardStyles(),API('/api/admin/collections')]);
       stylesForAdmin={...styles};
-      const names=new Set(['Recanto Original',...['Celebridades','Personagens','Memes']]);
-      for(const key of Object.keys(styles))if(!key.startsWith('__rarity__')&&!key.startsWith('__preview__'))names.add(key);
-      for(const item of catalog.items||[])names.add(item.collection||'Recanto Original');
-      for(const v of collectionFrameVariants)names.add(v.collection);
+      const names=(data.items||[]).map(item=>item.name);
       const existing=styleName.value;
-      styleName.replaceChildren(...[...names].filter(Boolean).sort((a,b)=>a.localeCompare(b,'pt-BR')).map(name=>{const op=h('option','',name);op.value=name;return op;}));
-      styleName.value=[...names].includes(existing)?existing:'Recanto Original';
+      styleName.replaceChildren(...names.map(name=>{const op=h('option','',name);op.value=name;return op;}));
+      styleName.value=names.includes(existing)?existing:'Recanto Original';
       refreshStyleInputs();
-    }).catch(err=>{savedStyles.textContent='Falha ao listar coleções: '+err.message;});
+    };
+    refreshCollectionStyleOptions().catch(err=>{savedStyles.textContent='Falha ao listar coleções: '+err.message;});
     styleBox.append(styleNameRow,styleHelp,frameUrlRow[0],h('label','','Ou envie a moldura padrão'),frameFile,stylePreview,
       button('Salvar moldura padrão da coleção',async()=>{
         const name=styleName.value.trim();if(!name){toast('Selecione uma coleção.');return;}
@@ -3967,6 +3966,61 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     },'danger-action'));
     styleBox.append(variantActions);
     pane.append(styleBox);
+
+    // Excluir uma coleção é diferente de excluir Cards: cada Card é preservado
+    // em 'Recanto Original', junto a todas as cópias, favs e trocas dos usuários.
+    const collectionDeleteBox=block('Excluir coleção permanentemente',
+      'Apaga o agrupamento e suas molduras, mas NÃO apaga nenhum card. Todos os cards desta coleção passam para Recanto Original, mantendo raridade, arte, cópias e trocas.');
+    const deleteCollectionPicker=h('select','select-input');
+    const deleteCollectionDetails=h('p','admin-entry-status');
+    const deleteCollectionResult=h('p','admin-entry-status');
+    let availableToDelete=[];
+    const showCollectionDeleteDetails=()=>{
+      const current=availableToDelete.find(item=>item.name===deleteCollectionPicker.value);
+      deleteCollectionDetails.textContent=current
+        ?`${current.cards} card(s) serão movidos para Recanto Original. `+
+          `${current.variants} moldura(s) adicional(is) e a moldura padrão da coleção serão removidas.`+
+          (current.featured?' A coleção em destaque também será alterada.':'')
+        :'Selecione uma coleção para excluir.';
+    };
+    deleteCollectionPicker.addEventListener('change',showCollectionDeleteDetails);
+    const reloadCollectionDeleteList=async()=>{
+      const data=await API('/api/admin/collections');
+      availableToDelete=(data.items||[]).filter(item=>item.can_delete);
+      const selected=deleteCollectionPicker.value;
+      deleteCollectionPicker.replaceChildren();
+      for(const item of availableToDelete){const option=h('option','',`${item.name} · ${item.cards} card(s)`);option.value=item.name;deleteCollectionPicker.append(option);}
+      if(availableToDelete.some(item=>item.name===selected))deleteCollectionPicker.value=selected;
+      deleteCollectionPicker.disabled=!availableToDelete.length;
+      if(!availableToDelete.length){deleteCollectionPicker.append(h('option','','Nenhuma coleção disponível'));}
+      showCollectionDeleteDetails();
+    };
+    reloadCollectionDeleteList().catch(error=>{deleteCollectionDetails.textContent='Falha ao listar coleções: '+error.message;});
+    const deleteCollectionButton=button('Excluir coleção permanentemente',async()=>{
+      const name=deleteCollectionPicker.value;
+      if(!name||!availableToDelete.some(item=>item.name===name))return;
+      const expected='EXCLUIR '+name;
+      const answer=window.prompt(`Excluir PERMANENTEMENTE a coleção “${name}”?\n\n`+
+        `Todos os cards serão transferidos para Recanto Original, sem perder cópias ou raridades.\n`+
+        `As molduras exclusivas desta coleção serão apagadas.\n\nDigite ${expected} para confirmar:`);
+      if(answer!==expected)return;
+      if(!window.confirm(`Confirmar exclusão definitiva da coleção “${name}”? Os cards NÃO serão excluídos.`))return;
+      deleteCollectionButton.disabled=true;
+      try{
+        const result=await API('/api/admin/collections/delete',{collection:name,confirmation:expected});
+        deleteCollectionResult.textContent=`Coleção excluída. ${result.cards_preserved} card(s) preservados em Recanto Original.`;
+        toast('Coleção excluída. Cards preservados!');
+        collectionStylesLoaded=false;
+        await Promise.all([loadCollectionCardStyles(true),reloadCollectionDeleteList()]);
+        await refreshCollectionStyleOptions();
+        // A mudança de coleção pode aparecer no catálogo sem recarregar o gestor.
+        resetCachedData();
+      }catch(error){deleteCollectionResult.textContent='Falha ao excluir coleção: '+error.message;toast('Falha ao excluir: '+error.message);}
+      finally{deleteCollectionButton.disabled=false;}
+    },'danger-action');
+    collectionDeleteBox.append(h('label','admin-field','Coleção que será excluída'),deleteCollectionPicker,
+      deleteCollectionDetails,deleteCollectionButton,deleteCollectionResult);
+    pane.append(collectionDeleteBox);
 
     const pet=block('Cadastrar Pet','Aceita imagem PNG/JPG/WEBP/GIF, modelo 3D GLB/GLTF e nomes de animações do arquivo.');
     const [pn,pni]=adminField('Nome do Pet','');const [pe,pei]=adminField('Emoji para fallback','🐾');const [pu,pui]=adminField('Imagem de capa (HTTPS ou /uploads/...)','');

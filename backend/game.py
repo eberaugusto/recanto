@@ -332,6 +332,12 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         name: Mapped[str] = mapped_column(String(100), nullable=False)
         frame_url: Mapped[str] = mapped_column(String(512), nullable=False)
 
+    class DeletedCollection(Base):
+        """Oculta permanentemente coleções padrão removidas pelo administrador."""
+        __tablename__ = 'recanto_deleted_collections'
+        name: Mapped[str] = mapped_column(String(100), primary_key=True)
+        deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+
     class CardFrameChoice(Base):
         """Ausência de registro mantém o visual tradicional da coleção/raridade."""
         __tablename__ = 'recanto_card_frame_choices'
@@ -2426,6 +2432,71 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             wallet(db,uid).coins+=earned
             return {'ok':True,'coins_gained':earned}
 
+    def active_collection_names(db):
+        """Coleções reais e padrão não excluídas, sem recriar opções apagadas."""
+        gone=set(db.scalars(select(DeletedCollection.name)).all())
+        names={'Recanto Original', *DEFAULT_COLLECTIONS}
+        names.update(v for v in db.scalars(select(Card.collection_name).distinct()).all() if v)
+        names.update(v for v in db.scalars(select(CollectionCardStyle.collection_name)).all()
+                     if v and not v.startswith('__rarity__') and not v.startswith('__preview__'))
+        names.update(v for v in db.scalars(select(CollectionFrameVariant.collection_name).distinct()).all() if v)
+        return sorted((names-gone)|{'Recanto Original'}, key=str.casefold)
+
+    def restore_collection_if_needed(db, collection):
+        """Só uma ação explícita de cadastro restaura um nome excluído."""
+        deleted=db.get(DeletedCollection,collection)
+        if deleted:
+            db.delete(deleted)
+
+    @app.get('/api/admin/collections')
+    def admin_list_collections(request:Request):
+        only_admin(request)
+        with SessionLocal() as db:
+            counts=dict(db.execute(select(Card.collection_name,func.count(Card.id)).group_by(Card.collection_name)).all())
+            variants=dict(db.execute(select(CollectionFrameVariant.collection_name,func.count(CollectionFrameVariant.id))
+                                     .group_by(CollectionFrameVariant.collection_name)).all())
+            featured=db.get(FeaturedCollection,1)
+            styles=set(db.scalars(select(CollectionCardStyle.collection_name)).all())
+            return {'items':[{'name':name,'cards':int(counts.get(name,0)),
+                              'variants':int(variants.get(name,0)),
+                              'has_default_frame':name in styles,
+                              'featured':bool(featured and featured.name==name),
+                              'can_delete':name!='Recanto Original'}
+                             for name in active_collection_names(db)]}
+
+    @app.post('/api/admin/collections/delete')
+    async def admin_delete_collection(request:Request):
+        """Exclui o agrupamento, nunca um Card, cópia, favorito ou troca."""
+        only_admin(request)
+        data=json_body(await request.json(),('collection','confirmation'))
+        name=str(data['collection'] or '').strip()
+        if name=='Recanto Original' or name.startswith('__') or not 2<=len(name)<=100:
+            raise HTTPException(422,detail='Esta coleção não pode ser excluída')
+        if data['confirmation']!=f'EXCLUIR {name}':
+            raise HTTPException(422,detail='Digite exatamente EXCLUIR seguido do nome da coleção')
+        with writing() as db:
+            if name not in active_collection_names(db):
+                raise HTTPException(404,detail='Coleção não encontrada ou já excluída')
+            reassigned=int(db.scalar(select(func.count(Card.id)).where(Card.collection_name==name)) or 0)
+            variant_ids=db.scalars(select(CollectionFrameVariant.id).where(
+                CollectionFrameVariant.collection_name==name)).all()
+            # Respeitar o 'Sem moldura' e preservar inteiramente os dados de Cards.
+            # As escolhas de moldura são inválidas na coleção de destino.
+            card_ids=select(Card.id).where(Card.collection_name==name)
+            db.execute(delete(CardFrameChoice).where(CardFrameChoice.card_id.in_(card_ids)))
+            if variant_ids:
+                db.execute(delete(CardFrameChoice).where(CardFrameChoice.variant_id.in_(variant_ids)))
+            db.execute(update(Card).where(Card.collection_name==name).values(collection_name='Recanto Original'))
+            db.execute(delete(CollectionFrameVariant).where(CollectionFrameVariant.collection_name==name))
+            db.execute(delete(CollectionCardStyle).where(CollectionCardStyle.collection_name==name))
+            featured=db.get(FeaturedCollection,1)
+            if featured and featured.name==name:
+                featured.name='Recanto Original';featured.image_url=None
+            if db.get(DeletedCollection,name) is None:
+                db.add(DeletedCollection(name=name,deleted_at=utcnow()))
+            return {'ok':True,'deleted_collection':name,'moved_to':'Recanto Original',
+                    'cards_preserved':reassigned,'frames_removed':len(variant_ids)}
+
     @app.get('/api/collections/card-styles')
     def collection_card_styles(request: Request):
         # Molduras prontas por coleção/raridade; o logo já faz parte da própria arte.
@@ -2453,6 +2524,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             raise HTTPException(422,detail='Nome da coleção muito longo')
         frame=safe_artwork(data.get('frame_url'))
         with writing() as db:
+            if name not in allowed_rarity_keys:restore_collection_if_needed(db,name)
             current=db.get(CollectionCardStyle,name)
             if current is None:
                 db.add(CollectionCardStyle(collection_name=name,frame_url=frame,emblem_url=None))
@@ -2486,6 +2558,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     func.lower(CollectionFrameVariant.name) == name.lower()))
                 if exists:
                     raise HTTPException(409, detail='Já existe uma moldura com esse nome nesta coleção')
+                restore_collection_if_needed(db,collection)
                 variant = CollectionFrameVariant(collection_name=collection,name=name,frame_url=frame_url)
                 db.add(variant);db.flush()
             else:
@@ -2520,8 +2593,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         me(request)
         with SessionLocal() as db:
             obj=db.get(FeaturedCollection,1)
-            options=sorted(set(DEFAULT_COLLECTIONS)|set(db.scalars(select(Card.collection_name).distinct()).all()))
-            return {'name':obj.name if obj else 'Celebridades','image_url':obj.image_url if obj else None,'collections':options}
+            options=active_collection_names(db)
+            name=obj.name if obj and obj.name in options else ('Celebridades' if 'Celebridades' in options else 'Recanto Original')
+            return {'name':name,'image_url':obj.image_url if obj and obj.name==name else None,'collections':options}
 
     @app.post('/api/admin/collections/featured')
     async def set_featured_collection(request:Request):
@@ -2530,6 +2604,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if not name:raise HTTPException(422,detail='Informe uma coleção')
         image=safe_artwork(data.get('image_url')) if data.get('image_url') else None
         with writing() as db:
+            if name not in active_collection_names(db):raise HTTPException(422,detail='Selecione uma coleção existente')
             obj=db.get(FeaturedCollection,1)
             if not obj:db.add(FeaturedCollection(id=1,name=name,image_url=image))
             else:obj.name=name;obj.image_url=image
@@ -3742,6 +3817,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if picture and not (picture.startswith('/uploads/') or picture.startswith('https://')):
             raise HTTPException(422, detail='Imagem deve usar HTTPS ou arquivo enviado')
         with writing() as db:
+            restore_collection_if_needed(db,collection)
             # Menor ID positivo ainda disponível, inclusive lacunas deixadas por
             # exclusões anteriores. A transação escrita serializa dois admins.
             candidate = 1
@@ -3770,6 +3846,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             card = db.get(Card, card_id)
             if not card:
                 raise HTTPException(404, detail='Card não encontrado')
+            restore_collection_if_needed(db,collection)
             card.collection_name = collection
             # Uma moldura de outra coleção jamais fica vinculada ao card.
             set_card_frame_choice(db, card_id, collection, 0)
@@ -4446,6 +4523,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     collection=str(payload.get('collection','')).strip()
                     if not 2<=len(name)<=120 or rarity not in TIERS or not 2<=len(collection)<=100:
                         raise HTTPException(422,detail='Nome, raridade ou coleção inválidos')
+                    restore_collection_if_needed(db,collection)
                     obj.name=name;obj.rarity=rarity;obj.collection_name=collection
                     obj.image_url=safe_artwork(payload.get('image_url'))
                     enabled = parse_frame_enabled(payload)
