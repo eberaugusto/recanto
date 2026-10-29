@@ -4394,7 +4394,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if fmt not in ('PNG', 'JPEG', 'WEBP', 'GIF'):
             raise HTTPException(422, detail='Formato de imagem não permitido')
         ext = {'PNG': 'png', 'JPEG': 'jpg', 'WEBP': 'webp', 'GIF': 'gif'}[fmt]
-        if os.getenv('APP_ENV', 'development').strip().lower() == 'production':
+        if (os.getenv('APP_ENV', 'development').strip().lower() == 'production'
+                or bool(os.getenv('RENDER_SERVICE_ID'))
+                or os.getenv('RENDER', '').strip().lower() == 'true'):
+            # Render tem armazenamento temporário. Mesmo sem APP_ENV=production,
+            # gravar apenas em Cloudinary evita perder fotos após um redeploy.
             # Upload assinado no servidor; o segredo Cloudinary NUNCA vai ao navegador.
             cloud = os.getenv('CLOUDINARY_CLOUD_NAME', '').strip()
             api_key = os.getenv('CLOUDINARY_API_KEY', '').strip()
@@ -4466,7 +4470,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     raise HTTPException(422, detail='SVG com referência externa não permitida')
                 if _re.search(r'javascript\s*:|data\s*:|https?\s*:|@import|expression\s*\(|url\s*\(\s*(?![\"\']?#)', val, _re.I):
                     raise HTTPException(422, detail='SVG com recurso externo não permitido')
-        if os.getenv('APP_ENV', 'development').strip().lower() == 'production':
+        if (os.getenv('APP_ENV', 'development').strip().lower() == 'production'
+                or bool(os.getenv('RENDER_SERVICE_ID'))
+                or os.getenv('RENDER', '').strip().lower() == 'true'):
             cloud = os.getenv('CLOUDINARY_CLOUD_NAME','').strip()
             api_key = os.getenv('CLOUDINARY_API_KEY','').strip()
             api_secret = os.getenv('CLOUDINARY_API_SECRET','').strip()
