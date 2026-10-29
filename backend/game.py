@@ -693,6 +693,16 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if 'amount' not in existing:
             with engine.begin() as connection:
                 connection.execute(text('ALTER TABLE inventory_packs ADD COLUMN amount INTEGER'))
+    # 0.4.1: adicionar gênero e Shiny sem reiniciar coleções de Pokémon.
+    # Pokémon anteriores não tinham estes dados; mantidos como Indefinido/não Shiny.
+    for table in ('recanto_pokemon_owned','recanto_pokemon_encounters'):
+        if inspect(engine).has_table(table):
+            existing={col['name'] for col in inspect(engine).get_columns(table)}
+            with engine.begin() as connection:
+                if 'gender' not in existing:
+                    connection.execute(text(f"ALTER TABLE {table} ADD COLUMN gender VARCHAR(16) NOT NULL DEFAULT 'unknown'"))
+                if 'shiny' not in existing:
+                    connection.execute(text(f'ALTER TABLE {table} ADD COLUMN shiny BOOLEAN NOT NULL DEFAULT FALSE'))
     Base.metadata.create_all(engine)
     with SessionLocal.begin() as ranks_db:
         if not ranks_db.scalar(select(func.count(LevelRank.start_level))):

@@ -4376,3 +4376,27 @@ body.dark-mode .recanto-pokemon-bg-editor{border-color:#46577c;}
   #petPane .recanto-pokemon-capture-columns .recanto-pokemon-bag{grid-template-columns:repeat(2,minmax(0,1fr));}
   #petPane .recanto-wild-scene-details{padding-top:16px;gap:7px;}
 }
+
+/* Recanto 0.4.1 — atributos de espécie e editor de sprites (GIF/WEBP/PNG). */
+.recanto-pokemon-traits{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;margin:4px 0;}
+.recanto-pokemon-gender,.recanto-pokemon-shiny{display:inline-flex;padding:3px 9px;border-radius:12px;border:1px solid #aebbd2;font-size:11px;font-weight:750;white-space:nowrap;}
+.recanto-pokemon-gender.male{border-color:#579bde;background:#e4f1ff;color:#23659a;}
+.recanto-pokemon-gender.female{border-color:#e486b9;background:#fff0f9;color:#aa447c;}
+.recanto-pokemon-gender.unknown{border-color:#a6b1bf;background:#edf0f4;color:#55636e;}
+.recanto-pokemon-shiny{color:#765500;border-color:#ddb234;background:#fff1ba;}
+.recanto-pokemon-image.is-shiny{filter:drop-shadow(0 0 7px rgba(245,202,67,.4));}
+.recanto-pokemon-sprite-editor{display:grid;gap:10px;margin-top:18px;padding:16px;border-radius:18px;border:1px solid #cbd5ee;min-width:0;}
+.recanto-pokemon-sprite-editor>h4,.recanto-pokemon-sprite-editor>p{margin:0;}
+.recanto-pokemon-sprite-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.recanto-pokemon-sprite-choices label{display:flex;flex-direction:column;gap:5px;min-width:0;}
+.recanto-pokemon-sprite-choices input,.recanto-pokemon-sprite-choices select{width:100%;min-width:0;}
+.recanto-pokemon-sprite-preview{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:150px;border-radius:16px;padding:12px;background:rgba(130,140,180,.09);border:1px dashed #aebbd2;}
+.recanto-pokemon-sprite-preview img{width:160px;height:130px;object-fit:contain;}
+body.dark-mode .recanto-pokemon-sprite-editor{border-color:#506183;}
+body.dark-mode .recanto-pokemon-gender.unknown{background:#344560;color:#e0e6ef;}
+@media(max-width:600px){.recanto-pokemon-sprite-choices{grid-template-columns:1fr;}}
+
+.recanto-battle-slot .recanto-pokemon-image{width:100%;height:100%;max-height:50px;object-fit:contain;}
+.recanto-battle-slot:has(.recanto-pokemon-image){height:54px;}
+.recanto-pokemon-trade-sprites{display:flex;gap:12px;justify-content:center;}
+.recanto-pokemon-trade-sprites .recanto-pokemon-image{width:70px;height:70px;max-height:70px;object-fit:contain;}

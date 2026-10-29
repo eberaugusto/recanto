@@ -28,7 +28,7 @@ DEFAULT_SETTINGS={'encounter_min_minutes':25,'encounter_max_minutes':55,'encount
     'encounter_attempts':2,'starter_balls':5,'hospital_minutes':45,'illness_chance':8,
     'expedition_minutes':40,'expedition_coins_min':20,'expedition_coins_max':55,
     'expedition_card_chance':12,'expedition_collectible_chance':4,
-    'boss_cooldown_minutes':90,'max_pokemon':120}
+    'boss_cooldown_minutes':90,'max_pokemon':120,'shiny_odds':4096}
 
 
 def define_models(Base):
@@ -53,6 +53,8 @@ def define_models(Base):
         status:Mapped[str]=mapped_column(String(20),default='healthy',nullable=False)
         ready_at:Mapped[datetime | None]=mapped_column(DateTime(timezone=True),nullable=True)
         obtained_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),nullable=False)
+        gender:Mapped[str]=mapped_column(String(16),nullable=False,default='unknown',server_default='unknown')
+        shiny:Mapped[bool]=mapped_column(Boolean,nullable=False,default=False,server_default='false')
 
     class PokemonItem(Base):
         __tablename__='recanto_pokemon_items'
@@ -71,6 +73,8 @@ def define_models(Base):
         level:Mapped[int]=mapped_column(Integer,nullable=False)
         attempts:Mapped[int]=mapped_column(Integer,nullable=False,default=0)
         expires_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),nullable=False)
+        gender:Mapped[str]=mapped_column(String(16),nullable=False,default='unknown',server_default='unknown')
+        shiny:Mapped[bool]=mapped_column(Boolean,nullable=False,default=False,server_default='false')
 
     class PokemonFeedLog(Base):
         # Alimentação tem intervalo por Pokémon; não depende do dispositivo.
@@ -144,6 +148,21 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
     _poke_client=httpx.Client(timeout=httpx.Timeout(6.0, connect=3.0),follow_redirects=True,limits=httpx.Limits(max_connections=8,max_keepalive_connections=4))
     def type_backgrounds(db):
         return {row.key[len('pokemon-bg-'):]:row.image_url for row in db.scalars(select(UIAsset).where(UIAsset.key.like('pokemon-bg-%'))).all() if row.key[len('pokemon-bg-'):] in POKEMON_TYPES}
+    SPRITE_KEY_RE=re.compile(r'^pokemon-sprite:(\d{1,4}):(wild|owned):(any|male|female|unknown):(normal|shiny)$')
+    def sprite_overrides(db):
+        result={}
+        for row in db.scalars(select(UIAsset).where(UIAsset.key.like('pokemon-sprite:%'))).all():
+            match=SPRITE_KEY_RE.fullmatch(row.key)
+            if match and int(match.group(1))<=1025 and row.image_url:
+                result[':'.join(match.groups())]=row.image_url
+        return result
+    def draw_gender(rate):
+        # Official gender_rate represents female probability in eighths; -1 = undefined.
+        if rate == -1:return 'unknown'
+        rate=max(0,min(8,int(rate)))
+        return 'female' if RNG.randrange(8)<rate else 'male'
+    def draw_shiny(db):
+        return RNG.randrange(max(1,params(db,'shiny_odds')))==0
     def now():return utcnow()
     def norm_date(v):return naive_to_utc(v) if v else None
     def verify_int(raw,lo,hi,label):
@@ -162,7 +181,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             response=_poke_client.get(f'https://pokeapi.co/api/v2/pokemon-species/{n}/')
             response.raise_for_status();obj=response.json()
             data={'legendary':bool(obj.get('is_legendary')),'mythical':bool(obj.get('is_mythical')),
-                  'capture_rate':int(obj.get('capture_rate') or 45),'evolution_chain':obj.get('evolution_chain',{}).get('url')}
+                  'capture_rate':int(obj.get('capture_rate') or 45),'gender_rate':int(obj.get('gender_rate',-1)),'evolution_chain':obj.get('evolution_chain',{}).get('url')}
             _species_cache[n]=(data,time.monotonic()+86400*7)
             return data
         except (httpx.HTTPError,KeyError,TypeError,ValueError) as e:
@@ -183,6 +202,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
         return {'id':p.id,'species_id':p.species_id,'name':p.name,'slug':p.slug,
           'image_url':f'https://img.pokemondb.net/sprites/home/normal/{p.slug}.png',
           'generation':pokemon_generation(p.species_id),'types':p.types.split(','),
+          'gender':p.gender,'shiny':bool(p.shiny),
           'level':p.level,'xp':p.xp,'xp_next':p.level*12,'position':p.position,
           'status':p.status,'ready_at':norm_date(p.ready_at).isoformat() if p.ready_at else None}
     def owned(db,uid):return db.scalars(select(M['Owned']).where(M['Owned'].user_id==uid).order_by(M['Owned'].position,M['Owned'].id)).all()
@@ -210,7 +230,8 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
     def encounter_json(row):
         return {'name':row.name,'species_id':row.species_id,'slug':row.slug,'types':row.types.split(','),
           'image_url':f'https://img.pokemondb.net/sprites/home/normal/{row.slug}.png',
-          'level':row.level,'attempts':row.attempts,'expires_at':norm_date(row.expires_at).isoformat()}
+          'level':row.level,'gender':row.gender,'shiny':bool(row.shiny),
+          'attempts':row.attempts,'expires_at':norm_date(row.expires_at).isoformat()}
     def get_pokemon(db,uid,id,action=True):
         obj=db.get(M['Owned'],id)
         if not obj or obj.user_id!=uid:raise HTTPException(404,detail='Pokémon não encontrado')
@@ -243,7 +264,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
         uid=me(request)
         with SessionLocal() as db:
             acct=db.get(M['Account'],uid)
-            if not acct:return {'started':False,'starters':[{'id':i,'name':n,'type':t,'generation':pokemon_generation(i),
+            if not acct:return {'started':False,'sprite_overrides':sprite_overrides(db),'starters':[{'id':i,'name':n,'type':t,'generation':pokemon_generation(i),
                 'image_url':f'https://img.pokemondb.net/sprites/home/normal/{n.lower()}.png'} for i,(n,t) in STARTERS.items()]}
             encounter=db.get(M['Encounter'],uid)
             if encounter and norm_date(encounter.expires_at)<=now():encounter=None
@@ -254,7 +275,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             prices={row.key:row.value for row in db.scalars(select(M['Setting']).where(M['Setting'].key.like('item_price_%'))).all()}
             return {'started':True,'owned':[owned_json(p) for p in owned(db,uid)],
              'items':item_counts(db,uid),'shop':[{**data,'sku':sku,'price':prices.get('item_price_'+sku,data['price'])} for sku,data in ITEMS.items()],
-             'capture_backgrounds':type_backgrounds(db),
+             'capture_backgrounds':type_backgrounds(db),'sprite_overrides':sprite_overrides(db),
              'encounter':encounter_json(encounter) if encounter else None,
              'capture_limit':capture_status(db,uid),
              'next_encounter':norm_date(acct.next_encounter).isoformat(),
@@ -268,13 +289,16 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
         uid=me(request);data=await request.json();sid=data.get('species_id')
         if type(sid) is not int or sid not in STARTERS:raise HTTPException(422,detail='Escolha um inicial entre as 9 gerações')
         name,kind=STARTERS[sid]
+        # Starter species always have a 1/8 female rate; no external HTTP on onboarding.
+        gender=draw_gender(1)
         with writing() as db:
             if db.get(M['Account'],uid):raise HTTPException(409,detail='Você já escolheu seu Pokémon inicial')
             record=M['Owned'](user_id=uid,species_id=sid,name=name,slug=name.lower(),types=kind,
-                level=5,xp=0,position=1,status='healthy',obtained_at=now())
+                level=5,xp=0,position=1,status='healthy',obtained_at=now(),
+                gender=gender,shiny=draw_shiny(db))
             db.add(M['Account'](user_id=uid,starter_id=sid,next_encounter=now()+timedelta(minutes=RNG.randint(3,8))))
             db.add(record);item_change(db,uid,'pokebola',params(db,'starter_balls'))
-            note(db,uid,'pokemon_starter',pokemon={'name':name,'slug':name.lower(),'species_id':sid})
+            note(db,uid,'pokemon_starter',pokemon={'name':name,'slug':name.lower(),'species_id':sid,'gender':record.gender,'shiny':record.shiny})
         return {'ok':True}
     @app.post('/api/pokemon/adventure/seek')
     def seek(request:Request):
@@ -306,7 +330,8 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             if previous:db.delete(previous);db.flush()
             created=M['Encounter'](user_id=uid,species_id=entry['id'],slug=entry['slug'],name=entry['name'],types=','.join(types),
                 capture_rate=spec['capture_rate'],level=RNG.randint(3,14),attempts=0,
-                expires_at=now()+ENCOUNTER_LIFETIME)
+                expires_at=now()+ENCOUNTER_LIFETIME,gender=draw_gender(spec['gender_rate']),
+                shiny=draw_shiny(db))
             db.add(created)
             acct.next_encounter=now()+timedelta(minutes=RNG.randint(params(db,'encounter_min_minutes'),params(db,'encounter_max_minutes')))
         return {'encounter':encounter_json(created)}
@@ -334,7 +359,8 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             escaped=encounter.attempts>=min(2,params(db,'encounter_attempts'))
             if success:
                 p=M['Owned'](user_id=uid,species_id=encounter.species_id,name=encounter.name,slug=encounter.slug,
-                    types=encounter.types,level=encounter.level,xp=0,position=0,status='healthy',obtained_at=now())
+                    types=encounter.types,level=encounter.level,xp=0,position=0,status='healthy',obtained_at=now(),
+                    gender=encounter.gender,shiny=encounter.shiny)
                 db.add(p);db.delete(encounter)
                 progress(db,uid,'pokemon_catch')
                 for kind in set(encounter.types.split(',')):
@@ -342,7 +368,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
                                 'poison','ground','flying','psychic','bug','rock','ghost',
                                 'dragon','dark','steel','fairy'):
                         progress(db,uid,'pokemon_catch_type_'+kind)
-                note(db,uid,'pokemon_catch',pokemon={'name':p.name,'slug':p.slug,'species_id':p.species_id})
+                note(db,uid,'pokemon_catch',pokemon={'name':p.name,'slug':p.slug,'species_id':p.species_id,'gender':p.gender,'shiny':p.shiny})
             elif escaped:
                 db.delete(encounter)
         return {'ok':True,'caught':success,'escaped':escaped if not success else False,'chance':chance}
@@ -591,7 +617,8 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
                 'ball_chances':{sku:(db.get(M['Setting'],'ball_chance_'+sku).value if db.get(M['Setting'],'ball_chance_'+sku) else item['chance']) for sku,item in BALLS.items()},
                 'expeditions':[config_json(c) for c in get_exp_config(db)],
                 'bosses':[boss_json(x) for x in db.scalars(select(M['Boss'])).all()],
-                'capture_backgrounds':type_backgrounds(db)}
+                'capture_backgrounds':type_backgrounds(db),
+                'sprite_overrides':sprite_overrides(db)}
     @app.post('/api/admin/pokemon/adventure/background')
     async def save_capture_background(request:Request):
         only_admin(request)
@@ -611,6 +638,28 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
                 db.add(UIAsset(key=key,selector='',mode='background',image_url=url))
         return {'ok':True,'type':pokemon_type,'image_url':url}
 
+
+    @app.post('/api/admin/pokemon/adventure/sprite')
+    async def save_pokemon_sprite(request:Request):
+        only_admin(request)
+        payload=await request.json()
+        if not isinstance(payload,dict):raise HTTPException(422,detail='Dados inválidos')
+        species_id=verify_int(payload.get('species_id'),1,1025,'Espécie')
+        context=payload.get('context')
+        gender=payload.get('gender')
+        shiny=payload.get('variant')
+        if context not in ('wild','owned') or gender not in ('any','male','female','unknown') or shiny not in ('normal','shiny'):
+            raise HTTPException(422,detail='Contexto, gênero ou variante inválidos')
+        url=safe_artwork(payload.get('image_url'))
+        key=f'pokemon-sprite:{species_id}:{context}:{gender}:{shiny}'
+        with writing() as db:
+            record=db.get(UIAsset,key)
+            if not url:
+                if record:db.delete(record)
+            elif record:record.image_url=url
+            else:db.add(UIAsset(key=key,selector='',mode='image',image_url=url))
+        return {'ok':True,'key':f'{species_id}:{context}:{gender}:{shiny}','image_url':url}
+
     @app.post('/api/admin/pokemon/adventure/settings')
     async def update_config(request:Request):
         only_admin(request);data=await request.json()
@@ -621,6 +670,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             for key,value in data.items():
                 if key not in allowed:raise HTTPException(422,detail='Configuração desconhecida')
                 if key.startswith('ball_chance_') and value>100:raise HTTPException(422,detail='Chance de Pokébola inválida')
+                if key=='shiny_odds' and not 1<=value<=1000000:raise HTTPException(422,detail='Chance Shiny: 1 em 1 a 1.000.000')
                 verify_int(value,0,100000,'Valor')
                 row=db.get(M['Setting'],key)
                 if row:row.value=value

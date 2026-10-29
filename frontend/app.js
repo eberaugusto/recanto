@@ -889,7 +889,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     else if(item.kind==='trade_collectibles'){add(' trocou o colecionável '+(d.item_a?.name||'Item')+' por '+(d.item_b?.name||'Item')+' com '+(d.other||'outro membro')+'.');}
     else if(item.kind==='trade_collectible_coins'){add(' negociou o colecionável '+(d.item?.name||'Item')+' por '+money(d.coins)+' moedas com '+(d.other||'outro membro')+'.');}
     else if(item.kind==='pokemon_starter'){add(' iniciou a aventura Pokémon com '+(d.pokemon?.name||'um Pokémon')+'.');}
-    else if(item.kind==='pokemon_catch'){add(' capturou '+(d.pokemon?.name||'um Pokémon')+'!');}
+    else if(item.kind==='pokemon_catch'){add(' capturou '+(d.pokemon?.shiny?'✨ Shiny ':'')+(d.pokemon?.name||'um Pokémon')+'!');}
     else if(item.kind==='pokemon_evolve'){add(' evoluiu seu Pokémon para '+(d.pokemon?.name||'uma nova forma')+'.');}
     else if(item.kind==='pokemon_trade'){add(' trocou '+(d.a||'um Pokémon')+' por '+(d.b||'outro Pokémon')+'.');}
     else if(item.kind==='pokemon_battle'){add((d.won?' venceu ':' enfrentou ')+(d.boss||'um chefe Pokémon')+' e recebeu '+money(d.coins)+' moedas.');}
@@ -2619,10 +2619,41 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   // RECANTO 0.3.20 — Pokémon (jogo próprio, separado dos favoritos do perfil).
   let adventurePage='team';
   const pokemonTabs=[['team','Meu Time'],['wild','Capturar'],['items','Itens Pokémon'],['adventures','Expedições'],['hospital','Enfermaria'],['trades','Trocas']];
-  const pokemonPicture=data=>{
-    const img=h('img','recanto-pokemon-image');img.loading='lazy';img.alt=data.name||'Pokémon';
-    img.src=data.image_url||`https://img.pokemondb.net/sprites/home/normal/${data.slug}.png`;
-    img.onerror=()=>{img.onerror=null;img.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/'+(data.species_id||data.id)+'.png';};
+  // GIF/PNG/WebP customizados têm prioridade. A variante Shiny nunca usa
+  // o sprite normal por engano caso a URL personalizada esteja indisponível.
+  let pokemonSpriteOverrides={};
+  const pokemonGenderNames={male:'Macho',female:'Fêmea',unknown:'Indefinido',any:'Todos os gêneros'};
+  const pokemonGenderBadge=p=>{
+    const label=pokemonGenderNames[p.gender]||'Indefinido';
+    const line=h('div','recanto-pokemon-traits');
+    line.append(h('span','recanto-pokemon-gender '+(p.gender||'unknown'),`${p.gender==='male'?'♂':p.gender==='female'?'♀':'◇'} ${label}`));
+    if(p.shiny)line.append(h('span','recanto-pokemon-shiny','✨ Shiny'));
+    return line;
+  };
+  const pokemonPicture=(data,context='owned')=>{
+    const id=Number(data.species_id||data.id||0),gender=['male','female','unknown'].includes(data.gender)?data.gender:'unknown';
+    const variant=data.shiny?'shiny':'normal';
+    const base='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/';
+    const home=(g,shiny)=>base+(shiny?'shiny/':'')+(g==='female'?'female/':'')+id+'.png';
+    const urls=[];
+    const add=url=>{if(url && !urls.includes(url))urls.push(url);};
+    if(id){
+      add(pokemonSpriteOverrides[`${id}:${context}:${gender}:${variant}`]);
+      add(pokemonSpriteOverrides[`${id}:${context}:any:${variant}`]);
+      // Arquivo oficial para sexo e raridade; se não existir, volta para o
+      // Shiny sem diferença de gênero antes do sprite normal.
+      if(data.shiny){add(home(gender,true));add(home('unknown',true));}
+      else{add(home(gender,false));add(home('unknown',false));}
+    }
+    if(!data.shiny)add(data.image_url);
+    add(base+id+'.png');
+    add('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/'+id+'.png');
+    const img=h('img','recanto-pokemon-image');img.loading='lazy';
+    img.alt=(data.name||'Pokémon')+(data.shiny?' Shiny':'')+' · '+(pokemonGenderNames[gender]||'Indefinido');
+    if(data.shiny)img.classList.add('is-shiny');
+    let n=0;
+    img.onerror=()=>{if(++n<urls.length)img.src=urls[n];else img.onerror=null;};
+    img.src=urls[0]||data.image_url||'';
     return img;
   };
   const pokemonTypeNames={normal:'Normal',fire:'Fogo',water:'Água',electric:'Elétrico',grass:'Planta',ice:'Gelo',
@@ -2639,7 +2670,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   };
   const pokemonInfo=p=>{
     const tile=h('article','recanto-pokemon-tile');tile.append(pokemonPicture(p));
-    tile.append(h('strong','',p.name),h('small','',`Nv. ${p.level}`),pokemonTypeBadges(p.types));
+    tile.append(h('strong','',p.name),h('small','',`Nv. ${p.level}`),pokemonGenderBadge(p),pokemonTypeBadges(p.types));
     if(p.status && p.status!=='healthy')tile.append(h('small','recanto-pokemon-alert',
       p.status==='sick'?'Doente':p.status==='hospital'?'Na Enfermaria':'Em expedição'));
     return tile;
@@ -2676,6 +2707,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
   }
   async function loadPokemonAdventure(pane,preloaded=null){
     const info=preloaded||await API('/api/pokemon/adventure');
+    pokemonSpriteOverrides=info.sprite_overrides||{};
     pokemonEncounterUpdater=null;
     if(!info.started){
       const intro=block('⚡ Escolha seu Pokémon inicial','Escolha uma única vez entre os iniciais das nove gerações. Pokémons Favoritos do perfil não dão direito a capturas ou bônus no jogo.');
@@ -2752,8 +2784,8 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
           scene.style.removeProperty('background-image');scene.classList.remove('recanto-wild-custom-background');
         }
         if(wild){
-          scene.append(pokemonPicture(wild));
-          sceneDetails.append(h('h3','',wild.name),pokemonTypeBadges(wild.types),h('p','',`Nível ${wild.level} · ${wild.attempts} tentativa(s)`));
+          scene.append(pokemonPicture(wild,'wild'));
+          sceneDetails.append(h('h3','',wild.name),pokemonGenderBadge(wild),pokemonTypeBadges(wild.types),h('p','',`Nível ${wild.level} · ${wild.attempts} tentativa(s)`));
           const timer=h('p','recanto-capture-timer');sceneDetails.append(timer);
           const endTime=new Date(wild.expires_at).getTime();
           const updateWildTimer=()=>{
@@ -2860,14 +2892,17 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       const battleBox=block('⚔️ Chefes Pokémon','Batalhas automáticas PvE. Organize até seis Pokémon: posições 1–3 na linha de frente e 4–6 na retaguarda.');
       battleBox.classList.add('poro-expedition-card','recanto-pokemon-expedition-card');
       if(info.next_boss)battleBox.append(h('p','',`Próxima batalha: ${countdown(info.next_boss)}`));
-      const boardPreview=()=>{const board=h('div','recanto-battle-board');
-        const ally=h('div','recanto-battle-side');ally.append(h('span','recanto-battle-side-title','Seu time'));for(let i=0;i<6;i++) ally.append(h('div','recanto-battle-slot',String(i+1)));
-        const enemy=h('div','recanto-battle-side enemy');enemy.append(h('span','recanto-battle-side-title','Chefe'));for(let i=0;i<6;i++) enemy.append(h('div','recanto-battle-slot enemy',i<3?'?':''));
+      const boardPreview=(boss)=>{const board=h('div','recanto-battle-board');
+        const ally=h('div','recanto-battle-side');ally.append(h('span','recanto-battle-side-title','Seu time'));
+        const party=all.filter(p=>p.position>0).sort((a,b)=>a.position-b.position);
+        for(let i=0;i<6;i++){const slot=h('div','recanto-battle-slot');if(party[i]){slot.append(pokemonPicture(party[i]));slot.title=party[i].name+(party[i].shiny?' · Shiny':'');}else slot.textContent=String(i+1);ally.append(slot);}
+        const enemy=h('div','recanto-battle-side enemy');enemy.append(h('span','recanto-battle-side-title','Chefe'));
+        for(let i=0;i<6;i++){const slot=h('div','recanto-battle-slot enemy');if(i===1){slot.append(pokemonPicture({species_id:boss.species_id,name:boss.name}));slot.title=boss.name;}enemy.append(slot);}
         board.append(ally,enemy);return board;};
       for(const boss of info.bosses){const row=h('div','expedition-choice');const infoCol=h('div','expedition-info');
         const header=h('div','expedition-heading');header.append(h('strong','expedition-title',`${boss.name} · Nv. ${boss.level}`));const timing=h('div','expedition-timing');timing.append(h('span','expedition-duration','⚔️ PvE'));header.append(timing);infoCol.append(header);
         infoCol.append(detailGroup('Recompensas possíveis',[`🪙 ${boss.reward_coins} moedas`,`✨ EXP para a equipe`]));
-        infoCol.append(boardPreview());
+        infoCol.append(boardPreview(boss));
         const btn=button('Desafiar chefe',async()=>{const result=await pokemonCall('/battle',{boss_id:boss.id},'Batalha concluída!');if(result){const modal=$('profilesModal'),panel=$('profilesPane');modal.hidden=false;panel.replaceChildren(h('h3','',result.won?'🏆 Vitória!':'⚔️ Derrota'),h('p','',`+${result.coins} moedas`));for(const line of result.log)panel.append(h('p','',line));panel.append(button('Fechar',()=>{modal.hidden=true;},'soft-action'));}},'soft-action expedition-send');
         btn.disabled=!!info.next_boss&&new Date(info.next_boss).getTime()>Date.now();infoCol.append(btn);
         row.append(adventureCover('⚔️','battle',boss.name,boss.image_url), infoCol); battleBox.append(row);}
@@ -2901,6 +2936,10 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
         button('Enviar proposta',()=>pokemonCall('/trades',{to_user:select.value,offered_id:Number(mine.value),wanted_id:Number(theirs.value)},'Proposta enviada!')));
       box.append(form);
       for(const offer of trades.items){const line=h('div','recanto-pokemon-trade');
+        const icons=h('div','recanto-pokemon-trade-sprites');
+        if(offer.offered)icons.append(pokemonPicture(offer.offered));
+        if(offer.wanted)icons.append(pokemonPicture(offer.wanted));
+        if(icons.children.length)line.append(icons);
         line.append(h('strong','',`${offer.offered?.name||'Pokémon'} ↔ ${offer.wanted?.name||'Pokémon'}`),
           h('small','',offer.status==='pending'?'Aguardando resposta':offer.status));
         if(offer.status==='pending'){
@@ -2920,6 +2959,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       encounter_duration_minutes:'Duração do encontro (min)',encounter_attempts:'Tentativas por encontro',
       starter_balls:'Pokébolas do inicial',hospital_minutes:'Enfermaria (min)',illness_chance:'Chance de doença (%)',
       boss_cooldown_minutes:'Intervalo entre chefes (min)',max_pokemon:'Capacidade da coleção',
+      shiny_odds:'Chance Shiny (1 em X encontros/iniciais)',
       expedition_minutes:'Expedição padrão (min)',expedition_coins_min:'Moedas mínimas',expedition_coins_max:'Moedas máximas',
       expedition_card_chance:'Chance de Card (%)',expedition_collectible_chance:'Chance de Colecionável (%)'};
     for(const [key,val] of Object.entries({...cfg.settings,...Object.fromEntries(Object.entries(cfg.prices).map(([k,v])=>['item_price_'+k,v])),...Object.fromEntries(Object.entries(cfg.ball_chances).map(([k,v])=>['ball_chance_'+k,v]))})){
@@ -2991,6 +3031,48 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     bgBox.append(typeSelect,bgInput,preview,button('Salvar fundo deste tipo',()=>saveBg(bgInput.value.trim()),'soft-action'),
       button('Restaurar cenário padrão',()=>saveBg(''),'soft-action'));
     box.append(bgBox);
+
+    const sprites=h('div','recanto-pokemon-sprite-editor');
+    sprites.append(h('h4','','🎞️ Sprites animados · Pokémon'),
+      h('p','','Personalize GIF, WEBP ou PNG por espécie, uso, gênero e variante Shiny. A imagem enviada tem prioridade sobre o sprite original. O editor não altera Pokémons Favoritos do perfil.'));
+    const choices=h('div','recanto-pokemon-sprite-choices');
+    const pokemonId=h('input','text-input');pokemonId.type='number';pokemonId.min='1';pokemonId.max='1025';pokemonId.value='25';
+    const context=h('select','select-input');for(const [v,n] of [['wild','Encontro selvagem'],['owned','Coleção, equipe, enfermaria e batalhas']]){const o=h('option','',n);o.value=v;context.append(o);}
+    const gender=h('select','select-input');for(const [v,n] of [['any','Qualquer gênero (padrão)'],['male','Macho'],['female','Fêmea'],['unknown','Indefinido']]){const o=h('option','',n);o.value=v;gender.append(o);}
+    const variant=h('select','select-input');for(const [v,n] of [['normal','Normal'],['shiny','Shiny ✨']]){const o=h('option','',n);o.value=v;variant.append(o);}
+    const fields=[['Espécie (ID da Pokédex)',pokemonId],['Onde aparece',context],['Gênero',gender],['Variante',variant]];
+    for(const [name,input] of fields){const label=h('label','',name);label.append(input);choices.append(label);}
+    sprites.append(choices);
+    const imageUrl=h('input','text-input');imageUrl.placeholder='https://exemplo.com/pikachu.gif ou /uploads/...';
+    const imageFile=h('input','text-input');imageFile.type='file';imageFile.accept='image/gif,image/webp,image/png,image/jpeg,.gif,.webp,.png,.jpg,.jpeg';
+    const previewWrap=h('div','recanto-pokemon-sprite-preview');const previewImg=h('img');previewImg.alt='Prévia do sprite';
+    const previewText=h('small','','Sprite original, sem personalização.');previewWrap.append(previewImg,previewText);
+    const spriteValues={...(cfg.sprite_overrides||{})};
+    const getKey=()=>`${pokemonId.value}:${context.value}:${gender.value}:${variant.value}`;
+    const showSprite=()=>{const custom=spriteValues[getKey()]||'';imageUrl.value=custom;
+      const id=Number(pokemonId.value),shiny=variant.value==='shiny';
+      const fallback=`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/${shiny?'shiny/':''}${id}.png`;
+      previewImg.src=custom||fallback;
+      previewText.textContent=custom?'Prévia da imagem personalizada (GIF animado quando aplicável).':'Sprite original · nenhuma imagem personalizada.';
+    };
+    [pokemonId,context,gender,variant].forEach(control=>control.addEventListener('change',showSprite));
+    imageUrl.addEventListener('input',()=>{const url=imageUrl.value.trim();if(/^https:\/\/|^\/uploads\//i.test(url))previewImg.src=url;});
+    imageFile.addEventListener('change',()=>{if(imageFile.files[0])previewImg.src=URL.createObjectURL(imageFile.files[0]);});
+    const commitSprite=async(clear=false)=>{
+      const id=Number(pokemonId.value);
+      if(!Number.isInteger(id)||id<1||id>1025){toast('Informe um ID de Pokémon entre 1 e 1025.');return;}
+      const key=getKey();
+      const result=await safeRun(async()=>{
+        const url=clear?'':(imageFile.files.length?await uploadArtwork(imageFile.files[0]):imageUrl.value.trim());
+        return API('/api/admin/pokemon/adventure/sprite',{species_id:id,context:context.value,gender:gender.value,variant:variant.value,image_url:url});
+      },clear?'Sprite restaurado!':'Sprite personalizado salvo!');
+      if(result){if(result.image_url)spriteValues[key]=result.image_url;else delete spriteValues[key];imageFile.value='';showSprite();}
+    };
+    sprites.append(h('label','','URL HTTPS ou /uploads/'),imageUrl,
+      h('label','','Ou envie GIF, WEBP, PNG ou JPG (limite de upload do app)'),imageFile,
+      previewWrap,button('Salvar sprite',()=>commitSprite(false),'soft-action'),
+      button('Restaurar sprite original',()=>commitSprite(true),'soft-action'));
+    box.append(sprites);
     return box;
   }
 
