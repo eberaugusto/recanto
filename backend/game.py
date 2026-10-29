@@ -169,7 +169,7 @@ TREAT_TYPES = {'biscoito':{'name':'Biscoito','food':15,'emoji':'🍪'},
                'fruta':{'name':'Frutinha','food':30,'emoji':'🍓'},
                'banquete':{'name':'Banquete','food':55,'emoji':'🍖'},
                'vacina':{'name':'Vacina','food':0,'emoji':'💉'}}
-MISSION_EMOJI = {'daily_card':'🃏','daily_coins':'🪙','trade':'🔄','pet':'💗','feed':'🍪','adopt':'🐾','pack':'🎁','voice_minutes':'🎙️','message_count':'💬','profile_visit':'👤','expedition_start':'🗺️','collectible_gain':'🎁','favorite_game':'🎮','favorite_champion':'⚔️'}
+MISSION_EMOJI = {'daily_card':'🃏','daily_coins':'🪙','trade':'🔄','pet':'💗','feed':'🍪','adopt':'🐾','pack':'🎁','voice_minutes':'🎙️','message_count':'💬','profile_visit':'👤','expedition_start':'🗺️','collectible_gain':'🎁','favorite_game':'🎮','favorite_champion':'⚔️','favorite_pokemon':'⚡'}
 # Eventos de voz e mensagens só são aceitos do bot autenticado, nunca do navegador.
 SEED_BADGES = [
     ('Primeira Troca', 'Troque seu primeiro card com outro membro.', '🤝', 'trade', 1),
@@ -1156,6 +1156,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         'collectible_gain':'Conseguir um colecionável',
         'favorite_game':'Definir jogos favoritos',
         'favorite_champion':'Definir campeões favoritos',
+        'favorite_pokemon':'Definir Time Pokémon',
     }
 
     def extra_period(kind):
@@ -2465,6 +2466,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if any(pid not in official for pid in chosen):
             raise HTTPException(422, detail='Pokémon não encontrado nas nove gerações.')
         with writing() as db:
+            previous = [row.pokemon_id for row in db.scalars(select(FavoritePokemon)
+                        .where(FavoritePokemon.user_id == uid)
+                        .order_by(FavoritePokemon.position)).all()]
+            if chosen and chosen != previous:
+                mission_action(db, uid, 'favorite_pokemon')
             db.execute(delete(FavoritePokemon).where(FavoritePokemon.user_id == uid))
             for position, pokemon_id in enumerate(chosen):
                 item = official[pokemon_id]

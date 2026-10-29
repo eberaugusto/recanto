@@ -3963,3 +3963,40 @@ body.dark-mode .pokemon-team-art{background:#2b3b62;border-color:#4d5d87;}
 
 .pokemon-team-art{text-decoration:none;color:inherit;}
 .pokemon-team-art:focus-visible{outline:2px solid #6572ef;outline-offset:2px;}
+
+
+/* RECANTO v0.3.19 — Expansão progressiva dos Selos, sempre 6 por linha. */
+#profileContent #badgesSection .badge-strip {
+  display:grid!important;
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+  width:100%!important;
+  min-width:0;
+  align-content:start;
+  grid-auto-flow:row;
+}
+#profileContent #badgesSection .badge-expand-actions {
+  display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;
+  width:100%;margin-top:12px;
+}
+#profileContent #badgesSection .badge-expand-actions>.badge-more {
+  margin:0!important;
+}
+/* Perfil visitado sem Selos: a descrição deve ocupar TODA a largura da grade,
+   nunca uma única célula de 1/6 que causa quebra a cada palavra/letra. */
+#publicProfilePage .public-badges-row>.public-empty-description {
+  grid-column:1 / -1!important;
+  grid-row:auto;
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:2px 0!important;
+  text-align:left!important;
+  white-space:normal!important;
+  word-break:normal!important;
+  overflow-wrap:break-word!important;
+  line-height:1.5;
+}
+/* Os Pokémon são imagens de exibição, não links clicáveis. */
+.pokemon-team-art{cursor:default!important;}
