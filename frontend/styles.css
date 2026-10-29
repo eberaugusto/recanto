@@ -4000,3 +4000,45 @@ body.dark-mode .pokemon-team-art{background:#2b3b62;border-color:#4d5d87;}
 }
 /* Os Pokémon são imagens de exibição, não links clicáveis. */
 .pokemon-team-art{cursor:default!important;}
+
+
+/* Recanto 0.3.20 — modo Pokémon independente dentro de Pets. */
+.recanto-pet-tabs{margin-bottom:16px;}
+.recanto-pet-tab-content{min-width:0;}
+.recanto-pet-tab-content>.game-box{margin-bottom:14px;}
+.recanto-pokemon-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;}
+.recanto-pokemon-tab{border:1px solid #b9c6e8;background:#e9eeff;color:#344a8c;
+ border-radius:12px;padding:10px 13px;cursor:pointer;font-weight:700;font-size:13px;}
+.recanto-pokemon-tab.selected{background:#5865f2;color:white;border-color:#5865f2;}
+.recanto-pokemon-summary{display:flex;gap:14px;flex-wrap:wrap;align-items:center;
+ padding:12px 16px;border-radius:13px;background:#e9efff;margin-bottom:12px;color:#293e80;}
+.recanto-pokemon-starters,.recanto-pokemon-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:12px;margin:12px 0;}
+.recanto-pokemon-tile,.recanto-pokemon-shop-item,.recanto-pokemon-quest,.recanto-pokemon-trade,.recanto-pokemon-hospital{
+ border:1px solid #dee5f9;background:#f5f7ff;border-radius:16px;padding:12px;min-width:0;display:flex;flex-direction:column;gap:8px;}
+.recanto-pokemon-tile{text-align:center;align-items:center;}
+.recanto-pokemon-image{width:100%;max-height:120px;aspect-ratio:1;object-fit:contain;}
+.recanto-pokemon-starters .recanto-pokemon-image{max-height:95px;}
+.recanto-pokemon-tile button,.recanto-pokemon-shop-item button{width:100%;white-space:normal;margin-top:auto;}
+.recanto-pokemon-tile small,.recanto-pokemon-shop-item small{color:#55618a;font-size:12px;}
+.recanto-pokemon-alert{color:#c44b52!important;}
+.recanto-wild-card{max-width:450px;margin:auto;text-align:center;}
+.recanto-wild-card .recanto-pokemon-image{max-height:240px;}
+.recanto-pokemon-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
+.recanto-pokemon-hospital{display:grid;grid-template-columns:65px 1fr auto;align-items:center;}
+.recanto-pokemon-hospital .recanto-pokemon-image{max-height:60px;}
+.recanto-pokemon-trade-form,.recanto-pokemon-admin-settings,.recanto-pokemon-admin-list{
+ display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:12px 0;}
+.recanto-pokemon-trade-form>strong{align-self:end;}
+.recanto-pokemon-trade-form>.main-action{grid-column:1/-1;}
+.recanto-pokemon-admin-settings label,.recanto-pokemon-admin-list label{display:flex;flex-direction:column;gap:5px;font-size:12px;}
+.recanto-pokemon-admin-settings input,.recanto-pokemon-admin-list input{width:100%;min-width:0;}
+body.dark-mode .recanto-pokemon-tile,body.dark-mode .recanto-pokemon-shop-item,
+body.dark-mode .recanto-pokemon-quest,body.dark-mode .recanto-pokemon-trade,
+body.dark-mode .recanto-pokemon-hospital{background:#263658!important;border-color:#48577c;color:white;}
+body.dark-mode .recanto-pokemon-summary{background:#273a65;color:#fff;}
+body.dark-mode .recanto-pokemon-tab{background:#263658;color:#dbe6ff;border-color:#586d9e;}
+body.dark-mode .recanto-pokemon-tab.selected{background:#5865f2;color:#fff;}
+body.dark-mode .recanto-pokemon-tile small{color:#cad6f1;}
+@media(max-width:500px){.recanto-pokemon-starters,.recanto-pokemon-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+ .recanto-pokemon-tab{padding:9px;font-size:12px;}.recanto-pokemon-hospital{grid-template-columns:52px minmax(0,1fr);}
+ .recanto-pokemon-hospital button{grid-column:1/-1;}}

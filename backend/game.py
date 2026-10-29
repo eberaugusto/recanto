@@ -27,6 +27,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, and_, func, select, text, inspect, delete, update
 from sqlalchemy.orm import Mapped, mapped_column
 from PIL import Image
+from .pokemon_adventure import define_models, register_routes as register_pokemon_adventure
 
 RANDOM = random.SystemRandom()
 TIERS = {'comum': 3, 'raro': 2, 'lendário': 1, 'prismático': 1}
@@ -295,6 +296,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         slug: Mapped[str] = mapped_column(String(80), nullable=False)
         display_name: Mapped[str] = mapped_column(String(100), nullable=False)
         position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    PokemonModels = define_models(Base)
 
     class FeaturedCollection(Base):
         __tablename__ = 'featured_collections'
@@ -737,6 +740,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             for uid in demo_ids:
                 for cls, key in ((ReservedCard, None), (VisitorCare, 'visitor_id'), (VisitorCare, 'owner_id'),
                                  (InventoryPack, 'user_id'), (InventoryTreat, 'user_id'),
+                                 (PokemonModels['Trade'],'sender_id'), (PokemonModels['Trade'],'receiver_id'),
+                                 (PokemonModels['Expedition'],'user_id'), (PokemonModels['Encounter'],'user_id'), (PokemonModels['Item'],'user_id'), (PokemonModels['Owned'],'user_id'), (PokemonModels['Account'],'user_id'),
                                  (FavoriteCard, 'user_id'), (Trade, 'sender_id'), (Trade, 'receiver_id'),
                                  (CollectibleDeal,'sender_id'),(CollectibleDeal,'receiver_id'),
                                  (TradeReward, 'user_id'), (MissionProgress, 'user_id'), (MissionActionDaily,'user_id'), (RecantoMissionExtraProgress,'user_id'), (UserExperience,'user_id'), (ExperienceOnce,'user_id'), (ExperienceLog,'user_id'),
@@ -1156,7 +1161,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         'collectible_gain':'Conseguir um colecionável',
         'favorite_game':'Definir jogos favoritos',
         'favorite_champion':'Definir campeões favoritos',
-        'favorite_pokemon':'Definir Time Pokémon',
+        'favorite_pokemon':'Definir Pokémons Favoritos',
     }
 
     def extra_period(kind):
@@ -4359,6 +4364,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         'economy': 'Moedas, petiscos e inventário de petiscos',
         'cards': 'Cards, pacotes e trocas',
         'pets': 'Pets, expedições e colecionáveis',
+        'pokemon': 'Pokémon: capturas, expedições, batalhas, itens e trocas',
         'missions': 'Missões e resgates diários',
         'badges': 'Selos e progresso das conquistas',
         'favorites': 'Favoritos (Cards, campeões e jogos)',
@@ -4440,6 +4446,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if 'pets' in selected:
                 purge(db,VisitorCare,((VisitorCare.visitor_id==target)|(VisitorCare.owner_id==target)) if target else None)
                 for cls in (PetExpedition,InventoryCollectible,UserPet):purge(db,cls,uid_predicate(cls))
+            if 'pokemon' in selected:
+                purge(db,PokemonModels['Trade'],
+                    ((PokemonModels['Trade'].sender_id==target)|(PokemonModels['Trade'].receiver_id==target)) if target else None)
+                for cls in (PokemonModels['Expedition'],PokemonModels['Encounter'],PokemonModels['Item'],PokemonModels['Owned'],PokemonModels['Account']):
+                    purge(db,cls,uid_predicate(cls))
             if 'missions' in selected:
                 for cls in (Claim,MissionProgress):purge(db,cls,uid_predicate(cls))
                 purge(db,RecantoMissionExtraProgress,uid_predicate(RecantoMissionExtraProgress))
@@ -4534,7 +4545,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if scope not in ('progress','factory') or payload['confirmation'] != 'LIMPAR TUDO':
             raise HTTPException(422, detail='Confirme digitando LIMPAR TUDO')
         with writing() as db:
-            for table in (MissionActionDaily,RecantoMissionExtraProgress,VisitorCare, FavoriteCard, ReservedCard, InventoryPack, InventoryTreat, InventoryCollectible,
+            for table in (PokemonModels['Trade'],PokemonModels['Expedition'],PokemonModels['Encounter'],PokemonModels['Item'],PokemonModels['Owned'],PokemonModels['Account'],MissionActionDaily,RecantoMissionExtraProgress,VisitorCare, FavoriteCard, ReservedCard, InventoryPack, InventoryTreat, InventoryCollectible,
                           CollectibleDeal,CoinOffer, CardCooldown, PetExpedition, FavoriteGame, FavoriteChampion, FavoritePokemon, TradeReward, Trade, MissionProgress, Claim, UserAchievement,
                           AchievementProgress, UserPet, OwnedCard):
                 db.execute(delete(table))
@@ -4567,3 +4578,11 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     db.add(Achievement(title=name, description=desc, icon=icon,
                                        event=event, target=threshold))
         return {'ok': True, 'scope': scope, 'note': 'Contas Discord preservadas; todo progresso reiniciado'}
+
+    # 0.3.20: Pokémon independente dos favoritos (perfil).
+    register_pokemon_adventure(app=app,models=PokemonModels,SessionLocal=SessionLocal,me=me,
+        only_admin=only_admin,writing=writing,utcnow=utcnow,naive_to_utc=naive_to_utc,
+        pokemon_catalog=pokemon_catalog,pokemon_entry=pokemon_entry,wallet=wallet,
+        require_coins=require_coins,publish_feed=publish_feed,stock=stock,grant_card=grant_card,
+        Card=Card,Collectible=Collectible,InventoryCollectible=InventoryCollectible,
+        pokemon_generation=pokemon_generation,feed_card=feed_card)
