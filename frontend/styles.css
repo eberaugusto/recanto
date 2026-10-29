@@ -4534,3 +4534,58 @@ body.dark-mode .recanto-mission-description{color:#d3def6;}
 @media (max-width:767px){
   #adminModal #adminContent .admin-group-view{grid-template-columns:minmax(0,1fr);gap:12px;}
 }
+
+
+/* Recanto 0.4.8 — não mostrar editores da Gestão antes da atribuição às abas. */
+#adminModal #adminContent[data-admin-building="true"] > * {
+  visibility: hidden !important;
+}
+#adminModal #adminContent[data-admin-building="true"]::before {
+  content: "Organizando as abas da Gestão…";
+  display: block;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-sizing: border-box;
+  margin: 10px 0 14px;
+  padding: 24px 18px;
+  border-radius: 17px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--rc-ui-70c7305ded,#505ac1);
+  background: var(--rc-ui-d14f901611,#fff);
+  box-shadow: 0 4px 14px rgba(18,30,72,.07);
+  visibility: visible !important;
+}
+body.dark-mode #adminModal #adminContent[data-admin-building="true"]::before {
+  color: #e8ecff;
+  background: #263454;
+}
+
+/* Evitar que o navegador desenhe o nome gigante de um card quando a
+   imagem remota está indisponível; não mexer na arte de URLs válidas. */
+.recanto-framed-art .recanto-card-photo-image {
+  font-size: 0 !important;
+  color: transparent !important;
+}
+.recanto-framed-art .recanto-card-image-unavailable {
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  text-align: center;
+  color: #d9e2ff;
+}
+.recanto-framed-art .recanto-card-image-unavailable-text {
+  font-size: clamp(10px, 1.3vw, 13px);
+  line-height: 1.4;
+  font-weight: 600;
+  color: #d9e2ff;
+  overflow-wrap: anywhere;
+}

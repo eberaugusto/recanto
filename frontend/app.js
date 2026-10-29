@@ -517,8 +517,28 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     if(cardId)art.dataset.cardId=String(cardId);
     if(item.frame_enabled===false)art.dataset.frameEnabled='false';
     const photo=h('div','recanto-card-photo');
-    if(item.image_url){const img=h('img','recanto-card-photo-image');img.src=item.image_url;img.alt=item.name||'Card';img.loading=kind==='detail-art'?'eager':'lazy';photo.append(img);}
-    else photo.append(h('span','recanto-card-placeholder','✦'));
+    // Uma URL inválida não deve colocar o texto alternativo gigante no lugar
+    // da arte. No Render, links /uploads/ antigos podem desaparecer após deploy.
+    // Preserve a moldura e mostre um indicador pequeno até o admin corrigir a URL.
+    const unavailable=()=>{
+      const placeholder=h('div','recanto-card-image-unavailable');
+      placeholder.append(h('span','recanto-card-placeholder','✦'),
+        h('small','recanto-card-image-unavailable-text','Imagem indisponível'));
+      return placeholder;
+    };
+    if(item.image_url){
+      const img=h('img','recanto-card-photo-image');
+      img.alt=''; // O título acessível continua na carta, fora da imagem.
+      img.loading=kind==='detail-art'?'eager':'lazy';
+      img.decoding='async';
+      img.onerror=()=>{
+        if(img.isConnected)photo.replaceChildren(unavailable());
+        else{photo.replaceChildren(unavailable());}
+        photo.classList.add('recanto-card-photo-missing');
+      };
+      img.src=String(item.image_url).trim();
+      photo.append(img);
+    }else photo.append(unavailable());
     art.append(photo);updateOneCardFrame(art);
     if(!collectionStylesLoaded)loadCollectionCardStyles().catch(()=>{});
     return art;
@@ -3648,6 +3668,10 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     if(state.adminLoading)return;
     state.adminLoading=true;
     const pane=$('adminContent');
+    // O editor é montado em etapas assíncronas. Não exibir formulários soltos
+    // antes de atribuí-los às abas: um único estado de carregamento permanece.
+    pane.dataset.adminBuilding='true';
+    pane.setAttribute('aria-busy','true');
     pane.replaceChildren(h('div','admin-loading','Carregando ferramentas administrativas...'));
     try{
       const authorizedTask=API('/api/admin/authorized-ids');
@@ -4734,7 +4758,11 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     showGroup(layoutTabs.some(t=>t.id===state.adminGroup)?state.adminGroup:'loja');
     state.adminReady=true;pane.scrollTop=0;
     }catch(err){pane.replaceChildren(h('div','admin-loading','Não foi possível carregar a gestão: '+err.message));}
-    finally{state.adminLoading=false;}
+    finally{
+      delete pane.dataset.adminBuilding;
+      pane.removeAttribute('aria-busy');
+      state.adminLoading=false;
+    }
   }
   $('login').onclick=login;
   $('settings').onclick=()=>{
