@@ -4708,3 +4708,63 @@ body.dark-mode .recanto-pokemon-moves-editor{border-color:#46577c;}
   .recanto-battle-versus{width:52px;height:52px;font-size:18px;}
   @keyframes recanto-throw-arc{0%{transform:translate(0,0) scale(.8)}55%{transform:translate(140px,-82px) scale(1)}100%{transform:translate(185px,-110px) scale(1.02)}}
 }
+
+/* Recanto v0.4.17: Encontro Surpresa e expedição integrada aos combates */
+.recanto-surprise-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(260px,.65fr);gap:18px;align-items:start}
+.recanto-surprise-card{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:10px 0 20px}
+.recanto-surprise-preview{width:100%;min-height:350px;max-height:500px;border-radius:22px;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 50% 45%,#bce7d3 0%,#89b6a2 34%,transparent 70%),linear-gradient(160deg,#88bac8,#678f67 55%,#305c4f)}
+.recanto-surprise-mystery{display:grid;place-items:center;width:160px;height:195px;border-radius:60% 50% 45% 40%;font-weight:900;font-size:124px;color:rgba(255,255,255,.85);filter:drop-shadow(0 15px 9px #28443785);animation:recanto-mystery-float 2.1s ease-in-out infinite}
+.recanto-surprise-card h3,.recanto-surprise-card p{margin:0}
+.recanto-surprise-card >button{min-height:50px;width:min(420px,100%);font-weight:800;font-size:15px}
+.recanto-surprise-countdown{font-weight:700;color:#475ea5}
+.recanto-surprise-hint{font-size:12px;color:#687bb0}
+.recanto-surprise-inventory{display:grid;gap:10px;margin:14px 0}
+.recanto-surprise-inventory-item{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#eef2ff;border:1px solid #c4cfee;border-radius:12px;padding:14px 16px}
+.recanto-surprise-inventory-item span{font-size:18px;font-weight:900;color:#3a559d}
+body.dark-mode .recanto-surprise-inventory-item{background:#25375f;border-color:#465c8d;color:#eef2ff}
+body.dark-mode .recanto-surprise-inventory-item span{color:#d9e7ff}
+.recanto-capture-overlay{position:fixed;inset:0;z-index:15000;display:flex;align-items:center;justify-content:center;padding:16px;background:#09102beb;overflow:auto;box-sizing:border-box}
+.recanto-capture-panel{width:min(920px,100%);max-height:calc(100dvh - 24px);display:flex;flex-direction:column;gap:10px;overflow:auto;padding:clamp(12px,2vw,24px);border:1px solid #5870ac66;border-radius:24px;background:#eef2ff;color:#223b7b;box-shadow:0 28px 75px #0007;box-sizing:border-box}
+.recanto-capture-head{display:flex;justify-content:space-between;align-items:center;gap:15px}
+.recanto-capture-head h2{margin:0 0 3px;font-size:clamp(17px,2.2vw,24px);color:#1c377d}
+.recanto-capture-head p{margin:0;font-size:12px;color:#6474a1}
+.recanto-capture-head>button{min-width:40px;flex-shrink:0}
+.recanto-capture-stage{position:relative;width:100%;min-height:clamp(250px,43vh,450px);border-radius:18px;overflow:hidden;display:grid;place-items:center;background-size:cover;background-position:center;background-color:#60976e;background-image:radial-gradient(ellipse at 55% 50%,#c8e7af77 2%,transparent 63%),linear-gradient(#78bcba,#85ad76 58%,#3c774b);box-shadow:inset 0 -30px 45px #143d4061}
+.recanto-capture-stage::after{content:'';position:absolute;inset:auto 0 0;height:23%;background:linear-gradient(transparent,#123d3660);pointer-events:none}
+.recanto-capture-silhouette{width:min(50%,280px);height:75%;display:grid;place-items:center;z-index:2;animation:recanto-mystery-float 1.5s ease-in-out infinite}
+.recanto-capture-silhouette img.recanto-pokemon-image{display:block;width:100%;height:100%;max-height:320px;object-fit:contain;filter:brightness(0) drop-shadow(0 13px 7px #1e3d3580);transform:scale(.85);transition:filter .75s,transform .75s;aspect-ratio:auto}
+.recanto-capture-stage.revealed .recanto-capture-silhouette img.recanto-pokemon-image{filter:drop-shadow(0 12px 10px #0006);transform:scale(1)}
+.recanto-capture-stage.shiny{box-shadow:inset 0 0 120px #ffe87b90,0 0 20px #ffcc6480}
+.recanto-capture-magic{position:absolute;z-index:3;top:12%;text-align:center;font-size:34px;color:#ffe28e;animation:recanto-mystery-float 2s infinite;pointer-events:none}
+.recanto-capture-details{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+.recanto-capture-details h3{margin:0;color:#273b82;font-size:21px}
+.recanto-capture-details p{margin:0}
+.recanto-capture-status{text-align:center;font-weight:750;margin:0;min-height:22px}
+.recanto-capture-time{text-align:center;font-size:13px;font-weight:800;color:#62719b}
+.recanto-capture-actions{display:flex;flex-direction:column;align-items:center;gap:10px}
+.recanto-capture-actions>button{min-height:40px}
+.recanto-capture-ball-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;width:min(670px,100%)}
+.recanto-capture-ball-row button{width:100%;min-height:46px;font-weight:800;border-radius:14px;background:#e1e7ff;color:#273c8c;border:1px solid #c7d4f8}
+.recanto-capture-ball-row button:disabled{opacity:.5;cursor:not-allowed}
+.recanto-capture-thrown-ball{position:absolute;z-index:6;width:48px;height:48px;border-radius:50%;left:9%;bottom:5%;box-shadow:0 8px 15px #0005;background:linear-gradient(#d62838 0 46%,#181823 47% 54%,#fff 55% 100%);animation:recanto-capture-throw .9s cubic-bezier(.3,.12,.62,.9) forwards}
+.recanto-capture-thrown-ball.ball-superbola{background:linear-gradient(#2873ed 0 46%,#161b3b 47% 54%,#fff 55% 100%)}
+.recanto-capture-thrown-ball.ball-ultrabola{background:linear-gradient(#262329 0 46%,#eece32 47% 54%,#fff 55% 100%)}
+.recanto-capture-thrown-ball::after{content:'';position:absolute;width:15px;height:15px;left:calc(50% - 7.5px);top:calc(50% - 7.5px);border-radius:50%;background:white;border:3px solid #1a2138;box-sizing:border-box}
+.recanto-capture-thrown-ball.shaking{animation:recanto-capture-shake .55s ease-in-out infinite;left:calc(50% - 24px);bottom:18%;}
+.recanto-capture-stage.throwing .recanto-capture-silhouette{opacity:.25;transition:opacity .6s}
+.recanto-capture-stage.caught .recanto-capture-silhouette{opacity:0;transition:opacity .7s}
+.recanto-capture-stage.expired{filter:grayscale(.6)}
+body.dark-mode .recanto-capture-panel{background:#17254b;color:#e8ecff;border-color:#4c6099}
+body.dark-mode .recanto-capture-head h2,body.dark-mode .recanto-capture-details h3{color:#fff}
+body.dark-mode .recanto-capture-head p,body.dark-mode .recanto-capture-time{color:#cfdbff}
+body.dark-mode .recanto-capture-ball-row button{background:#2e4379;color:#eaf0ff;border-color:#5271ae}
+.recanto-expedition-active{display:flex;flex-direction:column;gap:14px;padding:14px;border-radius:14px;border:1px solid #bccbed;background:#edf2ff}
+body.dark-mode .recanto-expedition-active{background:#26375e;border-color:#526389}
+.recanto-expedition-party{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.recanto-expedition-party img{width:60px;height:60px;object-fit:contain}
+@keyframes recanto-mystery-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes recanto-capture-throw{0%{left:9%;bottom:5%;transform:scale(.9) rotate(0deg)}55%{left:40%;bottom:63%;transform:scale(1.12) rotate(210deg)}100%{left:calc(50% - 24px);bottom:18%;transform:scale(1) rotate(420deg)}}
+@keyframes recanto-capture-shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-22deg)}75%{transform:rotate(22deg)}}
+@media(max-width:850px){.recanto-surprise-layout{grid-template-columns:1fr}.recanto-surprise-preview{min-height:270px}.recanto-capture-overlay{padding:0}.recanto-capture-panel{border-radius:0;width:100%;height:100dvh;max-height:none;padding:14px}.recanto-capture-stage{min-height:35vh;max-height:46vh}}
+@media(max-width:430px){.recanto-capture-ball-row{gap:5px}.recanto-capture-ball-row button{font-size:11px;padding:6px 4px}.recanto-surprise-preview{min-height:230px}.recanto-capture-stage{min-height:30vh}.recanto-capture-silhouette{width:60%}}
+@media(prefers-reduced-motion:reduce){.recanto-capture-silhouette,.recanto-surprise-mystery{animation:none}}

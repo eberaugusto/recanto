@@ -24,7 +24,7 @@ BALLS={'pokebola': {'name':'Pokébola','price':35,'chance':35,'emoji':'🔴'},
        'superbola':{'name':'Superbola','price':80,'chance':55,'emoji':'🔵'},
        'ultrabola':{'name':'Ultrabola','price':155,'chance':75,'emoji':'🟡'}}
 ITEMS={**BALLS,'cura':{'name':'Poção','price':90,'emoji':'💊'},'evolucao':{'name':'Pedra de Evolução','price':175,'emoji':'💎'},'racao':{'name':'Ração Pokémon','price':30,'emoji':'🍓'}}
-DEFAULT_SETTINGS={'encounter_min_minutes':25,'encounter_max_minutes':55,'encounter_duration_minutes':3,
+DEFAULT_SETTINGS={'encounter_min_minutes':5,'encounter_max_minutes':5,'encounter_cooldown_minutes':5,'encounter_duration_minutes':3,
     'encounter_attempts':2,'starter_balls':5,'hospital_minutes':45,'illness_chance':8,
     'expedition_minutes':40,'expedition_coins_min':20,'expedition_coins_max':55,
     'expedition_card_chance':12,'expedition_collectible_chance':4,
@@ -132,6 +132,16 @@ def define_models(Base):
         species_id:Mapped[int]=mapped_column(Integer,primary_key=True)
         payload:Mapped[str]=mapped_column(Text,nullable=False,default='[]')
 
+    class PokemonExpeditionDesign(Base):
+        __tablename__='recanto_pokemon_expedition_designs'
+        config_id:Mapped[int]=mapped_column(Integer,primary_key=True)
+        payload:Mapped[str]=mapped_column(Text,nullable=False,default='{}')
+
+    class PokemonExpeditionOutcome(Base):
+        __tablename__='recanto_pokemon_expedition_outcomes'
+        user_id:Mapped[str]=mapped_column(ForeignKey('users.id'),primary_key=True)
+        payload:Mapped[str]=mapped_column(Text,nullable=False)
+
     class PokemonTrade(Base):
         __tablename__='recanto_pokemon_trades'
         id:Mapped[int]=mapped_column(Integer,primary_key=True,autoincrement=True)
@@ -147,7 +157,7 @@ def define_models(Base):
         key:Mapped[str]=mapped_column(String(50),primary_key=True)
         value:Mapped[int]=mapped_column(Integer,nullable=False)
     return dict(Account=PokemonAccount,Owned=OwnedPokemon,Item=PokemonItem,Encounter=PokemonEncounter,
-      CaptureAttempt=PokemonCaptureAttempt,FeedLog=PokemonFeedLog,Expedition=PokemonExpedition,ExpeditionConfig=PokemonExpeditionConfig,Boss=PokemonBoss,BossDesign=PokemonBossDesign,MoveConfig=PokemonMoveConfig,Trade=PokemonTrade,Setting=PokemonSetting)
+      CaptureAttempt=PokemonCaptureAttempt,FeedLog=PokemonFeedLog,Expedition=PokemonExpedition,ExpeditionConfig=PokemonExpeditionConfig,Boss=PokemonBoss,BossDesign=PokemonBossDesign,MoveConfig=PokemonMoveConfig,ExpeditionDesign=PokemonExpeditionDesign,ExpeditionOutcome=PokemonExpeditionOutcome,Trade=PokemonTrade,Setting=PokemonSetting)
 
 
 def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive_to_utc,pokemon_catalog,
@@ -243,19 +253,22 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
         if qty<0:raise HTTPException(409,detail='Você não possui esse item de Pokémon')
         if not row:db.add(M['Item'](user_id=uid,sku=sku,quantity=qty))
         else:row.quantity=qty
-    CAPTURE_WINDOW=timedelta(minutes=10)
     CAPTURE_LIMIT=2
     ENCOUNTER_LIFETIME=timedelta(minutes=3)
+    ENCOUNTER_INTERVAL=timedelta(minutes=5)
     def capture_status(db,uid,at=None):
-        at=at or now()
-        # Do not depend on having Pokébolas: attempts are only recorded on throws.
-        recent=db.scalars(select(M['CaptureAttempt'].attempted_at).where(
-            M['CaptureAttempt'].user_id==uid,
-            M['CaptureAttempt'].attempted_at>at-CAPTURE_WINDOW
-        ).order_by(M['CaptureAttempt'].attempted_at)).all()
-        allowed=max(0,CAPTURE_LIMIT-len(recent))
-        return {'remaining':allowed,'limit':CAPTURE_LIMIT,'window_minutes':10,
-                'next_at':(norm_date(recent[0])+CAPTURE_WINDOW).isoformat() if recent and not allowed else None}
+        # As tentativas são por encontro, não por janela global.
+        row=db.get(M['Encounter'],uid)
+        if row and norm_date(row.expires_at)>(at or now()):
+            remaining=max(0,CAPTURE_LIMIT-row.attempts)
+        else:
+            remaining=CAPTURE_LIMIT
+        return {'remaining':remaining,'limit':CAPTURE_LIMIT,'window_minutes':0,'per_encounter':True,'next_at':None}
+    def encounter_ready_at(acct,db):
+        # Ajusta temporizadores herdados maiores que o novo ciclo sem manter a espera antiga.
+        next_at=norm_date(acct.next_encounter)
+        duration=timedelta(minutes=params(db,'encounter_cooldown_minutes'))
+        return now() if next_at>now()+duration else next_at
 
     def encounter_json(row):
         return {'name':row.name,'species_id':row.species_id,'slug':row.slug,'types':row.types.split(','),
@@ -280,6 +293,14 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
     def config_json(x):return {'id':x.id,'name':x.name,'required_type':x.required_type,
       'required_count':x.required_count,'minutes':x.minutes,'min_coins':x.min_coins,'max_coins':x.max_coins,
       'card_chance':x.card_chance,'collectible_chance':x.collectible_chance,'active':x.active}
+    def expedition_design(db,cid):
+        row=db.get(M['ExpeditionDesign'],cid)
+        if row:
+            try:return json.loads(row.payload)
+            except (ValueError,TypeError):pass
+        return {}
+    def expedition_info(db,cfg):
+        return {**config_json(cfg),**expedition_design(db,cfg.id)}
     def boss_json(x):return {'id':x.id,'name':x.name,'species_id':x.species_id,'level':x.level,
       'reward_coins':x.reward_coins,'active':x.active}
     def enriched_boss(db,x):
@@ -294,6 +315,86 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
         'ghost':('Lambida',40),'dragon':('Sopro do Dragão',55),
         'dark':('Mordida',55),'steel':('Garra de Metal',50),
         'fairy':('Vento de Fada',45)}
+    # Conjunto mínimo confiável de golpes por tipo. A v0.4.15 passou a chamar
+    # estas funções na batalha, mas não as declarou, causando NameError / HTTP 500.
+    MOVE_EFFECTS=('none','burn','poison','paralyze','heal','drain')
+    # Golpes conhecidos dos jogos; ataques adaptados ao combate PvE do Recanto.
+    DEFAULT_TYPE_MOVESETS={
+        'normal':[
+            ('Investida',40,'none'),('Ataque Rápido',40,'none'),('Descanso',0,'heal')],
+        'fire':[
+            ('Brasas',40,'burn'),('Giro de Fogo',50,'burn'),('Lança-Chamas',75,'burn')],
+        'water':[
+            ('Jato d’Água',40,'none'),('Bolhas',40,'none'),('Hidro Bomba',85,'none')],
+        'grass':[
+            ('Chicote de Vinha',45,'none'),('Folha Navalha',55,'none'),('Absorver',30,'drain')],
+        'electric':[
+            ('Choque do Trovão',40,'paralyze'),('Faísca',55,'paralyze'),('Relâmpago',70,'paralyze')],
+        'ice':[
+            ('Vento Gelado',45,'none'),('Raio de Gelo',75,'none'),('Nevasca',85,'none')],
+        'fighting':[
+            ('Soco Karate',50,'none'),('Golpe Baixo',55,'none'),('Quebra-Telha',65,'none')],
+        'poison':[
+            ('Ferrão Venenoso',45,'poison'),('Bomba de Lodo',70,'poison'),('Ácido',40,'poison')],
+        'ground':[
+            ('Tiro de Lama',45,'none'),('Terremoto',85,'none'),('Ataque de Areia',35,'none')],
+        'flying':[
+            ('Ataque de Asa',55,'none'),('Ventania',60,'none'),('Golpe Aéreo',65,'none')],
+        'psychic':[
+            ('Confusão',50,'none'),('Psíquico',75,'none'),('Dreno de Beijo',45,'drain')],
+        'bug':[
+            ('Picada',45,'none'),('Tesoura X',65,'none'),('Sanguessuga',40,'drain')],
+        'rock':[
+            ('Lançamento de Rocha',50,'none'),('Deslize de Pedra',70,'none'),('Poder Ancestral',60,'none')],
+        'ghost':[
+            ('Lambida',40,'paralyze'),('Bola Sombria',70,'none'),('Drenar Vida',45,'drain')],
+        'dragon':[
+            ('Sopro do Dragão',55,'paralyze'),('Garra do Dragão',70,'none'),('Pulso do Dragão',75,'none')],
+        'dark':[
+            ('Mordida',55,'none'),('Pulso Sombrio',75,'none'),('Trapaça',55,'none')],
+        'steel':[
+            ('Garra de Metal',50,'none'),('Canhão de Flash',75,'none'),('Cabeça de Ferro',70,'none')],
+        'fairy':[
+            ('Vento de Fada',45,'none'),('Brilho Mágico',65,'none'),('Beijo Drenante',50,'drain')],
+    }
+    def default_moves_for_types(types):
+        """Retorna golpes válidos, inclusive para espécies ainda não configuradas."""
+        valid=[str(t).lower() for t in (types or []) if str(t).lower() in POKEMON_TYPES]
+        valid=valid or ['normal']
+        chosen=[]
+        for t in valid[:2]:
+            for name,power,effect in DEFAULT_TYPE_MOVESETS.get(t, DEFAULT_TYPE_MOVESETS['normal']):
+                chosen.append({'name':name,'type':t,'power':power,'effect':effect})
+                if len(chosen)>=4:return chosen
+        for name,power,effect in DEFAULT_TYPE_MOVESETS['normal']:
+            if len(chosen)>=4:break
+            if not any(m['name']==name for m in chosen):
+                chosen.append({'name':name,'type':'normal','power':power,'effect':effect})
+        return chosen
+
+    def sanitize_moves_payload(moves,types=None):
+        """Normaliza a configuração persistida, sem confiar em entrada externa."""
+        if not isinstance(moves,list):return default_moves_for_types(types)
+        result=[]
+        for entry in moves[:4]:
+            if not isinstance(entry,dict):continue
+            name=str(entry.get('name') or '').strip()[:48]
+            move_type=str(entry.get('type') or 'normal').strip().lower()
+            effect=str(entry.get('effect') or 'none').strip().lower()
+            try:power=int(entry.get('power',0))
+            except (TypeError,ValueError):continue
+            if not name or move_type not in POKEMON_TYPES or effect not in MOVE_EFFECTS or not (0<=power<=120):continue
+            result.append({'name':name,'type':move_type,'power':power,'effect':effect})
+        return result if result else default_moves_for_types(types)
+
+    def move_config_for_species(db,species_id,types=None):
+        """Leitura do editor da Gestão, com fallback para golpes por tipo."""
+        row=db.get(M['MoveConfig'],int(species_id))
+        if row is not None:
+            try:return sanitize_moves_payload(json.loads(row.payload),types)
+            except (ValueError,TypeError):pass
+        return default_moves_for_types(types)
+
     STRONG={
         'fire':('grass','bug','ice','steel'), 'water':('fire','ground','rock'),
         'grass':('water','ground','rock'), 'electric':('water','flying'),
@@ -323,7 +424,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             'gender':gender,'shiny':shiny,'boss':boss,'max_hp':hp,'hp':hp,
             'attack':round(18+level*1.8),'defense':round(14+level*1.5),
             'speed':round(15+level*1.7),'moves':move_config_for_species(db,species,types),'statuses':{}}
-    def simulate_battle(db,pokemon,boss,design):
+    def simulate_battle(db,pokemon,boss,design,final_boss=True):
         friends=[make_unit(db,'p-'+str(p.id),owned_p=p) for p in pokemon]
         enemies=[]
         helpers=design.get('helpers',[])[:5]
@@ -331,7 +432,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             enemies.append(make_unit(db,'h-'+str(idx),enemy=h))
         enemies.append(make_unit(db,'boss-'+str(boss.id),enemy={
             'name':boss.name,'species_id':boss.species_id,'level':boss.level,
-            'types':[design.get('type','normal')],'position':design.get('boss_position',2)},boss=True))
+            'types':[design.get('type','normal')],'position':design.get('boss_position',2)},boss=final_boss))
         initial={'allies':[{k:v for k,v in u.items() if k not in ('attack','defense','speed','moves','statuses')} for u in friends],
                  'enemies':[{k:v for k,v in u.items() if k not in ('attack','defense','speed','moves','statuses')} for u in enemies]}
         events=[];won=False
@@ -365,7 +466,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
                 move=RNG.choice(actor.get('moves') or default_moves_for_types(actor.get('types')))
                 atype=move.get('type') if move.get('type') in POKEMON_TYPES else (actor['types'][0] if actor['types'] else 'normal')
                 name=move.get('name') or BATTLE_MOVES.get(atype,BATTLE_MOVES['normal'])[0]
-                power=int(move.get('power') or BATTLE_MOVES.get(atype,BATTLE_MOVES['normal'])[1])
+                power=int(move.get('power',BATTLE_MOVES.get(atype,BATTLE_MOVES['normal'])[1]))
                 effect=str(move.get('effect') or 'none')
                 factor=1.0
                 for defense_type in target['types']:
@@ -414,7 +515,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             encounter=db.get(M['Encounter'],uid)
             if encounter and norm_date(encounter.expires_at)<=now():encounter=None
             expedition=db.get(M['Expedition'],uid)
-            configs=[config_json(c) for c in get_exp_config(db) if c.active]
+            configs=[expedition_info(db,c) for c in get_exp_config(db) if c.active]
             bosses=[enriched_boss(db,b) for b in db.scalars(select(M['Boss']).where(M['Boss'].active.is_(True))).all()]
             # Uma única consulta traz todos os preços, evitando N consultas por item.
             prices={row.key:row.value for row in db.scalars(select(M['Setting']).where(M['Setting'].key.like('item_price_%'))).all()}
@@ -423,10 +524,10 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
              'capture_backgrounds':type_backgrounds(db),'sprite_overrides':sprite_overrides(db),'media_assets':media_assets(db),
              'encounter':encounter_json(encounter) if encounter else None,
              'capture_limit':capture_status(db,uid),
-             'next_encounter':norm_date(acct.next_encounter).isoformat(),
+             'next_encounter':encounter_ready_at(acct,db).isoformat(),
              'next_boss':norm_date(acct.next_boss).isoformat() if acct.next_boss else None,
              'expedition':{'ends_at':norm_date(expedition.expires_at).isoformat(),'team':json.loads(expedition.member_ids),
-                           'config_id':expedition.config_id} if expedition else None,
+                           'config_id':expedition.config_id,'name':(db.get(M['ExpeditionConfig'],expedition.config_id).name if db.get(M['ExpeditionConfig'],expedition.config_id) else 'Expedição')} if expedition else None,
              'expedition_options':configs,'bosses':bosses,'starter_id':acct.starter_id,
              'settings':{'max_pokemon':params(db,'max_pokemon')}}
     @app.post('/api/pokemon/adventure/start')
@@ -441,7 +542,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             record=M['Owned'](user_id=uid,species_id=sid,name=name,slug=name.lower(),types=kind,
                 level=5,xp=0,position=1,status='healthy',obtained_at=now(),
                 gender=gender,shiny=draw_shiny(db))
-            db.add(M['Account'](user_id=uid,starter_id=sid,next_encounter=now()+timedelta(minutes=RNG.randint(3,8))))
+            db.add(M['Account'](user_id=uid,starter_id=sid,next_encounter=now()+ENCOUNTER_INTERVAL))
             db.add(record);item_change(db,uid,'pokebola',params(db,'starter_balls'))
             progress(db,uid,'pokemon_starter')
             note(db,uid,'pokemon_starter',pokemon={'name':name,'slug':name.lower(),'species_id':sid,'gender':record.gender,'shiny':record.shiny})
@@ -453,7 +554,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
         with SessionLocal() as db:
             acct=db.get(M['Account'],uid)
             if not acct:raise HTTPException(409,detail='Escolha um inicial primeiro')
-            if norm_date(acct.next_encounter)>now():raise HTTPException(409,detail='Ainda não chegou a hora de um encontro selvagem')
+            if encounter_ready_at(acct,db)>now():raise HTTPException(409,detail='Ainda não chegou a hora de um encontro selvagem')
             found=db.get(M['Encounter'],uid)
             if found and norm_date(found.expires_at)>now():return {'encounter':encounter_json(found)}
         catalog=pokemon_catalog()
@@ -468,7 +569,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
         types=get_types(entry['id']);created=None
         with writing() as db:
             acct=db.get(M['Account'],uid)
-            if norm_date(acct.next_encounter)>now():
+            if encounter_ready_at(acct,db)>now():
                 current=db.get(M['Encounter'],uid)
                 if current and norm_date(current.expires_at)>now():return {'encounter':encounter_json(current)}
                 raise HTTPException(409,detail='Encontro já processado')
@@ -479,7 +580,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
                 expires_at=now()+ENCOUNTER_LIFETIME,gender=draw_gender(spec['gender_rate']),
                 shiny=draw_shiny(db))
             db.add(created)
-            acct.next_encounter=now()+timedelta(minutes=RNG.randint(params(db,'encounter_min_minutes'),params(db,'encounter_max_minutes')))
+            acct.next_encounter=now()+timedelta(minutes=params(db,'encounter_cooldown_minutes'))
         return {'encounter':encounter_json(created)}
     @app.post('/api/pokemon/adventure/catch')
     async def catch(request:Request):
@@ -493,16 +594,14 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             # ten-minute quota (prevents simultaneous requests on different devices).
             account=db.scalar(select(M['Account']).where(M['Account'].user_id==uid).with_for_update())
             if not account:raise HTTPException(409,detail='Escolha um Pokémon inicial')
-            quota=capture_status(db,uid)
-            if quota['remaining']<=0:
-                raise HTTPException(429,detail='Limite de 2 tentativas a cada 10 minutos. Aguarde o próximo intervalo.')
+            if encounter.attempts>=CAPTURE_LIMIT:
+                raise HTTPException(429,detail='As duas tentativas deste encontro já foram usadas')
             item_change(db,uid,ball,-1)
-            db.add(M['CaptureAttempt'](user_id=uid,attempted_at=now()))
             # Species capture_rate influences but cannot exceed the configured ball chance.
             chance=max(4,round((db.get(M['Setting'],'ball_chance_'+ball).value if db.get(M['Setting'],'ball_chance_'+ball) else BALLS[ball]['chance'])*(0.35+0.65*min(encounter.capture_rate,255)/255)))
             success=RNG.randrange(100)<chance
             encounter.attempts+=1
-            escaped=encounter.attempts>=min(2,params(db,'encounter_attempts'))
+            escaped=encounter.attempts>=CAPTURE_LIMIT
             if success:
                 p=M['Owned'](user_id=uid,species_id=encounter.species_id,name=encounter.name,slug=encounter.slug,
                     types=encounter.types,level=encounter.level,xp=0,position=0,status='healthy',obtained_at=now(),
@@ -635,6 +734,24 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             if sum(cfg.required_type in p.types.split(',') for p in selected)<cfg.required_count and cfg.required_type!='any':
                 raise HTTPException(409,detail=f'É preciso ter {cfg.required_count} Pokémon do tipo {cfg.required_type}')
             if cfg.required_type=='any' and len(selected)<cfg.required_count:raise HTTPException(409,detail='Equipe insuficiente')
+            # Salva antecipadamente o combate; o resultado só é entregue no retorno.
+            design=expedition_design(db,cid)
+            boss_id=design.get('boss_id')
+            boss=db.get(M['Boss'],int(boss_id)) if isinstance(boss_id,int) and boss_id>0 else None
+            if boss and boss.active:
+                boss_cfg=boss_design(db,boss.id)
+                battle,events,won=simulate_battle(db,selected,boss,boss_cfg)
+                enemy={'name':boss.name,'species_id':boss.species_id,**boss_cfg}
+            else:
+                kind=cfg.required_type if cfg.required_type in POKEMON_TYPES else RNG.choice(('normal','grass','water','fire','electric'))
+                base=next(((sp,name) for sp,(name,t) in STARTERS.items() if t==kind),None)
+                species,name=base if base else (19,'Rattata')
+                wild=type('ExpeditionOpponent',(),{'id':cid,'name':name,'species_id':species,'level':max(3,round(sum(p.level for p in selected)/len(selected)))})()
+                enemy={'name':name,'species_id':species,'type':kind,'boss_position':2}
+                battle,events,won=simulate_battle(db,selected,wild,enemy,final_boss=False)
+            enemy['background_url']=design.get('background_url') or enemy.get('background_url') or ''
+            payload={'battle':battle,'events':events,'won':won,'boss':enemy,'expedition':cfg.name}
+            db.add(M['ExpeditionOutcome'](user_id=uid,payload=json.dumps(payload,ensure_ascii=False)))
             for p in selected:p.status='expedition'
             progress(db,uid,'pokemon_expedition_start')
             db.add(M['Expedition'](user_id=uid,config_id=cid,member_ids=json.dumps(ids),
@@ -648,19 +765,22 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
         with writing() as db:
             x=db.get(M['Expedition'],uid)
             if not x or norm_date(x.expires_at)>now():raise HTTPException(409,detail='Expedição ainda não terminou')
+            outcome=db.get(M['ExpeditionOutcome'],uid)
+            result=json.loads(outcome.payload) if outcome else None
+            won=(result or {}).get('won',True)
             participants=[db.get(M['Owned'],id) for id in json.loads(x.member_ids)]
             for p in participants:
                 if p and p.user_id==uid:
-                    p.status='healthy';award_xp(db,p,25)
+                    p.status='healthy';award_xp(db,p,25 if won else 10)
             illnesses=set_illness(db,[p for p in participants if p and p.user_id==uid])
-            earned=x.coins;wallet(db,uid).coins+=earned
+            earned=x.coins if won else max(1,x.coins//5);wallet(db,uid).coins+=earned
             bonus=[]
-            if x.card_roll:
+            if x.card_roll and won:
                 available=[r for r in stock(db) if r.get('remaining',0)>0]
                 if available:
                     chosen=RNG.choice(available);g=grant_card(db,uid,chosen)
                     bonus.append('Card: '+g['name'])
-            if x.collectible_roll:
+            if x.collectible_roll and won:
                 choices=db.scalars(select(Collectible).where(Collectible.active.is_(True))).all()
                 if choices:
                     item=RNG.choice(choices);row=db.get(InventoryCollectible,(uid,item.id))
@@ -668,56 +788,20 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
                     else:db.add(InventoryCollectible(user_id=uid,collectible_id=item.id,quantity=1,acquired_at=now()))
                     bonus.append('Colecionável: '+item.name)
             db.delete(x)
+            if outcome:db.delete(outcome)
+            if result:
+                progress(db,uid,'pokemon_battle')
+                if won:progress(db,uid,'pokemon_battle_win')
+                note(db,uid,'pokemon_battle_start',boss=result['boss'].get('name','um adversário'))
+                note(db,uid,'pokemon_battle',boss=result['boss'].get('name','um adversário'),won=won,coins=earned,drops=bonus)
             progress(db,uid,'pokemon_expedition_finish')
             note(db,uid,'pokemon_expedition',coins=earned,items=bonus)
             balance=wallet(db,uid).coins
-        return {'ok':True,'coins':earned,'bonus':bonus,'illnesses':illnesses,'coins_balance':balance}
+        return {'ok':True,'coins':earned,'bonus':bonus,'illnesses':illnesses,'coins_balance':balance,'won':won,'battle':result.get('battle') if result else None,'events':result.get('events',[]) if result else [],'boss':result.get('boss',{}) if result else {},'drops':bonus}
     @app.post('/api/pokemon/adventure/battle')
     async def battle(request:Request):
-        uid=me(request);data=await request.json();bid=verify_int(data.get('boss_id'),1,100000,'Chefe')
-        with writing() as db:
-            acct=db.get(M['Account'],uid);boss=db.get(M['Boss'],bid)
-            if not acct or not boss or not boss.active:raise HTTPException(404,detail='Chefe indisponível')
-            if acct.next_boss and norm_date(acct.next_boss)>now():raise HTTPException(409,detail='Aguarde o intervalo entre batalhas')
-            party=team(db,uid)
-            if not party:raise HTTPException(409,detail='Monte uma equipe saudável antes de batalhar')
-            design=boss_design(db,bid)
-            initial,events,won=simulate_battle(db,party,boss,design)
-            lo=int(design.get('coins_min',boss.reward_coins));hi=int(design.get('coins_max',boss.reward_coins))
-            earned=RNG.randint(lo,hi) if won else max(1,lo//7)
-            wallet(db,uid).coins+=earned
-            for p in party:award_xp(db,p,30 if won else 8)
-            illnesses=set_illness(db,party if not won else [])
-            drops=[]
-            if won:
-                for drop in design.get('item_drops',[]):
-                    if RNG.randrange(100)<int(drop.get('chance',0)):
-                        count=int(drop.get('quantity',1))
-                        item_change(db,uid,drop['sku'],count)
-                        drops.append(f'{ITEMS[drop["sku"]]["name"]} ×{count}')
-                if RNG.randrange(100)<int(design.get('card_chance',0)):
-                    eligible=[c for c in stock(db) if c.get('remaining',0)>0]
-                    if eligible:
-                        result=grant_card(db,uid,RNG.choice(eligible))
-                        drops.append('Card: '+result['name'])
-                if RNG.randrange(100)<int(design.get('collectible_chance',0)):
-                    choices=db.scalars(select(Collectible).where(Collectible.active.is_(True))).all()
-                    if choices:
-                        item=RNG.choice(choices)
-                        row=db.get(InventoryCollectible,(uid,item.id))
-                        if row:row.quantity+=1
-                        else:db.add(InventoryCollectible(user_id=uid,collectible_id=item.id,quantity=1,acquired_at=now()))
-                        drops.append('Colecionável: '+item.name)
-            acct.next_boss=now()+timedelta(minutes=params(db,'boss_cooldown_minutes'))
-            progress(db,uid,'pokemon_battle')
-            if won:progress(db,uid,'pokemon_battle_win')
-            note(db,uid,'pokemon_battle_start',boss=boss.name)
-            note(db,uid,'pokemon_battle',boss=boss.name,won=won,coins=earned,drops=drops)
-            balance=wallet(db,uid).coins
-            boss_payload=enriched_boss_from_values(boss,design)
-        return {'ok':True,'won':won,'coins':earned,'coins_balance':balance,
-            'battle':initial,'events':events,'boss':boss_payload,
-            'drops':drops,'illnesses':illnesses}
+        me(request)
+        raise HTTPException(409,detail='Os combates agora acontecem durante as Expedições Pokémon. Escolha uma expedição para participar.')
 
     @app.get('/api/pokemon/adventure/trades')
     def trades(request:Request):
@@ -775,7 +859,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             return {'settings':{k:params(db,k) for k in DEFAULT_SETTINGS},
                 'prices':{sku:(db.get(M['Setting'],'item_price_'+sku).value if db.get(M['Setting'],'item_price_'+sku) else item['price']) for sku,item in ITEMS.items()},
                 'ball_chances':{sku:(db.get(M['Setting'],'ball_chance_'+sku).value if db.get(M['Setting'],'ball_chance_'+sku) else item['chance']) for sku,item in BALLS.items()},
-                'expeditions':[config_json(c) for c in get_exp_config(db)],
+                'expeditions':[expedition_info(db,c) for c in get_exp_config(db)],
                 'bosses':[enriched_boss(db,x) for x in db.scalars(select(M['Boss'])).all()],
                 'capture_backgrounds':type_backgrounds(db),
                 'sprite_overrides':sprite_overrides(db),'media_assets':media_assets(db)}
@@ -868,6 +952,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             for key,value in data.items():
                 if key not in allowed:raise HTTPException(422,detail='Configuração desconhecida')
                 if key.startswith('ball_chance_') and value>100:raise HTTPException(422,detail='Chance de Pokébola inválida')
+                if key=='encounter_cooldown_minutes' and not 1<=value<=1440:raise HTTPException(422,detail='Intervalo de encontros: 1 a 1440 minutos')
                 if key=='shiny_odds' and not 1<=value<=1000000:raise HTTPException(422,detail='Chance Shiny: 1 em 1 a 1.000.000')
                 verify_int(value,0,100000,'Valor')
                 row=db.get(M['Setting'],key)
@@ -893,6 +978,17 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             if not row:row=M['ExpeditionConfig']();db.add(row)
             for k in ('name','required_type','required_count','minutes','min_coins','max_coins','card_chance','collectible_chance','active'):
                 if k in data:setattr(row,k,(name if k=='name' else r_type if k=='required_type' else bool(data[k]) if k=='active' else data[k]))
+            db.flush()
+            boss_id=data.get('boss_id')
+            if boss_id is not None:
+                if type(boss_id) is not int or boss_id<0:raise HTTPException(422,detail='Chefe da expedição inválido')
+                if boss_id and not db.get(M['Boss'],boss_id):raise HTTPException(404,detail='Chefe não encontrado')
+                bg=clean_url(data.get('background_url'))
+                image=clean_url(data.get('image_url'))
+                design={'boss_id':boss_id,'background_url':bg,'image_url':image}
+                stored=db.get(M['ExpeditionDesign'],row.id)
+                if stored:stored.payload=json.dumps(design,ensure_ascii=False)
+                else:db.add(M['ExpeditionDesign'](config_id=row.id,payload=json.dumps(design,ensure_ascii=False)))
         return {'ok':True}
     @app.post('/api/admin/pokemon/adventure/boss')
     async def save_boss(request:Request):
