@@ -4603,3 +4603,81 @@ body.dark-mode #adminModal #adminContent[data-admin-building="true"]::before {
 .recanto-install-guide-panel a{color:#364dbb;font-weight:700;}
 .recanto-install-guide-close{position:absolute;right:17px;top:17px;width:36px;height:36px;border:0;border-radius:50%;background:#edf0fb;color:#2d4191;font-size:16px;display:grid;place-items:center;}
 @media(max-width:480px){.recanto-install-guide{padding:12px;}.recanto-install-guide-panel{padding:22px 18px;max-height:85dvh;}.recanto-install-guide-panel h2{font-size:20px;}}
+
+
+/* Recanto 0.4.13 — refinamento da navegação Pokémon no PC e aba Trocas */
+.recanto-pokemon-tabs{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+  gap:10px;
+  width:100%;
+  align-items:stretch;
+}
+.recanto-pokemon-tab{
+  width:100%;
+  min-height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  white-space:normal;
+}
+
+.recanto-pokemon-trade-form{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:16px!important;
+  align-items:end;
+  margin:18px 0 8px;
+}
+.recanto-trade-field{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-width:0;
+}
+.recanto-trade-label{
+  font-size:13px;
+  font-weight:800;
+  color:#253b83;
+  line-height:1.2;
+}
+body.dark-mode .recanto-trade-label{color:#e6ecff;}
+.recanto-pokemon-trade-form .select-input,
+.recanto-pokemon-trade-form select{
+  width:100%;
+  min-width:0;
+}
+.recanto-pokemon-trade-form > .main-action{
+  grid-column:1/-1;
+  margin-top:2px;
+}
+.recanto-pokemon-trades-list{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:14px;
+  margin-top:16px;
+}
+.recanto-pokemon-trade{
+  gap:10px;
+}
+.recanto-pokemon-trade strong{
+  line-height:1.25;
+}
+.recanto-pokemon-trade small{
+  line-height:1.35;
+}
+
+@media(max-width:900px){
+  .recanto-pokemon-tabs{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  .recanto-pokemon-trade-form{
+    grid-template-columns:1fr!important;
+    gap:12px!important;
+  }
+}
+@media(max-width:560px){
+  .recanto-pokemon-tabs{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}

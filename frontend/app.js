@@ -3047,10 +3047,13 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
             const op=h('option','',p.name+' · Nv. '+p.level);op.value=p.id;theirs.append(op);}
         }catch(error){toast(error.message);}
       };select.addEventListener('change',loadTheirs);
-      const form=h('div','recanto-pokemon-trade-form');form.append(h('strong','','Membro'),select,h('strong','','Seu Pokémon'),mine,
-        h('strong','','Pokémon desejado'),theirs,
+      const field=(label,control)=>{const wrap=h('label','recanto-trade-field');
+        wrap.append(h('span','recanto-trade-label',label),control);return wrap;};
+      const form=h('div','recanto-pokemon-trade-form');
+      form.append(field('Membro',select),field('Seu Pokémon',mine),field('Pokémon desejado',theirs),
         button('Enviar proposta',()=>pokemonCall('/trades',{to_user:select.value,offered_id:Number(mine.value),wanted_id:Number(theirs.value)},'Proposta enviada!')));
       box.append(form);
+      const tradeList=h('div','recanto-pokemon-trades-list');
       for(const offer of trades.items){const line=h('div','recanto-pokemon-trade');
         const icons=h('div','recanto-pokemon-trade-sprites');
         if(offer.offered)icons.append(pokemonPicture(offer.offered));
@@ -3062,7 +3065,8 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
           if(offer.mine)line.append(button('Cancelar',()=>pokemonCall(`/trades/${offer.id}/decide`,{action:'cancel'},'Proposta cancelada'),'soft-action'));
           else{line.append(button('Aceitar',()=>pokemonCall(`/trades/${offer.id}/decide`,{action:'accept'},'Troca realizada!')),
             button('Recusar',()=>pokemonCall(`/trades/${offer.id}/decide`,{action:'reject'},'Proposta recusada'),'soft-action'));}
-        }box.append(line);}
+        }tradeList.append(line);}
+      if(tradeList.children.length) box.append(tradeList);
     }
   }
 
