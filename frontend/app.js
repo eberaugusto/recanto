@@ -2834,30 +2834,35 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       const boss=result.boss||{};
       const shell=h('div','recanto-battle-overlay');
       shell.setAttribute('role','dialog');shell.setAttribute('aria-modal','true');shell.setAttribute('aria-label','Batalha Pokémon');
-      const content=h('div','recanto-battle-fullscreen');
-      if(boss.background_url)content.style.backgroundImage='linear-gradient(#08152f66,#08152f99),url('+JSON.stringify(boss.background_url)+')';
+      const content=h('div','recanto-battle-fullscreen recanto-battle-tft');
+      if(boss.background_url)content.style.backgroundImage='linear-gradient(#08152f80,#08152fd0),url('+JSON.stringify(boss.background_url)+')';
       const heading=h('div','recanto-battle-heading');const headingText=h('div');
-      headingText.append(h('h2','','⚔️ '+(boss.name||'Batalha contra chefe')),h('p','','Prepare-se para o combate!'));
+      headingText.append(h('h2','','⚔️ '+(boss.name||'Batalha contra chefe')),h('p','','Seu time fica na parte de baixo. O chefe e seus aliados ficam na parte de cima.'));
       heading.append(headingText);
       const quit=button('Sair da batalha',()=>close(true),'soft-action');quit.title='O resultado já foi registrado no servidor';
       heading.append(quit);
-      const arena=h('div','recanto-battle-arena');const ally=h('div','recanto-battle-grid allies');const enemy=h('div','recanto-battle-grid opponents');
+      const arena=h('div','recanto-battle-arena recanto-battle-arena-tft');
+      const enemyLane=h('div','recanto-battle-grid opponents tft enemy-lane');
+      const middle=h('div','recanto-battle-middle');middle.append(h('div','recanto-battle-versus','VS'));
+      const allyLane=h('div','recanto-battle-grid allies tft ally-lane');
       const units=new Map();
       const mount=(unit,side)=>{
-        const cell=h('div','recanto-battle-unit'+(unit.boss?' is-boss':'')+(side==='enemy'?' enemy':''));
+        const cell=h('div','recanto-battle-unit'+(unit.boss?' is-boss':'')+(side==='enemy'?' enemy':'')+(side==='ally'?' ally':'')+' side-'+side);
         cell.dataset.unit=unit.id;cell.style.gridArea=String(Math.floor((unit.position-1)/3)+1)+' / '+String((unit.position-1)%3+1);
-        const image=pokemonPicture(unit,side==='ally'?'back':'owned');
-        image.alt=unit.name;cell.append(image);
-        const data=h('div','recanto-battle-unit-info');const label=h('strong','',unit.name+' · Nv. '+unit.level);
+        const topBar=h('div','recanto-battle-topbar');
         const meter=h('div','recanto-battle-hp');const fill=h('div','recanto-battle-hp-fill');meter.append(fill);
+        topBar.append(meter);
+        const image=pokemonPicture(unit,side==='ally'?'back':'owned');
+        image.alt=unit.name;cell.append(topBar,image);
+        const data=h('div','recanto-battle-unit-info');const label=h('strong','',unit.name);
         const count=h('small','',unit.hp+'/'+unit.max_hp+' PV');
-        data.append(label,meter,count);cell.append(data);
+        data.append(label,count);cell.append(data);
         units.set(unit.id,{cell,fill,count,unit});
-        (side==='ally'?ally:enemy).append(cell);
+        (side==='ally'?allyLane:enemyLane).append(cell);
       };
-      (result.battle?.allies||[]).forEach(unit=>mount(unit,'ally'));
       (result.battle?.enemies||[]).forEach(unit=>mount(unit,'enemy'));
-      arena.append(ally,enemy);
+      (result.battle?.allies||[]).forEach(unit=>mount(unit,'ally'));
+      arena.append(enemyLane,middle,allyLane);
       const footer=h('div','recanto-battle-footer');const text=h('p','recanto-battle-event','O combate vai começar…');
       const progress=h('div','recanto-battle-progress');const bar=h('div');progress.append(bar);
       const settings=h('div','recanto-battle-controls');const speed=button('Velocidade 1×',()=>{fast=!fast;speed.textContent='Velocidade '+(fast?'2×':'1×');},'soft-action');
@@ -2867,15 +2872,14 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       document.body.classList.add('recanto-battle-is-open');
       let muted=false,fast=false,closed=false,idx=0,timer=null,music=null,audioCtx=null;
       const events=Array.isArray(result.events)?result.events:[];
-      if(boss.music_url){music=new Audio(boss.music_url);music.loop=true;music.volume=.24;
-        music.play().catch(()=>{});}
+      if(boss.music_url){music=new Audio(boss.music_url);music.loop=true;music.volume=.24;music.play().catch(()=>{});}
       const playHit=(attackType)=>{
         if(muted)return;
         try{
           const Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx)return;
           audioCtx=audioCtx||new Ctx();
           const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
-          const t=audioCtx.currentTime;osc.type=attackType==='electric'?'sawtooth':'triangle';
+          const t=audioCtx.currentTime;osc.type=attackType==='electric'?'sawtooth':attackType==='ghost'?'square':'triangle';
           osc.frequency.setValueAtTime(attackType==='fire'?260:attackType==='water'?180:320,t);
           osc.frequency.exponentialRampToValueAtTime(90,t+.15);
           gain.gain.setValueAtTime(.07,t);gain.gain.exponentialRampToValueAtTime(.001,t+.17);
@@ -2889,36 +2893,48 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
         resolve();
       }
       function finish(){
-        text.replaceChildren(h('strong','',result.won?'🏆 Vitória!':'⚔️ Derrota'),
-          h('span','',` · +${result.coins||0} moedas`));
+        text.replaceChildren(h('strong','',result.won?'🏆 Vitória!':'⚔️ Derrota'),h('span','',` · +${result.coins||0} moedas`));
         if(result.drops?.length)text.append(h('span','',' · '+result.drops.join(' · ')));
         quit.textContent='Voltar ao Recanto';bar.style.width='100%';
         settings.replaceChildren(button('Concluir',()=>close(),'soft-action'));
       }
+      const syncHp=(entry,hp)=>{
+        if(!entry)return;
+        entry.unit.hp=hp;entry.fill.style.width=Math.max(0,Math.round(100*hp/entry.unit.max_hp))+'%';
+        entry.count.textContent=hp+'/'+entry.unit.max_hp+' PV';
+        if(hp<=0)entry.cell.classList.add('fainted');
+      };
       function next(){
         if(closed)return;
         if(idx>=events.length){finish();return;}
-        const action=events[idx++];const attacker=units.get(action.actor),target=units.get(action.target);
-        if(attacker&&target){
-          const t=target.unit;t.hp=action.hp;
-          target.fill.style.width=Math.max(0,Math.round(100*t.hp/t.max_hp))+'%';
-          target.count.textContent=t.hp+'/'+t.max_hp+' PV';
-          attacker.cell.classList.remove('attacking');target.cell.classList.remove('damaged');
-          void attacker.cell.offsetWidth;
+        const action=events[idx++];
+        const attacker=units.get(action.actor),target=units.get(action.target);
+        for(const node of units.values())node.cell.classList.remove('attacking','damaged','casting');
+        if(action.kind==='status_damage' && target){
+          syncHp(target,action.hp);void target.cell.offsetWidth;target.cell.classList.add('damaged');
+          text.textContent=`Rodada ${action.round}: ${target.unit.name} sofreu ${action.label} (−${action.damage} PV)`;
+        }else if(action.kind==='skip' && attacker){
+          text.textContent=`Rodada ${action.round}: ${attacker.unit.name} não conseguiu agir por ${action.label}.`;
+        }else if(attacker&&target){
+          syncHp(target,action.hp);void attacker.cell.offsetWidth;void target.cell.offsetWidth;
           attacker.cell.classList.add('attacking');target.cell.classList.add('damaged');
-          if(t.hp<=0)target.cell.classList.add('fainted');
-          text.textContent=`Rodada ${action.round}: ${attacker.unit.name} usou ${action.move} em ${t.name} (−${action.damage} PV)${action.critical?' · Crítico!':''}`;
+          if(action.self_hp!==undefined)syncHp(attacker,action.self_hp);
+          let line=`Rodada ${action.round}: ${attacker.unit.name} usou ${action.move} em ${target.unit.name}`;
+          if(action.damage>0)line+=` (−${action.damage} PV)`;
+          if(action.critical)line+=' · Crítico!';
+          if(action.effect_text)line+=' · '+action.effect_text;
+          if(action.heal)line+=` · +${action.heal} PV`;
+          text.textContent=line;
           playHit(action.type);
         }
         bar.style.width=Math.round(100*idx/Math.max(events.length,1))+'%';
-        timer=setTimeout(next,fast?380:820);
+        timer=setTimeout(next,fast?430:900);
       }
-      timer=setTimeout(next,650);
-      // Em segundo plano, a simulação continua avançando pelo relógio do navegador.
-      // O resultado já foi validado e gravado no servidor.
+      timer=setTimeout(next,700);
       shell.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();quit.focus();}});
     });
   }
+
 
   async function loadPokemonAdventure(pane,preloaded=null){
     const info=preloaded||await API('/api/pokemon/adventure');
@@ -2979,12 +2995,25 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       const scene=h('div','recanto-wild-scene');
       const sceneDetails=h('div','recanto-wild-scene-details');
       const sceneFooter=h('div','recanto-wild-scene-footer');
-      const bag=block('🎒 Minhas Pokébolas','Use suas Pokébolas para capturar Pokémon selvagens. Os itens são comprados na Loja.');
+      const bag=block('🎒 Minhas Pokébolas','Escolha uma Pokébola para lançar no Pokémon selvagem. Os botões ficam ao lado do inventário para a captura ficar mais rápida.');
       const bagGrid=h('div','recanto-pokemon-bag');
       const shopMap=Object.fromEntries((info.shop||[]).map(item=>[item.sku,item]));
       const shopItems=[['pokebola','🔴'],['superbola','🔵'],['ultrabola','🟡']];
       if(Number(info.items.incenso||0)>0 || shopMap.incenso)shopItems.push(['incenso','🕯️']);
       let currentTimer=null;
+      const launchCapture=async(sku,btn)=>{
+        if(btn?.disabled)return;
+        btn.disabled=true;
+        const fx=h('div','recanto-capture-throw recanto-'+sku);
+        const pulse=h('div','recanto-capture-impact');
+        scene.append(fx,pulse);scene.classList.add('recanto-catching');
+        const sprite=scene.querySelector('.recanto-pokemon-image');
+        if(sprite)sprite.classList.add('capture-bounce');
+        await new Promise(r=>setTimeout(r,850));
+        pulse.classList.add('show');
+        try{return await pokemonCall('/catch',{ball:sku},'Lançamento concluído!');}
+        finally{setTimeout(()=>{fx.remove();pulse.remove();scene.classList.remove('recanto-catching');sprite?.classList.remove('capture-bounce');},250);}
+      };
       const drawWild=(wild)=>{
         info.encounter=wild;
         if(currentTimer)clearInterval(currentTimer);
@@ -3038,7 +3067,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
           const tile=h('article','recanto-bag-item'+(owned<=0?' is-empty':''));
           tile.append(h('strong','',`${item.emoji||fallback} ${item.name}`),h('small','',`Quantidade: ${owned}`));
           if(wild && sku!=='incenso'){
-            const btn=button('Usar agora',()=>pokemonCall('/catch',{ball:sku},'Lançamento concluído!'),'soft-action');
+            const btn=button('Lançar',()=>launchCapture(sku,btn),'soft-action');
             btn.disabled=!owned||(info.capture_limit && info.capture_limit.remaining<=0)||new Date(wild.expires_at).getTime()<=Date.now();tile.append(btn);
           }else if(sku==='incenso')tile.append(h('small','',owned>0?'Incenso disponível no inventário.':'Compre na Loja para usar depois.'));
           else tile.append(h('small','',owned>0?'Pronta para captura.':'Compre na Loja para usar depois.'));
@@ -3371,7 +3400,7 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const file=h('input','text-input');file.type='file';file.accept='image/gif,image/webp,image/png,image/jpeg';
     const mediaPreview=h('img','recanto-pokemon-media-preview');
     const mapping={...(cfg.media_assets||{})};
-    const display=()=>{mediaUrl.value=mapping[source.value]||'';preview.src=mediaUrl.value||'';preview.hidden=!mediaUrl.value;};
+    const display=()=>{mediaUrl.value=mapping[source.value]||'';mediaPreview.src=mediaUrl.value||'';mediaPreview.hidden=!mediaUrl.value;};
     source.addEventListener('change',display);display();
     mediaBox.append(source,mediaUrl,file,mediaPreview,
       button('Salvar imagem',async()=>{const image=file.files[0]?await uploadArtwork(file.files[0]):mediaUrl.value.trim();
@@ -3382,6 +3411,33 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
         if(response){delete mapping[source.value];display();}
       },'soft-action'));
     box.append(mediaBox);
+
+    const movesBox=h('div','recanto-pokemon-moves-editor');
+    movesBox.append(h('h4','','✨ Poderes dos Pokémon'),h('p','','Defina até 4 golpes por espécie. Cada linha deve seguir: nome, tipo, poder, efeito. Efeitos permitidos: none, burn, poison, paralyze, heal, drain.'));
+    const moveSpecies=h('input','text-input');moveSpecies.type='number';moveSpecies.min='1';moveSpecies.max='1025';moveSpecies.value='25';
+    const moveInfo=h('p','');
+    const moveLines=h('textarea','text-input');moveLines.rows=6;moveLines.placeholder='Choque do Trovão, electric, 40, paralyze\nAtaque Rápido, normal, 40, none';
+    const loadMoves=async()=>{
+      const species=Number(moveSpecies.value);
+      if(!species){toast('Informe a espécie.');return;}
+      const result=await safeRun(()=>API('/api/admin/pokemon/adventure/moves?species_id='+species),null);
+      if(!result)return;
+      moveInfo.textContent='Tipos: '+(result.types||[]).join(', ');
+      moveLines.value=(result.moves||[]).map(m=>`${m.name}, ${m.type}, ${m.power}, ${m.effect}`).join('\n');
+    };
+    movesBox.append(h('label','','Espécie (ID da Pokédex)'),moveSpecies,moveInfo,moveLines,
+      button('Carregar poderes desta espécie',()=>loadMoves(),'soft-action'),
+      button('Salvar poderes desta espécie',async()=>{
+        const species=Number(moveSpecies.value);
+        if(!species){toast('Informe a espécie.');return;}
+        const moves=moveLines.value.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
+          const cols=line.split(',').map(x=>x.trim());
+          return {name:cols[0],type:cols[1],power:Number(cols[2]),effect:cols[3]||'none'};
+        });
+        const saved=await safeRun(()=>API('/api/admin/pokemon/adventure/moves',{species_id:species,moves}),'Poderes salvos!');
+        if(saved)moveLines.value=(saved.moves||[]).map(m=>`${m.name}, ${m.type}, ${m.power}, ${m.effect}`).join('\n');
+      },'soft-action'));
+    box.append(movesBox);
     return box;
   }
 

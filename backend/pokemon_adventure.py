@@ -127,6 +127,11 @@ def define_models(Base):
         boss_id:Mapped[int]=mapped_column(Integer,primary_key=True)
         payload:Mapped[str]=mapped_column(Text,nullable=False,default='{}')
 
+    class PokemonMoveConfig(Base):
+        __tablename__='recanto_pokemon_move_configs'
+        species_id:Mapped[int]=mapped_column(Integer,primary_key=True)
+        payload:Mapped[str]=mapped_column(Text,nullable=False,default='[]')
+
     class PokemonTrade(Base):
         __tablename__='recanto_pokemon_trades'
         id:Mapped[int]=mapped_column(Integer,primary_key=True,autoincrement=True)
@@ -142,7 +147,7 @@ def define_models(Base):
         key:Mapped[str]=mapped_column(String(50),primary_key=True)
         value:Mapped[int]=mapped_column(Integer,nullable=False)
     return dict(Account=PokemonAccount,Owned=OwnedPokemon,Item=PokemonItem,Encounter=PokemonEncounter,
-      CaptureAttempt=PokemonCaptureAttempt,FeedLog=PokemonFeedLog,Expedition=PokemonExpedition,ExpeditionConfig=PokemonExpeditionConfig,Boss=PokemonBoss,BossDesign=PokemonBossDesign,Trade=PokemonTrade,Setting=PokemonSetting)
+      CaptureAttempt=PokemonCaptureAttempt,FeedLog=PokemonFeedLog,Expedition=PokemonExpedition,ExpeditionConfig=PokemonExpeditionConfig,Boss=PokemonBoss,BossDesign=PokemonBossDesign,MoveConfig=PokemonMoveConfig,Trade=PokemonTrade,Setting=PokemonSetting)
 
 
 def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive_to_utc,pokemon_catalog,
@@ -303,7 +308,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
         'electric':('electric','grass','dragon','ground'),
         'normal':('rock','steel','ghost'), 'fighting':('poison','flying','psychic','bug','fairy','ghost'),
         'ghost':('dark','normal'), 'dragon':('steel','fairy')}
-    def make_unit(unit_id,owned_p=None,enemy=None,boss=False):
+    def make_unit(db,unit_id,owned_p=None,enemy=None,boss=False):
         if owned_p:
             level=int(owned_p.level);types=owned_p.types.split(',')
             name=owned_p.name;species=int(owned_p.species_id);position=owned_p.position
@@ -317,45 +322,78 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
         return {'id':unit_id,'name':name,'species_id':species,'level':level,'types':types,'position':position,
             'gender':gender,'shiny':shiny,'boss':boss,'max_hp':hp,'hp':hp,
             'attack':round(18+level*1.8),'defense':round(14+level*1.5),
-            'speed':round(15+level*1.7)}
-    def simulate_battle(pokemon,boss,design):
-        friends=[make_unit('p-'+str(p.id),owned_p=p) for p in pokemon]
+            'speed':round(15+level*1.7),'moves':move_config_for_species(db,species,types),'statuses':{}}
+    def simulate_battle(db,pokemon,boss,design):
+        friends=[make_unit(db,'p-'+str(p.id),owned_p=p) for p in pokemon]
         enemies=[]
         helpers=design.get('helpers',[])[:5]
         for idx,h in enumerate(helpers):
-            enemies.append(make_unit('h-'+str(idx),enemy=h))
-        enemies.append(make_unit('boss-'+str(boss.id),enemy={
+            enemies.append(make_unit(db,'h-'+str(idx),enemy=h))
+        enemies.append(make_unit(db,'boss-'+str(boss.id),enemy={
             'name':boss.name,'species_id':boss.species_id,'level':boss.level,
             'types':[design.get('type','normal')],'position':design.get('boss_position',2)},boss=True))
-        initial={'allies':[{k:v for k,v in u.items() if k not in ('attack','defense','speed')} for u in friends],
-                 'enemies':[{k:v for k,v in u.items() if k not in ('attack','defense','speed')} for u in enemies]}
+        initial={'allies':[{k:v for k,v in u.items() if k not in ('attack','defense','speed','moves','statuses')} for u in friends],
+                 'enemies':[{k:v for k,v in u.items() if k not in ('attack','defense','speed','moves','statuses')} for u in enemies]}
         events=[];won=False
+        def status_tick(unit,turn):
+            statuses=unit.get('statuses',{})
+            for key,label,mult in (('burn','Queimadura',0.06),('poison','Veneno',0.05)):
+                if statuses.get(key,0)>0 and unit['hp']>0:
+                    damage=max(1,round(unit['max_hp']*mult))
+                    unit['hp']=max(0,unit['hp']-damage)
+                    statuses[key]-=1
+                    events.append({'kind':'status_damage','round':turn,'actor':unit['id'],'target':unit['id'],'label':label,'damage':damage,'hp':unit['hp']})
+            if statuses.get('paralyze',0)>0 and unit['hp']>0:
+                statuses['paralyze']-=1
+                if RNG.randrange(100)<45:
+                    events.append({'kind':'skip','round':turn,'actor':unit['id'],'target':unit['id'],'label':'Paralisia'})
+                    return True
+            return False
         for turn in range(1,19):
             living=[u for u in friends+enemies if u['hp']>0]
             living.sort(key=lambda u:u['speed']+RNG.randrange(-6,7),reverse=True)
             for actor in living:
                 if actor['hp']<=0:continue
+                if status_tick(actor,turn):
+                    continue
+                if actor['hp']<=0:continue
                 side=enemies if actor in friends else friends
                 targets=[t for t in side if t['hp']>0]
                 if not targets:break
-                # Frontline first, rear can still be hit when front is gone.
                 front=[t for t in targets if t['position']<=3]
                 target=RNG.choice(front or targets)
-                atype=RNG.choice(actor['types']) if actor['types'] else 'normal'
-                name,power=BATTLE_MOVES.get(atype,BATTLE_MOVES['normal'])
+                move=RNG.choice(actor.get('moves') or default_moves_for_types(actor.get('types')))
+                atype=move.get('type') if move.get('type') in POKEMON_TYPES else (actor['types'][0] if actor['types'] else 'normal')
+                name=move.get('name') or BATTLE_MOVES.get(atype,BATTLE_MOVES['normal'])[0]
+                power=int(move.get('power') or BATTLE_MOVES.get(atype,BATTLE_MOVES['normal'])[1])
+                effect=str(move.get('effect') or 'none')
                 factor=1.0
                 for defense_type in target['types']:
                     if defense_type in STRONG.get(atype,()):factor*=1.6
                     if defense_type in WEAK.get(atype,()):factor*=0.65
                 critical=RNG.randrange(100)<8
-                damage=max(1,round((actor['attack']+power*.30)*(.80+RNG.random()*.4)
+                damage=max(0,round((actor['attack']+power*.30)*(.80+RNG.random()*.4)
                     /(1+target['defense']/65)*factor*(1.5 if critical else 1)))
+                if power<=0: damage=0
                 target['hp']=max(0,target['hp']-damage)
-                events.append({'round':turn,'actor':actor['id'],'target':target['id'],'move':name,
-                    'type':atype,'damage':damage,'hp':target['hp'],'critical':critical,'effectiveness':round(factor,2)})
+                event={'kind':'attack','round':turn,'actor':actor['id'],'target':target['id'],'move':name,
+                    'type':atype,'damage':damage,'hp':target['hp'],'critical':critical,'effectiveness':round(factor,2)}
+                if effect in ('burn','poison','paralyze') and target['hp']>0 and RNG.randrange(100)<35:
+                    target['statuses'][effect]=max(target['statuses'].get(effect,0),2)
+                    event['effect_text']={'burn':'Queimadura','poison':'Veneno','paralyze':'Paralisia'}[effect]
+                elif effect=='heal':
+                    heal=max(8,round(actor['max_hp']*0.12))
+                    actor['hp']=min(actor['max_hp'],actor['hp']+heal)
+                    event['self_hp']=actor['hp'];event['heal']=heal;event['effect_text']='Cura'
+                elif effect=='drain' and damage>0:
+                    heal=max(5,round(damage*0.4))
+                    actor['hp']=min(actor['max_hp'],actor['hp']+heal)
+                    event['self_hp']=actor['hp'];event['heal']=heal;event['effect_text']='Drenou energia'
+                events.append(event)
             if not any(u['hp']>0 for u in enemies):won=True;break
             if not any(u['hp']>0 for u in friends):break
         return initial,events,won
+
 
     def enriched_boss_from_values(boss,design):
         return {**boss_json(boss),**design}
@@ -644,7 +682,7 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
             party=team(db,uid)
             if not party:raise HTTPException(409,detail='Monte uma equipe saudável antes de batalhar')
             design=boss_design(db,bid)
-            initial,events,won=simulate_battle(party,boss,design)
+            initial,events,won=simulate_battle(db,party,boss,design)
             lo=int(design.get('coins_min',boss.reward_coins));hi=int(design.get('coins_max',boss.reward_coins))
             earned=RNG.randint(lo,hi) if won else max(1,lo//7)
             wallet(db,uid).coins+=earned
@@ -741,6 +779,29 @@ def register_routes(*,app,models,SessionLocal,me,only_admin,writing,utcnow,naive
                 'bosses':[enriched_boss(db,x) for x in db.scalars(select(M['Boss'])).all()],
                 'capture_backgrounds':type_backgrounds(db),
                 'sprite_overrides':sprite_overrides(db),'media_assets':media_assets(db)}
+    @app.get('/api/admin/pokemon/adventure/moves')
+    def get_move_config(request:Request,species_id:int):
+        only_admin(request)
+        species_id=verify_int(species_id,1,1025,'Espécie')
+        types=get_types(species_id)
+        with SessionLocal() as db:
+            return {'species_id':species_id,'types':types,'moves':move_config_for_species(db,species_id,types)}
+
+    @app.post('/api/admin/pokemon/adventure/moves')
+    async def save_move_config(request:Request):
+        only_admin(request)
+        payload=await request.json()
+        if not isinstance(payload,dict):raise HTTPException(422,detail='Dados inválidos')
+        species_id=verify_int(payload.get('species_id'),1,1025,'Espécie')
+        types=get_types(species_id)
+        moves=sanitize_moves_payload(payload.get('moves'),types)
+        with writing() as db:
+            row=db.get(M['MoveConfig'],species_id)
+            dump=json.dumps(moves,ensure_ascii=False)
+            if row: row.payload=dump
+            else: db.add(M['MoveConfig'](species_id=species_id,payload=dump))
+        return {'ok':True,'species_id':species_id,'moves':moves}
+
     @app.post('/api/admin/pokemon/adventure/media')
     async def update_media(request:Request):
         only_admin(request);data=await request.json()

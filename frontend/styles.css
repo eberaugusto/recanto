@@ -4663,3 +4663,48 @@ body.dark-mode #adminModal #adminContent[data-admin-building="true"]::before {
   .recanto-battle-unit-info strong{font-size:8px;}
 }
 @media(prefers-reduced-motion:reduce){.recanto-battle-unit.attacking,.recanto-battle-unit.damaged{animation:none;}}
+
+/* Recanto 0.4.15 — batalha estilo TFT + captura mais viva */
+.recanto-battle-fullscreen.recanto-battle-tft{background-size:cover;background-position:center;}
+.recanto-battle-arena.recanto-battle-arena-tft{display:grid;grid-template-columns:1fr;grid-template-rows:auto auto auto;gap:14px;align-items:center;min-height:420px;}
+.recanto-battle-middle{display:flex;justify-content:center;align-items:center;pointer-events:none;}
+.recanto-battle-versus{width:70px;height:70px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:24px;color:#fff;background:radial-gradient(circle at 30% 30%,#9bbcff,#5e7ddb 58%,#1c2b58 100%);box-shadow:0 10px 22px rgba(0,0,0,.28);}
+.recanto-battle-grid.tft{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(120px,1fr));width:min(960px,100%);margin:0 auto;}
+.recanto-battle-unit{justify-content:space-between;padding-top:10px;}
+.recanto-battle-unit.ally{background:linear-gradient(180deg,rgba(110,146,255,.16),rgba(6,18,42,.34));}
+.recanto-battle-unit.enemy{background:linear-gradient(180deg,rgba(220,145,145,.14),rgba(32,8,28,.38));}
+.recanto-battle-topbar{width:100%;padding:0 4px 4px;box-sizing:border-box;z-index:4;}
+.recanto-battle-unit img.recanto-pokemon-image{height:clamp(74px,10vw,150px);}
+.recanto-battle-unit.is-boss img.recanto-pokemon-image{height:clamp(110px,15vw,228px);transform:scale(1.18);transform-origin:center bottom;}
+.recanto-battle-unit-info{background:rgba(7,18,40,.78);backdrop-filter:blur(6px);}
+.recanto-battle-hp{height:12px;background:#402536;}
+.recanto-battle-hp-fill{background:linear-gradient(90deg,#4fc96b,#b9f57c);}
+.recanto-battle-unit.capture-bounce,.capture-bounce{animation:recanto-capture-bounce .75s ease-in-out infinite alternate;}
+@keyframes recanto-capture-bounce{0%{transform:translateY(0)}100%{transform:translateY(-8px)}}
+.recanto-capture-throw{position:absolute;left:8%;bottom:20%;width:34px;height:34px;border-radius:50%;z-index:5;box-shadow:0 4px 10px rgba(0,0,0,.22);animation:recanto-throw-arc .78s ease-in forwards;}
+.recanto-capture-throw.recanto-pokebola{background:radial-gradient(circle at 50% 35%,#fff 0 25%,#e53935 26% 52%,#fff 53% 76%,#222 77% 85%,#fff 86% 100%);}
+.recanto-capture-throw.recanto-superbola{background:radial-gradient(circle at 50% 35%,#fff 0 24%,#3b82f6 25% 50%,#fff 51% 75%,#222 76% 84%,#fff 85% 100%);}
+.recanto-capture-throw.recanto-ultrabola{background:radial-gradient(circle at 50% 35%,#ffe066 0 22%,#f4c430 23% 50%,#1b1b1b 51% 75%,#222 76% 84%,#fff 85% 100%);}
+.recanto-capture-impact{position:absolute;left:50%;top:42%;width:28px;height:28px;border-radius:50%;transform:translate(-50%,-50%) scale(.2);opacity:0;z-index:4;background:radial-gradient(circle,rgba(255,255,255,.95),rgba(255,255,255,0));}
+.recanto-capture-impact.show{animation:recanto-impact .36s ease-out forwards;}
+@keyframes recanto-throw-arc{0%{transform:translate(0,0) scale(.8)}55%{transform:translate(220px,-130px) scale(1)}100%{transform:translate(300px,-170px) scale(1.02)}}
+@keyframes recanto-impact{0%{opacity:.2;transform:translate(-50%,-50%) scale(.2)}100%{opacity:1;transform:translate(-50%,-50%) scale(2.4)}}
+#petPane .recanto-wild-scene{position:relative;overflow:hidden;}
+#petPane .recanto-wild-scene .recanto-pokemon-image{animation:recanto-capture-bounce 1.25s ease-in-out infinite alternate;}
+#petPane .recanto-wild-scene-details{align-items:flex-start;text-align:left;}
+#petPane .recanto-wild-scene-footer{align-items:flex-start;}
+#petPane .recanto-pokemon-capture-columns .game-box:last-child{display:flex;flex-direction:column;}
+#petPane .recanto-pokemon-bag{gap:10px;align-content:start;}
+#petPane .recanto-bag-item{min-height:120px;justify-content:space-between;}
+#petPane .recanto-bag-item strong{font-size:15px;}
+#petPane .recanto-bag-item button{width:100%;}
+.recanto-pokemon-moves-editor{display:grid;gap:12px;padding:16px;border:1px solid #cbd5ee;border-radius:16px;margin-top:18px;}
+.recanto-pokemon-moves-editor>h4,.recanto-pokemon-moves-editor>p{margin:0;}
+body.dark-mode .recanto-pokemon-moves-editor{border-color:#46577c;}
+@media(max-width:900px){
+  .recanto-battle-grid.tft{grid-template-rows:repeat(2,minmax(100px,1fr));}
+  .recanto-battle-unit img.recanto-pokemon-image{height:clamp(64px,18vw,110px);}
+  .recanto-battle-unit.is-boss img.recanto-pokemon-image{height:clamp(92px,24vw,144px);}
+  .recanto-battle-versus{width:52px;height:52px;font-size:18px;}
+  @keyframes recanto-throw-arc{0%{transform:translate(0,0) scale(.8)}55%{transform:translate(140px,-82px) scale(1)}100%{transform:translate(185px,-110px) scale(1.02)}}
+}
