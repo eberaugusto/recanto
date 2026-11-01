@@ -4578,9 +4578,12 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         file_name = (image.filename or '').lower()
         if image.content_type not in ('image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/octet-stream') and not file_name.endswith(('.png','.jpg','.jpeg','.webp','.gif')):
             raise HTTPException(422, detail='Use PNG, JPG, WEBP ou GIF')
-        data = await image.read(4 * 1024 * 1024 + 1)
-        if len(data) > 4 * 1024 * 1024:
-            raise HTTPException(413, detail='Imagem acima de 4 MB')
+        # PNG/JPG/WEBP/GIF: limite de upload de imagens de até 20 MiB.
+        # SVG e modelos 3D mantêm seus próprios limites.
+        image_limit = 20 * 1024 * 1024
+        data = await image.read(image_limit + 1)
+        if len(data) > image_limit:
+            raise HTTPException(413, detail='Imagem acima de 20 MB')
         import io
         try:
             with Image.open(io.BytesIO(data)) as im:
@@ -4609,7 +4612,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             signed = f'folder=recanto&timestamp={timestamp}'
             signature = hashlib.sha1((signed + api_secret).encode('utf-8')).hexdigest()
             try:
-                async with httpx.AsyncClient(timeout=35) as client:
+                async with httpx.AsyncClient(timeout=90) as client:
                     response = await client.post(
                         f'https://api.cloudinary.com/v1_1/{cloud}/image/upload',
                         data={'api_key': api_key, 'timestamp': timestamp, 'folder':'recanto', 'signature':signature},
