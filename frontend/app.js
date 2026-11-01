@@ -501,9 +501,8 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     select.value=[...select.options].some(o=>o.value===current)?current:'0';
     return select;
   }
-  // Recanto 0.4.23 — composição real de DUAS imagens, sem preenchimento:
-  // 1) moldura/cenário completo ao fundo; 2) arte PNG/WebP/GIF transparente à frente.
-  // Nunca desenhar a moldura novamente por cima do personagem.
+  // Uma camada IMG real é necessária para GIF: permite a animação da moldura
+  // sem trocar/reiniciar o arquivo quando a tela sincroniza os estilos.
   function updateOneCardFrame(art){
     if(!art?.classList?.contains('recanto-framed-art'))return;
     const collection=art.dataset.collection||'Recanto Original';
@@ -511,11 +510,9 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const cardId=art.dataset.cardId;
     const isFrameless=art.dataset.frameEnabled==='false' || (cardId && cardFrameFlags[cardId]===false);
     art.classList.toggle('no-card-frame',Boolean(isFrameless));
-    // Remover qualquer overlay antigo: ele cobria a arte com a imagem da moldura.
-    art.querySelector(':scope > .recanto-card-frame-overlay')?.remove();
-    let background=art.querySelector(':scope > .recanto-card-frame-background');
+    let frame=art.querySelector(':scope > .recanto-card-frame-overlay');
     if(isFrameless){
-      background?.remove();
+      if(frame)frame.remove();
       art.style.removeProperty('--recanto-custom-frame');
       art.classList.remove('custom-collection-frame');
       return;
@@ -525,34 +522,25 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const variant=collectionFrameVariants.find(v=>Number(v.id)===variantId&&v.collection===collection);
     const frameUrl=String(variant?.frame_url||visual.frame_url||'').trim();
     if(!frameUrl){
-      background?.remove();
+      if(frame)frame.remove();
       art.style.removeProperty('--recanto-custom-frame');
       art.classList.remove('custom-collection-frame');
       return;
     }
     art.classList.add('custom-collection-frame');
     art.style.removeProperty('--recanto-custom-frame');
-    if(!background){
-      background=h('img','recanto-card-frame-background');
-      background.alt='';
-      background.setAttribute('aria-hidden','true');
-      background.draggable=false;
-      background.loading=art.classList.contains('detail-art')?'eager':'lazy';
-      background.decoding='async';
-      // Sempre ANTES da arte. CSS separa as camadas também por z-index.
-      art.prepend(background);
-    }
-    if(background.dataset.source!==frameUrl){
-      background.dataset.source=frameUrl;
-      background.onerror=()=>{
-        // Se a moldura foi apagada do servidor, conservar o padrão por raridade.
-        if(background?.dataset.source!==frameUrl)return;
-        background.remove();
-        art.classList.remove('custom-collection-frame');
+    if(!frame){
+      frame=h('img','recanto-card-frame-overlay');frame.alt='';
+      frame.setAttribute('aria-hidden','true');frame.draggable=false;
+      frame.loading='eager';frame.decoding='async';
+      frame.onerror=()=>{
+        // Se a imagem foi removida do Cloudinary/hosting, manter moldura por raridade.
+        frame.remove();art.classList.remove('custom-collection-frame');
         art.style.removeProperty('--recanto-custom-frame');
       };
-      background.src=frameUrl;
+      art.append(frame);
     }
+    if(frame.dataset.source!==frameUrl){frame.dataset.source=frameUrl;frame.src=frameUrl;}
   }
   function updateAllCardFrames(){document.querySelectorAll('.recanto-framed-art').forEach(updateOneCardFrame);}
   async function loadCollectionCardStyles(force=false){
