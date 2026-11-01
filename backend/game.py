@@ -27,14 +27,6 @@ from fastapi.responses import FileResponse
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, and_, func, select, text, inspect, delete, update
 from sqlalchemy.orm import Mapped, mapped_column
 from PIL import Image
-# O projeto também é iniciado como `from game import register_game` no Render.
-# Nesse modo `game` não pertence a um pacote e um import relativo falha.
-# Suportar os dois layouts sem mascarar ImportError internos do módulo Pokémon.
-if __package__:
-    from .pokemon_adventure import define_models, register_routes as register_pokemon_adventure
-else:
-    from pokemon_adventure import define_models, register_routes as register_pokemon_adventure
-
 RANDOM = random.SystemRandom()
 TIERS = {'comum': 3, 'raro': 2, 'lendário': 1, 'prismático': 1}
 TIER_LABEL = {'comum': 'Comum', 'raro': 'Raro', 'lendário': 'Lendário', 'prismático': 'Prismático'}
@@ -303,7 +295,6 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         display_name: Mapped[str] = mapped_column(String(100), nullable=False)
         position: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    PokemonModels = define_models(Base)
 
     class FeaturedCollection(Base):
         __tablename__ = 'featured_collections'
@@ -736,16 +727,6 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if 'amount' not in existing:
             with engine.begin() as connection:
                 connection.execute(text('ALTER TABLE inventory_packs ADD COLUMN amount INTEGER'))
-    # 0.4.1: adicionar gênero e Shiny sem reiniciar coleções de Pokémon.
-    # Pokémon anteriores não tinham estes dados; mantidos como Indefinido/não Shiny.
-    for table in ('recanto_pokemon_owned','recanto_pokemon_encounters'):
-        if inspect(engine).has_table(table):
-            existing={col['name'] for col in inspect(engine).get_columns(table)}
-            with engine.begin() as connection:
-                if 'gender' not in existing:
-                    connection.execute(text(f"ALTER TABLE {table} ADD COLUMN gender VARCHAR(16) NOT NULL DEFAULT 'unknown'"))
-                if 'shiny' not in existing:
-                    connection.execute(text(f'ALTER TABLE {table} ADD COLUMN shiny BOOLEAN NOT NULL DEFAULT FALSE'))
     Base.metadata.create_all(engine)
     with SessionLocal.begin() as ranks_db:
         if not ranks_db.scalar(select(func.count(LevelRank.start_level))):
@@ -797,13 +778,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         demo_ids = db.scalars(select(User.id).where(User.id.like('teste_%'))).all()
         if demo_ids:
             for uid in demo_ids:
-                owned_pokemon_ids=db.scalars(select(PokemonModels['Owned'].id).where(PokemonModels['Owned'].user_id==uid)).all()
-                if owned_pokemon_ids:
-                    db.execute(delete(PokemonModels['FeedLog']).where(PokemonModels['FeedLog'].pokemon_id.in_(owned_pokemon_ids)))
                 for cls, key in ((ReservedCard, None), (VisitorCare, 'visitor_id'), (VisitorCare, 'owner_id'),
                                  (InventoryPack, 'user_id'), (InventoryTreat, 'user_id'),
-                                 (PokemonModels['Trade'],'sender_id'), (PokemonModels['Trade'],'receiver_id'),
-                                 (PokemonModels['Expedition'],'user_id'), (PokemonModels['Encounter'],'user_id'), (PokemonModels['Item'],'user_id'), (PokemonModels['Owned'],'user_id'), (PokemonModels['Account'],'user_id'),
                                  (FavoriteCard, 'user_id'), (Trade, 'sender_id'), (Trade, 'receiver_id'),
                                  (CollectibleDeal,'sender_id'),(CollectibleDeal,'receiver_id'),
                                  (TradeReward, 'user_id'), (MissionProgress, 'user_id'), (MissionActionDaily,'user_id'), (RecantoMissionExtraProgress,'user_id'), (UserExperience,'user_id'), (ExperienceOnce,'user_id'), (ExperienceLog,'user_id'),
@@ -1269,17 +1245,6 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         'favorite_game':'Definir jogos favoritos',
         'favorite_champion':'Definir campeões favoritos',
         'favorite_pokemon':'Definir Pokémons Favoritos',
-        # Metas Pokémon (progresso persistente e atualizado somente pelo backend).
-        'pokemon_starter':'Escolher seu Pokémon inicial',
-        'pokemon_catch':'Capturar Pokémon',
-        'pokemon_trade':'Trocar Pokémon com outro jogador',
-        'pokemon_evolve':'Evoluir Pokémon',
-        'pokemon_heal':'Recuperar Pokémon doente',
-        'pokemon_feed':'Alimentar Pokémon',
-        'pokemon_battle':'Participar de batalha de chefe Pokémon',
-        'pokemon_battle_win':'Vencer chefe Pokémon',
-        'pokemon_expedition_start':'Enviar Pokémon para expedição',
-        'pokemon_expedition_finish':'Concluir expedição Pokémon',
         # Metas Pet: continuam compartilhando os eventos já utilizados.
         'pet':'Acariciar Pet',
         'feed':'Alimentar Pet',
@@ -1287,16 +1252,6 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         'pet_heal':'Recuperar Pet no veterinário',
         'pet_expedition_finish':'Concluir expedição de Pet',
     }
-    POKEMON_MISSION_TYPES={
-        'normal':'Normal','fire':'Fogo','water':'Água','electric':'Elétrico',
-        'grass':'Planta','ice':'Gelo','fighting':'Lutador','poison':'Venenoso',
-        'ground':'Terra','flying':'Voador','psychic':'Psíquico','bug':'Inseto',
-        'rock':'Pedra','ghost':'Fantasma','dragon':'Dragão','dark':'Sombrio',
-        'steel':'Aço','fairy':'Fada',
-    }
-    EXTRA_EVENTS.update({f'pokemon_catch_type_{key}':f'Capturar Pokémon do tipo {name}'
-                         for key,name in POKEMON_MISSION_TYPES.items()})
-
     def extra_period(kind):
         if kind=='unica':return 'ever'
         today=local_day()
@@ -1433,7 +1388,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
     def community_feed(request: Request):
         uid=me(request)
         with SessionLocal() as db:
-            entries=db.scalars(select(FeedEvent).order_by(FeedEvent.id.desc()).limit(60)).all()
+            entries=db.scalars(select(FeedEvent).where(~FeedEvent.kind.like('pokemon_%')).order_by(FeedEvent.id.desc()).limit(60)).all()
             event_ids=[entry.id for entry in entries]
             replies=db.scalars(select(FeedReply).where(FeedReply.event_id.in_(event_ids))
                                .order_by(FeedReply.created_at,FeedReply.id)).all() if entries else []
@@ -2679,7 +2634,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         with SessionLocal() as db:
             return {'items': [{'key':a.key, 'selector':a.selector,
                                'mode':a.mode, 'image_url':a.image_url}
-                              for a in db.scalars(select(UIAsset)).all()]}
+                              for a in db.scalars(select(UIAsset)).all()
+                              if not (a.key.startswith(('pokemon-bg-', 'pokemon-sprite:', 'pokemon-item-'))
+                                      or a.key=='pokemon-nurse-joy')]}
 
     # 0.2.17 — cenários dos Pets guardados em UIAsset (sem migração de banco).
     # Não são seletores CSS; o frontend aplica por espécie ao próprio visualizador 3D.
@@ -3901,16 +3858,9 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             items=[]
             descriptions={m.code:m.description for m in db.scalars(select(RecantoMissionDescription)).all()}
             for mission in missions:
+                if mission.event.startswith('pokemon_'):continue
                 period=extra_period(mission.kind)
                 row=db.get(RecantoMissionExtraProgress,(uid,mission.code,period))
-                # Quem já escolheu o inicial pode cumprir a missão Única sem
-                # precisar apagar seu Pokémon; nunca reconta missões diárias.
-                if mission.event=='pokemon_starter' and mission.kind=='unica' and not row:
-                    if db.get(PokemonModels['Account'],uid):
-                        row=RecantoMissionExtraProgress(user_id=uid,code=mission.code,period=period,
-                            amount=mission.goal,claimed=False)
-                        # Somente as ações futuras originam aviso, não as retroativas.
-                        # O progresso retroativo é retornado, mas não exige gravar em GET.
                 items.append({'code':mission.code,'title':mission.title,
                     'description':descriptions.get(mission.code,''),'goal':mission.goal,
                     'kind':mission.kind,'event':mission.event,'reward':mission.reward,
@@ -3924,11 +3874,8 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         uid=me(request)
         with writing() as db:
             mission=db.get(RecantoMissionExtra,code)
-            if not mission or not mission.enabled:raise HTTPException(404,detail='Missão indisponível')
+            if not mission or not mission.enabled or mission.event.startswith('pokemon_'):raise HTTPException(404,detail='Missão indisponível')
             row=db.get(RecantoMissionExtraProgress,(uid,code,extra_period(mission.kind)))
-            if not row and mission.event=='pokemon_starter' and mission.kind=='unica' and db.get(PokemonModels['Account'],uid):
-                row=RecantoMissionExtraProgress(user_id=uid,code=code,period='ever',amount=mission.goal,claimed=False)
-                db.add(row)
             if not row or row.amount<mission.goal:raise HTTPException(409,detail='Missão ainda não concluída')
             if row.claimed:raise HTTPException(409,detail='Recompensa já resgatada')
             row.claimed=True
@@ -3941,7 +3888,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
     def admin_extra_missions(request:Request):
         only_admin(request)
         with SessionLocal() as db:
-            rows=db.scalars(select(RecantoMissionExtra).order_by(RecantoMissionExtra.code)).all()
+            rows=db.scalars(select(RecantoMissionExtra).where(~RecantoMissionExtra.event.like('pokemon_%')).order_by(RecantoMissionExtra.code)).all()
             descriptions={m.code:m.description for m in db.scalars(select(RecantoMissionDescription)).all()}
             return {'events':EXTRA_EVENTS,'items':[
                 {'code':m.code,'title':m.title,'description':descriptions.get(m.code,''),
@@ -4771,7 +4718,6 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         'economy': 'Moedas, petiscos e inventário de petiscos',
         'cards': 'Cards, pacotes e trocas',
         'pets': 'Pets, expedições e colecionáveis',
-        'pokemon': 'Pokémon: capturas, expedições, batalhas, itens e trocas',
         'missions': 'Missões e resgates diários',
         'badges': 'Selos e progresso das conquistas',
         'favorites': 'Favoritos (Cards, campeões e jogos)',
@@ -4853,15 +4799,6 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if 'pets' in selected:
                 purge(db,VisitorCare,((VisitorCare.visitor_id==target)|(VisitorCare.owner_id==target)) if target else None)
                 for cls in (PetExpedition,InventoryCollectible,UserPet):purge(db,cls,uid_predicate(cls))
-            if 'pokemon' in selected:
-                pokemon_ids=db.scalars(select(PokemonModels['Owned'].id).where(
-                    PokemonModels['Owned'].user_id==target) if target else select(PokemonModels['Owned'].id)).all()
-                if pokemon_ids:
-                    db.execute(delete(PokemonModels['FeedLog']).where(PokemonModels['FeedLog'].pokemon_id.in_(pokemon_ids)))
-                purge(db,PokemonModels['Trade'],
-                    ((PokemonModels['Trade'].sender_id==target)|(PokemonModels['Trade'].receiver_id==target)) if target else None)
-                for cls in (PokemonModels['Expedition'],PokemonModels['Encounter'],PokemonModels['Item'],PokemonModels['Owned'],PokemonModels['Account']):
-                    purge(db,cls,uid_predicate(cls))
             if 'missions' in selected:
                 for cls in (Claim,MissionProgress):purge(db,cls,uid_predicate(cls))
                 purge(db,RecantoMissionExtraProgress,uid_predicate(RecantoMissionExtraProgress))
@@ -4956,7 +4893,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
         if scope not in ('progress','factory') or payload['confirmation'] != 'LIMPAR TUDO':
             raise HTTPException(422, detail='Confirme digitando LIMPAR TUDO')
         with writing() as db:
-            for table in (PokemonModels['FeedLog'],PokemonModels['CaptureAttempt'],PokemonModels['Trade'],PokemonModels['Expedition'],PokemonModels['Encounter'],PokemonModels['Item'],PokemonModels['Owned'],PokemonModels['Account'],MissionActionDaily,RecantoMissionExtraProgress,VisitorCare, FavoriteCard, ReservedCard, InventoryPack, InventoryTreat, InventoryCollectible,
+            for table in (MissionActionDaily,RecantoMissionExtraProgress,VisitorCare, FavoriteCard, ReservedCard, InventoryPack, InventoryTreat, InventoryCollectible,
                           CollectibleDeal,CoinOffer, CardCooldown, PetExpedition, FavoriteGame, FavoriteChampion, FavoritePokemon, TradeReward, Trade, MissionProgress, Claim, UserAchievement,
                           AchievementProgress, UserPet, OwnedCard):
                 db.execute(delete(table))
@@ -4989,12 +4926,3 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
                     db.add(Achievement(title=name, description=desc, icon=icon,
                                        event=event, target=threshold))
         return {'ok': True, 'scope': scope, 'note': 'Contas Discord preservadas; todo progresso reiniciado'}
-
-    # 0.3.20: Pokémon independente dos favoritos (perfil).
-    register_pokemon_adventure(app=app,models=PokemonModels,SessionLocal=SessionLocal,me=me,
-        only_admin=only_admin,writing=writing,utcnow=utcnow,naive_to_utc=naive_to_utc,
-        pokemon_catalog=pokemon_catalog,pokemon_entry=pokemon_entry,wallet=wallet,
-        require_coins=require_coins,publish_feed=publish_feed,stock=stock,grant_card=grant_card,
-        Card=Card,Collectible=Collectible,InventoryCollectible=InventoryCollectible,
-        pokemon_generation=pokemon_generation,feed_card=feed_card,progress=progress,
-        UIAsset=UIAsset,safe_artwork=safe_artwork)

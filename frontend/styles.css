@@ -1,5 +1,5 @@
 :root {
-  font-family: Calibri, 'Segoe UI', Arial, sans-serif;
+  font-family: Calibri, "Segoe UI", Arial, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -57,7 +57,7 @@ button:disabled { opacity: .6; cursor: wait; }
 .profile-demo-note { position: absolute; left: 0; right: 0; top: 58.2%; text-align: center; margin: 0; font-size: 11px; opacity: .75; }
 .bottom-nav { position: absolute; left: 6%; right: 6%; bottom: calc(3.6% + env(safe-area-inset-bottom, 0px)); height: clamp(70px, 9vh, 92px); border-radius: 999px; background: white; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 10px 15px; }
 .nav-item { border: none; background: transparent; position: relative; display: grid; place-items: center; min-width: 0; }
-.nav-item:not(:last-child)::after { content: ''; display: block; position: absolute; top: 16%; bottom: 16%; width: 1px; right: 0; background: var(--rc-ui-f4720b8345,#d2d2d5); }
+.nav-item:not(:last-child)::after { content: ""; display: block; position: absolute; top: 16%; bottom: 16%; width: 1px; right: 0; background: var(--rc-ui-f4720b8345,#d2d2d5); }
 .nav-circle { width: clamp(47px, 12vw, 61px); height: clamp(47px, 12vw, 61px); border-radius: 50%; background: var(--blue); display: grid; place-items: center; transition: transform .2s ease, background .2s ease; color: var(--rc-ui-d14f901611,#fff); }
 .nav-circle svg { width: 50%; height: 50%; }
 .nav-item:active .nav-circle { transform: scale(.88); }
@@ -98,20 +98,20 @@ button:disabled { opacity: .6; cursor: wait; }
 @keyframes pop { from { transform: scale(.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .no-animations *, .no-animations *::before, .no-animations *::after { animation: none !important; transition: none !important; }
 .no-animations .brand-logo { opacity: 1; }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } .brand-logo { opacity: 1; } }
-@media (max-width: 360px) {
+@media  (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } .brand-logo { opacity: 1; } }
+@media  (max-width: 360px) {
   .profile-panel-inner { left: 6%; right: 6%; gap: 5%; }
   .stat { gap: 6px; }
   .bottom-nav { padding-left: 10px; padding-right: 10px; }
   .greeting { font-size: 19px; }
 }
-@media (max-height: 650px) {
+@media  (max-height: 650px) {
   .profile-panel { height: 36%; }
   .stats-list { gap: 7px; }
   .bottom-nav { height: 65px; }
   .nav-circle { height: 43px; width: 43px; }
 }
-@media (min-width: 481px) { body { padding: 0; } .app-frame { box-shadow: 0 0 30px var(--rc-ui-faeffcaa91,#0004); } }
+@media  (min-width: 481px) { body { padding: 0; } .app-frame { box-shadow: 0 0 30px var(--rc-ui-faeffcaa91,#0004); } }
 
 /* Versão 0.2: esconder elementos via atributo HTML (inclusive overlays com display:grid). */
 [hidden] { display: none !important; }
@@ -120,7 +120,7 @@ button:disabled { opacity: .6; cursor: wait; }
 .system-message:empty { display:none; }
 .login-actions { gap: 12px; }
 .modal-panel { max-height: 90dvh; overflow:auto; }
-@media (max-width: 340px) {
+@media  (max-width: 340px) {
   .profile-panel-inner { grid-template-columns:minmax(0,1.25fr) 1px minmax(0,.75fr); gap: 4%; }
   .stat { font-size:12px; gap:5px; }
 }
@@ -174,7 +174,7 @@ button:disabled { opacity: .6; cursor: wait; }
 .card-art{height:160px;width:100%;background:linear-gradient(145deg,var(--rc-ui-be34582702,#d0d7f5),var(--rc-ui-b707711174,#9faaf4));border:3px solid var(--rc-ui-3d17502332,#b5c0df);border-radius:10px;display:grid;place-items:center;color:var(--rc-ui-d14f901611,#fff);font-size:46px;overflow:hidden;}.card-art img,.detail-art img{height:100%;width:100%;object-fit:cover;}.tier-raro .card-art{border-color:var(--rc-ui-b06c544e0e,#6abada)}.tier-lendário .card-art{border-color:var(--rc-ui-374c3982fd,#e7be64)}.tier-prismático .card-art{border-color:var(--rc-ui-795b5b6cf9,#bc86f2);background:linear-gradient(135deg,var(--rc-ui-683fe10756,#b3e2ed),var(--rc-ui-b81a66f4d6,#f1a9ff),var(--rc-ui-a7add77f28,#c5fbef))}
 .detail-art{width:min(100%,300px);aspect-ratio:2/3;background:linear-gradient(135deg,var(--rc-ui-860b2d8bdd,#93a3ee),var(--rc-ui-5954ad9505,#dfb9eb));border:6px solid var(--rc-ui-75c9bdd3de,#d2d5ff);border-radius:14px;display:grid;place-items:center;font-size:70px;color:var(--rc-ui-d14f901611,#fff);overflow:hidden;margin:auto;}.card-detail-dialog{position:relative;text-align:center;max-width:390px;max-height:92dvh;overflow:auto;}.card-detail-dialog h2{color:var(--rc-ui-dd1bcc6e52,#525ac2);}.detail-meta{font-size:13px;line-height:1.5;overflow-wrap:anywhere}.detail-x{position:absolute;right:12px;top:12px;border:0;background:var(--rc-ui-d14f901611,#fff);color:var(--rc-ui-4b260f072d,#555db0);padding:8px;border-radius:50%;z-index:1;}
 .select-input,.text-input{font:inherit;width:100%;padding:11px 10px;border:1px solid var(--rc-ui-bcf4fcffdc,#d5d9ef);border-radius:9px;background:white;color:var(--rc-ui-183339f49f,#454c89);min-width:0;}.game-box label{font-size:12px;font-weight:700;color:var(--rc-ui-b7249e2880,#505a95)}.rates{font-size:11px !important;line-height:1.6 !important;}.section-heading{color:white;margin:12px 0 0}.trade-row{margin-bottom:8px;}.mission-meter{height:9px;background:var(--rc-ui-62b4444668,#e7e9f7);border-radius:6px;overflow:hidden;}.mission-fill{height:100%;background:var(--rc-ui-5ab8c155fa,#6c74e7);border-radius:6px;}.reset-note{font-size:12px;color:white;margin:0;}.pet-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}.pet-preview{width:100%;height:90px;object-fit:contain;}.pet-main-art{max-height:190px;width:100%;object-fit:contain;}.admin-dialog{max-height:90dvh;overflow:hidden;display:flex;flex-direction:column;}.admin-scroll{min-height:0;overflow:auto;display:flex;flex-direction:column;gap:14px;padding-top:14px;}.admin-scroll > p{font-size:13px;color:var(--rc-ui-70ede5c5a6,#626b90)}.admin-field{display:flex;flex-direction:column;gap:5px;}.admin-open{margin-top:7px;}.profile-badges{position:absolute;top:70%;left:7%;right:7%;color:var(--rc-ui-d14f901611,#fff);}.badge-title{display:flex;align-items:center;justify-content:space-between;font-size:14px}.badge-title small{font-size:11px;opacity:.85}.badge-strip{display:flex;gap:5px;overflow-x:auto;margin-top:8px;padding-bottom:4px;}.badge-chip{flex:0 0 auto;width:34px;height:34px;border:1px solid var(--rc-ui-b0736ae1d8,#ffffff55);border-radius:50%;background:var(--rc-ui-3830c77ac8,#ffffff26);font-size:19px;}.badge-chip.locked{filter:grayscale(1);opacity:.4}.profile-rewards{position:absolute;left:9%;right:9%;top:57%;display:flex;flex-direction:column;align-items:center;gap:3px}.profile-rewards p{font-size:11px;color:var(--rc-ui-d14f901611,#fff);margin:0}.toast{position:absolute;z-index:30;left:6%;right:6%;bottom:110px;background:var(--rc-ui-ac75cff02a,#252855);color:var(--rc-ui-d14f901611,#fff);border-radius:12px;padding:14px;text-align:center;font-size:13px;box-shadow:0 6px 20px var(--rc-ui-5c2186ea1c,#0003);}.bottom-nav{gap:0;}.nav-item{flex:1;min-width:0;}.nav-circle{width:clamp(38px,11vw,54px);height:clamp(38px,11vw,54px);}.nav-circle svg{width:55%;height:55%;}
-@media(max-height:680px){.content-page{top:7%;bottom:14%;}.profile-rewards{top:58%}.profile-badges{top:75%;}.card-art{height:135px;}}
+@media (max-height:680px){.content-page{top:7%;bottom:14%;}.profile-rewards{top:58%}.profile-badges{top:75%;}.card-art{height:135px;}}
 
 
 /* ===== Recanto v0.6 — Design refinado e animações leves ===== */
@@ -273,7 +273,7 @@ button:disabled { opacity: .6; cursor: wait; }
 @keyframes focus-card {0%{box-shadow:0 0 0 0 var(--rc-ui-1151b7b47b,#ffd15e88)}50%{box-shadow:0 0 0 8px var(--rc-ui-904636f8af,#ffd15e55)}100%{box-shadow:0 0 0 0 var(--rc-ui-94360e1183,#ffd15e00)} }
 @keyframes pet-bounce {0%,100%{transform:scale(1)}45%{transform:scale(1.035)}70%{transform:scale(.99)} }
 @keyframes spark-fly {from{transform:translateY(8px) scale(.65);opacity:0}30%{opacity:1}to{transform:translateY(-55px) scale(1.12);opacity:0} }
-@media (max-height:770px) {
+@media  (max-height:770px) {
   .profile-panel { height:31%; }
   .profile-rewards { top:56.7%;min-height:37px; }
   .profile-badges { top:66%;padding:10px 12px 7px; }
@@ -281,13 +281,13 @@ button:disabled { opacity: .6; cursor: wait; }
   .badge-strip { margin-top:6px; }
   .admin-open { padding:5px 9px;margin-top:5px; }
 }
-@media (max-width:350px) {
+@media  (max-width:350px) {
   .profile-rewards { gap:7px; }
   .profile-rewards #dailyCoins { font-size:10px;padding:9px 8px; }
   .daily-card-box { flex-wrap:wrap; }
   #dailyCard { max-width:100%; }
 }
-@media (prefers-reduced-motion: reduce) {
+@media  (prefers-reduced-motion: reduce) {
   *,*::before,*::after {animation-duration:.01ms !important; animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important; }
 }
 
@@ -305,8 +305,8 @@ button:disabled { opacity: .6; cursor: wait; }
 .profile-search-action {position:absolute;top:63%;left:7%;max-width:65%;border:1px solid var(--rc-ui-edd47759d4,#ffffff72);background:var(--rc-ui-6ebeb54f98,#ffffffec);color:var(--rc-ui-e21c70555c,#5461dd);font-weight:700;font-size:12px;border-radius:99px;padding:9px 13px;cursor:pointer;transition:transform .18s ease;}
 .profile-search-action:active{transform:scale(.94)}
 .profile-badges{top:71.5%;}
-@media(max-height:770px){.profile-search-action{top:62%;padding:7px 11px;font-size:11px}.profile-badges{top:70%;}}
-@media(max-width:380px){.bottom-nav{left:3%;right:3%;padding:9px 5px}.bottom-nav .nav-circle{width:clamp(32px,9vw,43px);height:clamp(32px,9vw,43px);}}
+@media (max-height:770px){.profile-search-action{top:62%;padding:7px 11px;font-size:11px}.profile-badges{top:70%;}}
+@media (max-width:380px){.bottom-nav{left:3%;right:3%;padding:9px 5px}.bottom-nav .nav-circle{width:clamp(32px,9vw,43px);height:clamp(32px,9vw,43px);}}
 .inventory-row{display:flex;align-items:center;gap:12px;background:white;border-radius:17px;padding:14px;color:var(--rc-ui-b0628342a9,#4c54bd);}
 .inventory-row .item-cover {width:74px;min-width:74px;height:93px;}
 .inventory-row .inventory-meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;}
@@ -338,12 +338,12 @@ button:disabled { opacity: .6; cursor: wait; }
 .reveal-exit{background:var(--rc-ui-3302432436,#ffe5a8);color:var(--rc-ui-17bc179b0d,#684726)}
 .fav-mark{color:var(--rc-ui-dc26cbb46b,#ffcf44);font-size:18px;}
 .detail-actions{display:flex;gap:8px;justify-content:center;margin-top:12px}
-@media(prefers-reduced-motion:reduce){.flip-card{transition:none}.splash-logo,.splash-screen.splash-fade{animation:none}}
+@media (prefers-reduced-motion:reduce){.flip-card{transition:none}.splash-logo,.splash-screen.splash-fade{animation:none}}
 .inventory-row .item-cover {display:grid;place-items:center;flex:none;background:linear-gradient(155deg,var(--rc-ui-ab36fd295c,#e4e7ff),var(--rc-ui-3505e71d76,#b9c1ff));border-radius:13px;font-size:38px;overflow:hidden;}
 .inventory-row .item-cover img{display:block;width:100%;height:100%;object-fit:cover;}
 .profile-search-action{top:65.5%;}
 .profile-badges{top:74%;}
-@media(max-height:770px){.profile-search-action{top:64%;}.profile-badges{top:72%;}}
+@media (max-height:770px){.profile-search-action{top:64%;}.profile-badges{top:72%;}}
 
 .flip-face{box-shadow:0 14px 28px var(--rc-ui-8e1c19491d,#11184245);}
 
@@ -405,20 +405,20 @@ button:disabled { opacity: .6; cursor: wait; }
 .card-detail-dialog .detail-art {transform-origin:center center;}
 .card-detail-dialog {animation:modal-enter .25s var(--ease-app) both;}
 .bottom-nav {isolation:isolate;}
-.bottom-nav::before {content:'';position:absolute;left:-12px;right:-12px;height:35px;top:-30px;z-index:-1;pointer-events:none;background:linear-gradient(to bottom,rgba(75,94,230,0),var(--rc-ui-2e80799fc7,rgba(75,94,230,.66)));border-radius:24px 24px 0 0;}
-@media(max-width:365px) {
+.bottom-nav::before {content:"";position:absolute;left:-12px;right:-12px;height:35px;top:-30px;z-index:-1;pointer-events:none;background:linear-gradient(to bottom,rgba(75,94,230,0),var(--rc-ui-2e80799fc7,rgba(75,94,230,.66)));border-radius:24px 24px 0 0;}
+@media (max-width:365px) {
   .greeting {font-size:14px;gap:5px;}
   .header-actions {gap:5px;}
   .header-actions .settings-button {width:36px;height:36px;}
   .profile-avatar {width:35%;}
   .shop-daily-coins {padding:12px;}
 }
-@media(max-height:700px) {
+@media (max-height:700px) {
   .profile-badges {margin-top:65dvh;}
   .profile-panel {top:20%;height:35%;}
   .profile-avatar {top:13.5%;}
 }
-@media(prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce) {
   .brand-logo,.daily-icon.card-icon-available {animation:none!important;transform:translate(-50%,-50%);}
   .daily-icon.card-icon-available {transform:none;}
   .tile-share {transition:none;}
@@ -433,7 +433,7 @@ button:disabled { opacity: .6; cursor: wait; }
 .public-section + .public-section { margin-top:14px; }
 .public-badges { margin-top:8px; }
 .bottom-nav { overflow:hidden; isolation:isolate; background-clip:padding-box; border:1px solid var(--rc-ui-0fe0e3813a,rgba(255,255,255,.92)); }
-.bottom-nav::before { content:''; position:absolute; inset:0; border-radius:inherit; box-shadow:inset 0 1px 0 var(--rc-ui-b95d02d86b,rgba(255,255,255,.55)); pointer-events:none; }
+.bottom-nav::before { content:""; position:absolute; inset:0; border-radius:inherit; box-shadow:inset 0 1px 0 var(--rc-ui-b95d02d86b,rgba(255,255,255,.55)); pointer-events:none; }
 .shop-daily-coins .white-action { min-width:130px; }
 
 /* modo escuro */
@@ -506,11 +506,11 @@ body.dark-mode .install-app { background:var(--rc-ui-9313786c26,rgba(255,255,255
 .expedition-choice small {font-size:12px;color:var(--rc-ui-9f5d9faae4,#6671aa);line-height:1.5;}
 .expedition-time {color:var(--rc-ui-d14f901611,#fff);font-weight:700;font-size:14px;text-align:center;}
 body.dark-mode .profile-games {background:var(--rc-ui-6f6c3e4567,#eef0ff);color:var(--rc-ui-c97a481a13,#2b3279);}
-@media(max-width:370px){.game-choices{grid-template-columns:1fr 1fr}.game-icon{width:42px;height:42px}}
+@media (max-width:370px){.game-choices{grid-template-columns:1fr 1fr}.game-icon{width:42px;height:42px}}
 /* Barra inferior sem máscara atravessando a superfície branca */
 .bottom-nav::before { display:none; background:none; box-shadow:none; }
 .home-screen::after {
-  content:'';position:absolute;left:0;right:0;
+  content:"";position:absolute;left:0;right:0;
   bottom:calc(3.6% + env(safe-area-inset-bottom, 0px) + clamp(64px,8.5vh,88px));
   height:35px;pointer-events:none;z-index:2;
   background:linear-gradient(to bottom,rgba(75,94,230,0),var(--rc-ui-1ffaecb496,rgba(75,94,230,.92)));
@@ -557,13 +557,13 @@ body.dark-mode .profile-games {background:var(--rc-ui-6f6c3e4567,#eef0ff);color:
 .update-banner button{border:0;border-radius:10px;background:var(--rc-ui-0580bff46d,#5865f2);color:var(--rc-ui-d14f901611,#fff);padding:9px 11px;font-weight:700;white-space:nowrap;}
 .update-banner #updateLater{background:var(--rc-ui-6f6c3e4567,#eef0ff);color:var(--rc-ui-14350a5755,#5662d9);font-size:15px;padding:7px 11px;}
 .update-banner[hidden]{display:none!important;}
-@media (max-width:370px){.update-banner{font-size:11px;gap:5px;padding:8px}.update-banner button{font-size:11px;padding:8px}}
+@media  (max-width:370px){.update-banner{font-size:11px;gap:5px;padding:8px}.update-banner button{font-size:11px;padding:8px}}
 
 .settings-update-check {width:100%;margin-top:14px;padding:12px;border-radius:13px;font-size:13px;}
 
 /* v1.1.0: atualização visual sem fontes externas */
-:root {font-family:Calibri, 'Segoe UI', Arial, sans-serif !important;}
-body,button,input,select,textarea {font-family:Calibri, 'Segoe UI', Arial, sans-serif !important;}
+:root {font-family:Calibri, "Segoe UI", Arial, sans-serif !important;}
+body,button,input,select,textarea {font-family:Calibri, "Segoe UI", Arial, sans-serif !important;}
 h1,h2,h3,h4,h5,h6,.content-head h1,.game-box h3,.section-heading,.badge-title strong {font-weight:700 !important;}
 #loginScreen .brand-logo {animation:none !important;opacity:1 !important;transform:translate(-50%,-50%) !important;will-change:auto !important;}
 #loginScreen .login-actions {gap:18px !important;}
@@ -571,7 +571,7 @@ h1,h2,h3,h4,h5,h6,.content-head h1,.game-box h3,.section-heading,.badge-title st
 #loginScreen .install-app svg {width:27px;height:27px;flex:none;}
 #loginScreen .install-app:disabled {opacity:.7;cursor:default;}
 #profileContent .profile-badges {margin-top:59dvh !important;}
-@media(max-height:760px){#profileContent .profile-badges {margin-top:57dvh !important;}}
+@media (max-height:760px){#profileContent .profile-badges {margin-top:57dvh !important;}}
 /* Modo escuro com superficies e textos verdadeiramente escuros/claros. */
 body.dark-mode .home-screen, body.dark-mode .app-frame {background:linear-gradient(180deg,var(--rc-ui-bd49d64eee,#101947) 0%,var(--rc-ui-568f66d5f4,#202d77) 60%,var(--rc-ui-56d52c9dd0,#17235e) 100%) !important;}
 body.dark-mode .profile-panel,body.dark-mode .profile-badges,body.dark-mode .profile-games,
@@ -636,7 +636,7 @@ body.page-open { overflow:hidden; }
 .public-profile-scroll .game-icons { flex-wrap:wrap; }
 .splash-screen:not([hidden]) { position:fixed; inset:0; z-index:60; min-height:100dvh; width:100%; touch-action:none; overscroll-behavior:none; }
 .splash-screen.splash-fade { pointer-events:auto; }
-@media(min-width:768px){
+@media (min-width:768px){
   .app-frame { box-shadow:0 0 40px var(--rc-ui-05986d8183,#151b5130); }
   .home-screen { max-width:480px; margin:auto; }
   .modal-panel { max-width:620px; }
@@ -644,7 +644,7 @@ body.page-open { overflow:hidden; }
   .admin-page .admin-scroll > .admin-tabs,.admin-page .admin-scroll > p { grid-column:1/-1; }
   .admin-page .admin-scroll > .game-box { align-self:start; }
 }
-@media(max-width:600px){
+@media (max-width:600px){
   .full-page { padding-left:14px; padding-right:14px; }
   .admin-page .admin-scroll { display:flex; flex-direction:column; }
   .admin-page .modal-header h2 { font-size:21px; }
@@ -662,7 +662,7 @@ html,body {height:100%; overflow:hidden; overscroll-behavior:none;}
 /* Evita transformações da tela inteira que cortavam o topo após alternar abas. */
 #profileContent.page-enter,.content-page.page-enter {animation:none!important;transform:none!important;}
 .splash-screen:not([hidden]) {height:var(--recanto-height,100dvh);min-height:0;max-height:var(--recanto-height,100dvh);}
-@media (min-width:768px){.app-frame{height:var(--recanto-height,100dvh);}}
+@media  (min-width:768px){.app-frame{height:var(--recanto-height,100dvh);}}
 
 /* 0.1.1 — navegação administrativa fora da área rolável */
 .admin-page .admin-dialog { min-width:0; }
@@ -685,7 +685,7 @@ body.dark-mode .admin-page .admin-dialog > .admin-tabs {background:var(--rc-ui-1
 .desktop-sidebar,.desktop-topbar,.desktop-identity,.desktop-right-column{display:none;}
 #profileContent{scroll-behavior:auto;}
 /* No telefone, cabeçalho, resumo, selos, jogos e Discord seguem o mesmo espaçamento. */
-@media(max-width:767px){
+@media (max-width:767px){
   #profileContent{display:flex;flex-direction:column;align-items:stretch;gap:var(--recanto-card-gap);padding:0 6% calc(145px + env(safe-area-inset-bottom,0px))!important;}
   #profileContent .desktop-left-column>.profile-header{position:relative;inset:auto!important;flex:0 0 auto;min-height:48px;margin:calc(24px + env(safe-area-inset-top,0px)) 0 0;}
   #profileContent .desktop-left-column>.desktop-profile-hero{position:relative;display:block;flex:none;width:100%;margin-top:clamp(104px,13dvh,160px);height:clamp(300px,36dvh,405px);}
@@ -722,7 +722,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
 .admin-page .game-box>*{max-width:100%;}
 .admin-page .game-box[hidden]{display:none!important;}
 .admin-loading{background:var(--rc-ui-d14f901611,#fff);border-radius:18px;padding:22px;color:var(--rc-ui-70c7305ded,#505ac1);}
-@media(min-width:768px){
+@media (min-width:768px){
   body{background:var(--rc-ui-d0944667ac,#e6eaff);}
   .app-frame,.home-screen{max-width:none!important;width:100%!important;margin:0!important;box-shadow:none!important;}
   .home-screen{background:var(--rc-ui-ad55066e48,#eaf0ff)!important;color:var(--rc-ui-dc935e65f6,#202c78);overflow:hidden;}
@@ -798,7 +798,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
   .admin-page .admin-scroll>.game-box{align-self:start;}
   .admin-page .admin-scroll>p{grid-column:1/-1;}
 }
-@media(min-width:768px) and (max-width:1080px){
+@media (min-width:768px) and (max-width:1080px){
  .desktop-sidebar{width:205px;}
  .desktop-topbar{left:205px;}
  #profileContent{left:205px!important;grid-template-columns:minmax(0,1fr) minmax(250px,.85fr);}
@@ -809,7 +809,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
  .content-page{left:calc(205px + 20px)!important;}
  .desktop-user{display:none;}
 }
-@media(min-width:768px) and (max-width:890px){
+@media (min-width:768px) and (max-width:890px){
  #profileContent{grid-template-columns:minmax(0,1fr);}
  #profileContent>.desktop-right-column{grid-column:1;grid-row:5;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
  #profileContent .desktop-left-column>.profile-header,#profileContent .desktop-left-column>.desktop-profile-hero,#profileContent>.profile-badges,#profileContent>.profile-games{grid-column:1;}
@@ -820,7 +820,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
 /* 0.1.2: títulos e ritmo visual consistentes. */
 .desktop-profile-title{display:none;}
 .desktop-pet-emoji{font-size:70px;line-height:1.6;text-align:center;}
-@media(min-width:768px){
+@media (min-width:768px){
   #profileContent .profile-header .greeting #userName{display:none;}
   #profileContent .profile-header .desktop-profile-title{display:inline;font-size:clamp(23px,2.4vw,31px);}
   .desktop-pet-widget h2,.profile-discord-widget h2{font-size:19px;}
@@ -830,11 +830,11 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
 }
 
 /* Renderização diferida para listas extensas de cards, inventário, loja e missões. */
-@supports(content-visibility:auto){
+@supports (content-visibility:auto){
   .card-tile,.inventory-row,.product-card,.mission-card{content-visibility:auto;contain-intrinsic-size:auto 245px;}
 }
 /* No PC, abas internas precisam contrastar com o fundo claro do dashboard. */
-@media(min-width:768px){
+@media (min-width:768px){
   .content-page .content-head h1,
   .content-page .content-head>span,
   .content-page .mission-category-title{color:var(--rc-ui-a8824ca52e,#263785);}
@@ -846,7 +846,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
 
 /* Recanto 0.1.3 — rolagem estável e perfil organizado em colunas independentes. */
 #profileContent .desktop-left-column{min-width:0;}
-@media(max-width:767px){
+@media (max-width:767px){
   #profileContent .desktop-left-column{display:contents;}
   #profileContent .desktop-left-column>.profile-header{
     position:relative!important;inset:auto!important;flex:0 0 auto;min-height:48px;
@@ -857,7 +857,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
     margin-top:clamp(104px,13dvh,160px);height:clamp(300px,36dvh,405px);
   }
 }
-@media(min-width:768px){
+@media (min-width:768px){
   #profileContent{
     height:auto!important;min-height:0!important;max-height:none!important;
     top:81px!important;bottom:0!important;overflow-y:auto!important;overflow-x:hidden!important;
@@ -886,11 +886,11 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
   #profileContent .profile-badges{min-height:0;}
   #profileContent .profile-games{min-height:0;}
 }
-@media(min-width:768px) and (max-width:1080px){
+@media (min-width:768px) and (max-width:1080px){
   #profileContent{grid-template-columns:minmax(0,1fr) minmax(245px,.85fr);}
   #profileContent .desktop-left-column>.desktop-profile-hero{height:365px;flex-basis:365px;}
 }
-@media(min-width:768px) and (max-width:890px){
+@media (min-width:768px) and (max-width:890px){
   #profileContent{grid-template-columns:minmax(0,1fr)!important;}
   #profileContent .desktop-left-column{grid-column:1;grid-row:1;}
   #profileContent>.desktop-right-column{grid-column:1;grid-row:2;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
@@ -932,7 +932,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
   overflow:hidden;
 }
 #cardsPane .filtered-cards{grid-column:1 / -1;min-width:0;}
-@media(max-width:767px){
+@media (max-width:767px){
   #cardsPane .featured-collection-banner{width:100%;max-width:100%;height:154px;min-height:154px;max-height:154px;}
 }
 /* Modelos 3D glb ou embed oficial Khada: cena contida no painel do pet. */
@@ -945,14 +945,14 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
 .pet-visual .model-error{position:absolute;bottom:8px;left:10px;right:10px;color:var(--rc-ui-3398a5d0d3,#a33047);font-size:11px;line-height:1.3;text-align:center;}
 
 /* O iframe de TFT nao deve capturar gestos de rolagem na tela pequena. */
-@media(max-width:767px){.pet-visual .pet-khada-embed{pointer-events:none;}}
+@media (max-width:767px){.pet-visual .pet-khada-embed{pointer-events:none;}}
 
 
 /* =============================================================
    RECANTO 0.1.5 — Ajustes exclusivos para desktop (>= 768 px).
    Cards: fluxo sem colunas automaticas, legibilidade e resumo/destaque lado a lado.
    ============================================================= */
-@media (min-width:768px){
+@media  (min-width:768px){
   .desktop-sidebar-note{display:none!important;}
   .desktop-topbar{padding:12px 25px;gap:22px;}
   .desktop-search{min-height:50px;font-size:16px;}
@@ -1035,13 +1035,13 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
   .public-profile-layout .public-favorite .item-cover{max-height:180px;object-fit:contain;margin-bottom:14px;}
   .public-profile-layout .social-actions{display:flex;flex-wrap:wrap;gap:10px;}
 }
-@media(min-width:768px) and (max-width:1080px){
+@media (min-width:768px) and (max-width:1080px){
   #cardsPane .catalog-highlights{grid-template-columns:minmax(220px,.9fr) minmax(230px,1.1fr);}
   #cardsPane .card-grid{gap:12px;}
   .public-profile-page{left:205px!important;}
   .public-profile-layout{grid-template-columns:minmax(0,1fr) minmax(220px,.84fr);}
 }
-@media(min-width:768px) and (max-width:890px){
+@media (min-width:768px) and (max-width:890px){
   #cardsPane .catalog-highlights{grid-template-columns:1fr;}
   #cardsPane .card-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;}
   #cardsPane .trade-columns,.public-profile-layout{grid-template-columns:1fr;}
@@ -1059,7 +1059,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
 .pet-visual .pet-fallback{z-index:0;}
 .pet-visual .model-error{z-index:3;background:var(--rc-ui-0f1384040f,#fff9);border-radius:7px;padding:5px;}
 
-@media(min-width:768px){
+@media (min-width:768px){
  .public-profile-hero .profile-thumb{display:grid;place-items:center;
    background:linear-gradient(145deg,var(--rc-ui-bb1a9fdb39,#b9c6fb),var(--rc-ui-d0944667ac,#e6eaff));color:var(--rc-ui-e08c322b57,#6679cd);font-size:56px;line-height:1;}
 }
@@ -1068,7 +1068,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
    RECANTO 0.1.6 — layout desktop e ajuste específico do painel mobile.
    Todas as alterações amplas abaixo ficam restritas a telas >= 768px.
    ================================================================ */
-@media(max-width:767px){
+@media (max-width:767px){
   /* A caixa branca do resumo nao deve crescer com a altura do aparelho. */
   #profileContent .desktop-left-column>.desktop-profile-hero{
     height:clamp(256px,29dvh,332px)!important;
@@ -1100,7 +1100,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
   #profileContent .desktop-left-column>.profile-header{margin-top:calc(24px + env(safe-area-inset-top,0px));}
 }
 
-@media(min-width:768px){
+@media (min-width:768px){
   :root{--recanto-card-gap:16px;}
   /* Navegacao principal sem link duplicado para a comunidade. */
   .desktop-side-links{gap:8px;}
@@ -1218,7 +1218,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
   .public-profile-layout .public-badges-row{gap:14px;}
   .public-profile-layout .badge-chip{width:65px;height:65px;font-size:30px;}
 }
-@media(min-width:768px) and (max-width:1220px){
+@media (min-width:768px) and (max-width:1220px){
   .desktop-wallet-summary{gap:5px;}
   .desktop-coins,.desktop-resource{min-width:0;padding:8px;gap:6px;}
   .desktop-coins b,.desktop-resource b{font-size:15px;}
@@ -1235,7 +1235,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
   .public-hero-favorite{width:110px;}
   .public-hero-favorite .item-cover{height:155px;}
 }
-@media(min-width:768px) and (max-width:1024px){
+@media (min-width:768px) and (max-width:1024px){
   .desktop-user{display:none;}
   #missionPane{gap:10px;}
   #missionPane .mission-card{padding:12px;min-height:298px;}
@@ -1244,7 +1244,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
   #cardsPane .catalog-highlights{grid-template-columns:minmax(0,1.25fr) minmax(190px,.75fr)!important;}
   #petPane .pet-grid{gap:10px;}
 }
-@media(min-width:768px) and (max-width:900px){
+@media (min-width:768px) and (max-width:900px){
   #profileContent .desktop-identity{left:178px;right:120px;}
   #profileContent .last-card{width:100px;top:62px;}
   #profileContent .last-card-art{height:170px;max-height:170px;}
@@ -1254,8 +1254,8 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
 
 /* 0.1.6: layout compacto para notebooks e tablets em modo PC. */
 .public-back-search-top{display:none!important;}
-@media(min-width:768px){.public-back-search-top{display:inline-flex!important;}}
-@media(min-width:768px) and (max-width:1320px){
+@media (min-width:768px){.public-back-search-top{display:inline-flex!important;}}
+@media (min-width:768px) and (max-width:1320px){
   #profileContent{grid-template-columns:minmax(0,1fr)!important;}
   #profileContent .desktop-left-column{grid-column:1!important;grid-row:1!important;}
   #profileContent>.desktop-right-column{grid-column:1!important;grid-row:2!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;}
@@ -1266,13 +1266,13 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
   #profileContent .last-card{width:clamp(120px,15vw,182px)!important;right:22px!important;top:20px!important;height:275px!important;}
   #profileContent .last-card-art{height:230px!important;max-height:230px!important;}
 }
-@media(min-width:768px) and (max-width:880px){
+@media (min-width:768px) and (max-width:880px){
   #profileContent .desktop-identity{left:150px!important;right:150px!important;top:85px!important;}
   #profileContent .last-card{width:120px!important;}
   #profileContent .last-card-art{height:198px!important;max-height:198px!important;}
   #profileContent .desktop-identity h2{font-size:23px!important;}
 }
-@media(min-width:768px) and (max-width:1320px){
+@media (min-width:768px) and (max-width:1320px){
   /* Linhas max-content evitam que a coluna do pet passe por baixo dos selos. */
   #profileContent{grid-template-rows:max-content max-content!important;grid-auto-rows:max-content!important;}
 }
@@ -1281,7 +1281,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
    RECANTO 0.1.8 — espacamento e paginacao de cards no celular.
    O desktop mantem suas regras de 0.1.6.
    =============================================================== */
-@media (max-width:767px){
+@media  (max-width:767px){
   #cardsScreen .scroll-content{gap:22px;}
   #cardsPane{gap:20px;min-width:0;}
   #cardsPane .catalog-highlights{
@@ -1326,7 +1326,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
    fora da caixa e sem depender de % da altura total da tela.
    Nao modifica o perfil desktop.
    ================================================================ */
-@media (max-width:767px){
+@media  (max-width:767px){
   #profileContent .desktop-left-column>.desktop-profile-hero{
     height:clamp(290px,33dvh,335px)!important;
     min-height:290px;
@@ -1401,7 +1401,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
 }
 
 /* RECANTO 0.1.10 — foto maior no resumo mobile, sem alterar desktop. */
-@media (max-width:767px){
+@media  (max-width:767px){
   #profileContent .desktop-left-column>.desktop-profile-hero>.profile-avatar,
   #profileContent .profile-avatar{
     width:clamp(184px,48vw,218px)!important;
@@ -1422,9 +1422,9 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
 }
 
 /* RECANTO 0.1.11 — CORRECOES VISUAIS EXCLUSIVAS DO DESKTOP */
-@media (min-width:768px){
+@media  (min-width:768px){
   #toast.toast{position:fixed!important;z-index:9999;left:auto!important;right:24px!important;top:94px!important;bottom:auto!important;width:min(340px,calc(100vw - 48px))!important;max-width:340px;padding:13px 28px 13px 16px;font-size:14px;line-height:1.4;cursor:pointer;border-radius:14px;text-align:left;box-shadow:0 7px 24px var(--rc-ui-7a02367d58,#171c5b3d);}
-  #toast.toast::after{content:'×';position:absolute;right:11px;top:6px;font-size:22px;color:var(--rc-ui-d14f901611,#fff);opacity:.85;}
+  #toast.toast::after{content:"×";position:absolute;right:11px;top:6px;font-size:22px;color:var(--rc-ui-d14f901611,#fff);opacity:.85;}
   #shopScreen .shop-daily-coins{margin:0!important;width:min(100%,490px)!important;max-width:490px!important;min-height:94px!important;padding:16px 18px!important;gap:15px;justify-content:flex-start;}
   #shopScreen .shop-daily-text{flex:0 1 190px!important;}
   #shopScreen .shop-daily-coins .white-action{flex:0 0 auto;min-height:42px;white-space:nowrap;}
@@ -1458,7 +1458,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
 #cardModal:not([hidden]){position:fixed!important;inset:0!important;z-index:99999!important;}
 
 /* RECANTO 0.1.12 — ajustes restritos ao PC; mobile preservado. */
-@media(min-width:768px){
+@media (min-width:768px){
   /* Identidade do perfil sem contato com a foto */
   #profileContent .desktop-identity{
     left:clamp(244px,21vw,300px)!important;
@@ -1496,7 +1496,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
   #profileContent .profile-discord-widget{min-height:540px!important;}
   #shopScreen .shop-daily-coins{margin-left:0!important;margin-right:auto!important;align-self:flex-start!important;justify-self:start!important;}
 }
-@media(min-width:768px) and (max-width:1160px){
+@media (min-width:768px) and (max-width:1160px){
   #profileContent .desktop-identity{left:clamp(170px,19vw,244px)!important;right:135px!important;top:106px!important;}
   #profileContent .desktop-identity h2{font-size:clamp(20px,2.4vw,27px)!important;}
 }
@@ -1526,7 +1526,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
 #cardModal.favorite-fullscreen .card-detail-dialog p {color:var(--rc-ui-6f6c3e4567,#eef0ff);margin:6px 0;}
 #cardModal.favorite-fullscreen .detail-x {position:sticky;top:0;float:right;background:var(--rc-ui-d14f901611,#fff);color:var(--rc-ui-e93521f0eb,#29336d);padding:11px 14px;font-size:19px;z-index:5;}
 #cardModal.favorite-fullscreen .detail-actions {justify-content:center;}
-@media(max-width:767px){
+@media (max-width:767px){
   #cardModal.favorite-fullscreen .card-detail-dialog{padding:12px 4px 24px;}
   #cardModal.favorite-fullscreen .detail-art{max-width:88vw;max-height:72dvh;}
   #cardModal.favorite-fullscreen .detail-art img{max-height:72dvh;}
@@ -1534,7 +1534,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
 
 /* Recanto 0.1.14 — recompensa diária da Loja compacta à DIREITA no PC.
    O bloco é independente da grade de produtos e não desloca os itens. */
-@media (min-width: 768px) {
+@media  (min-width: 768px) {
   #shopScreen #shopContent > .shop-daily-coins {
     box-sizing: border-box !important;
     width: min(100%, 385px) !important;
@@ -1584,7 +1584,7 @@ body.dark-mode .discord-widget-help{color:var(--rc-ui-6643af9cc1,#bac6f2);}
 .feed-like{border:1px solid var(--rc-ui-ce63a71946,#d8deff);background:var(--rc-ui-89b20e9396,#f1f3ff);color:var(--rc-ui-85f98266ec,#5965df);padding:8px 14px;border-radius:99px;font-weight:800;font-size:15px;}
 .feed-like.is-liked{color:var(--rc-ui-77a029edd2,#c83d72);background:var(--rc-ui-639de18cd3,#fff1f5);border-color:var(--rc-ui-814542ab8c,#ffd2df);}
 .feed-empty{background:var(--rc-ui-d14f901611,#fff);color:var(--rc-ui-095efb9243,#4a5988);border-radius:18px;padding:30px;text-align:center;}
-@media(min-width:768px){.feed-screen .scroll-content{max-width:920px;margin:0 auto;width:100%;}.feed-entry{padding:21px;gap:18px;}.feed-avatar{width:68px;height:68px;}.feed-head{font-size:19px;}.feed-description{font-size:18px;}.feed-time{font-size:14px;}.feed-info{color:var(--rc-ui-5f2a1ebc33,#354e9a);font-size:15px;}}
+@media (min-width:768px){.feed-screen .scroll-content{max-width:920px;margin:0 auto;width:100%;}.feed-entry{padding:21px;gap:18px;}.feed-avatar{width:68px;height:68px;}.feed-head{font-size:19px;}.feed-description{font-size:18px;}.feed-time{font-size:14px;}.feed-info{color:var(--rc-ui-5f2a1ebc33,#354e9a);font-size:15px;}}
 
 /* RECANTO 0.1.17 — tema escuro consistente e Feed */
 body.dark-mode .full-page, body.dark-mode .admin-page, body.dark-mode .public-profile-page,
@@ -1637,7 +1637,7 @@ body.dark-mode .feed-like.is-liked {background:var(--rc-ui-1b5e7f0b2c,#522d4a) !
 body.dark-mode .feed-preview{background:var(--rc-ui-b441f522d7,#243552);border-color:var(--rc-ui-0c20303408,#7185b0);}
 /* imagens inteiras nas prévias, sem corte das extremidades do pet */
 .feed-preview img {object-fit:contain !important;object-position:center !important;}
-@media (min-width:768px){.feed-entity .feed-preview{width:160px;height:160px;}}
+@media  (min-width:768px){.feed-entity .feed-preview{width:160px;height:160px;}}
 /* Evita que a prévia do pet da primeira publicação seja cortada no topo do Feed. */
 .feed-entry:first-child .feed-preview {top:calc(100% + 8px);bottom:auto;}
 body.dark-mode .mission-category-title,body.dark-mode .mission-placeholder,
@@ -1745,7 +1745,7 @@ body.dark-mode .feed-pet-name {color:var(--rc-ui-d14f901611,#fff) !important;}
 /* Pull-to-refresh do celular: a página acompanha o dedo, com spinner visível.
    A navegação inferior e os modais NÃO se movem. */
 .pull-refresh-indicator {display:none;}
-@media(max-width:767px) {
+@media (max-width:767px) {
   .pull-refresh-indicator {
     position:absolute;top:calc(15px + env(safe-area-inset-top,0px));left:50%;
     z-index:15;display:grid;place-items:center;
@@ -1824,7 +1824,7 @@ body.dark-mode #missionsScreen .reset-note {
 
 /* No PC, foto do Poro grande e QUADRADA: preserva a imagem inteira.
    Sem alterar a grade quadrada das especies nem o layout mobile. */
-@media (min-width:768px) {
+@media  (min-width:768px) {
   #petPane .pet-visual-large {
     width: min(100%, 590px) !important;
     height: auto !important;
@@ -1870,12 +1870,12 @@ body.dark-mode #missionsScreen .reset-note {
   transition:transform .18s var(--ease-app,ease), background .18s ease,
              border-color .18s ease !important;
 }
-@media (hover:hover) {
+@media  (hover:hover) {
   .game-icon:hover {transform:translateY(-2px);}
 }
 .game-icon:active {transform:scale(.92);}
 .game-icon:focus-visible {outline:3px solid var(--rc-ui-040bda484a,#ffbd4b);outline-offset:2px;}
-@media (prefers-reduced-motion:reduce){.game-icon{transition:none !important;}}
+@media  (prefers-reduced-motion:reduce){.game-icon{transition:none !important;}}
 
 /* RECANTO 0.1.21 — Inventário, expedições e colecionáveis. */
 .collectible-grid {display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:14px;margin-top:12px;}
@@ -1891,7 +1891,7 @@ body.dark-mode #missionsScreen .reset-note {
 .poro-nickname-label {display:flex;flex-direction:column;gap:8px;font-size:14px;font-weight:700;margin:14px 0;}
 .poro-nickname {min-height:44px;}
 /* Espaço fixo entre o ícone do cabeçalho e o nome do usuário, apenas no celular. */
-@media(max-width:767px) {
+@media (max-width:767px) {
  #profileContent .greeting {gap:14px;}
  #profileContent .greeting .discord-mark {margin-right:5px;}
  /* Afasta o símbolo de atualização da saudação ao puxar a página. */
@@ -1928,7 +1928,7 @@ body.dark-mode .expedition-cover {background:var(--rc-ui-301100ccea,#263655)!imp
 
 /* 0.1.21 — Transição de abas e indicação lateral, exclusivamente no celular. */
 .recanto-swipe-guide{display:none;}
-@media(max-width:767px){
+@media (max-width:767px){
   .recanto-swipe-guide:not([hidden]){
     position:absolute;left:0;right:0;top:clamp(170px,38dvh,440px);height:55px;
     display:flex;align-items:center;justify-content:space-between;
@@ -1962,12 +1962,12 @@ body.dark-mode .expedition-cover {background:var(--rc-ui-301100ccea,#263655)!imp
 @keyframes recanto-page-in-left{from{opacity:.65;transform:translate3d(-95%,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 @keyframes recanto-page-out-left{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:.3;transform:translate3d(-32%,0,0)}}
 @keyframes recanto-page-out-right{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:.3;transform:translate3d(32%,0,0)}}
-@media(prefers-reduced-motion:reduce){
+@media (prefers-reduced-motion:reduce){
  .recanto-swipe-guide > span{animation:none!important;}
  .recanto-slide-enter,.recanto-slide-exit{animation:none!important;transform:none!important;}
 }
 /* Ícone de atualização fica acima do cabeçalho mobile, sem encostar na saudação. */
-@media(max-width:767px){
+@media (max-width:767px){
   #pullRefreshIndicator.pull-refresh-indicator {
     top:calc(3px + env(safe-area-inset-top,0px));
   }
@@ -1999,7 +1999,7 @@ body.dark-mode .expedition-cover {background:var(--rc-ui-301100ccea,#263655)!imp
 #cardsPane[data-mode="trocas"] .trade-history-group .section-heading{margin:0;font-size:19px;}
 #cardsPane[data-mode="trocas"] .trade-pending{gap:20px;}
 #cardsPane[data-mode="trocas"] .trade-row{display:flex;flex-direction:column;align-items:stretch;gap:10px;}
-@media(max-width:767px){
+@media (max-width:767px){
   #cardsPane[data-mode="trocas"] .trade-columns{display:flex!important;flex-direction:column!important;gap:22px!important;grid-template-columns:none!important;padding:0!important;margin:0!important;width:100%!important;}
   #cardsPane[data-mode="trocas"] .trade-section{display:flex!important;flex-direction:column!important;gap:14px!important;width:100%!important;margin:0!important;padding:0!important;}
   #cardsPane[data-mode="trocas"] .trade-section>.game-box{width:100%!important;margin:0!important;padding:20px!important;border-radius:20px!important;}
@@ -2014,7 +2014,7 @@ body.dark-mode .expedition-cover {background:var(--rc-ui-301100ccea,#263655)!imp
 }
 
 /* Indicações de deslize aparecem só por cinco segundos, com fade leve. */
-@media(max-width:767px){
+@media (max-width:767px){
   .recanto-swipe-guide:not([hidden]){z-index:4;animation:recanto-guide-in .5s ease-out both;}
   .recanto-swipe-guide.recanto-guide-fadeout:not([hidden]){animation:recanto-guide-out .42s ease-in forwards;}
   .recanto-swipe-guide > span,.recanto-swipe-guide .recanto-swipe-guide-right{
@@ -2027,7 +2027,7 @@ body.dark-mode .expedition-cover {background:var(--rc-ui-301100ccea,#263655)!imp
 }
 @keyframes recanto-guide-in{from{opacity:0}to{opacity:1}}
 @keyframes recanto-guide-out{from{opacity:1}to{opacity:0}}
-@media(prefers-reduced-motion:reduce){.recanto-swipe-guide:not([hidden]),.recanto-swipe-guide.recanto-guide-fadeout:not([hidden]),.recanto-swipe-guide > span{animation:none!important;}}
+@media (prefers-reduced-motion:reduce){.recanto-swipe-guide:not([hidden]),.recanto-swipe-guide.recanto-guide-fadeout:not([hidden]),.recanto-swipe-guide > span{animation:none!important;}}
 /* Ritmo único dos campos e descrições nos formulários de negociação. */
 #cardsPane[data-mode="trocas"] .trade-section>.game-box {gap:12px;}
 #cardsPane[data-mode="trocas"] .trade-section>.game-box>p {margin:0!important;}
@@ -2045,7 +2045,7 @@ body.dark-mode #homeScreen #cardsPane .card-pagination {
 }
 #cardsPane .catalog-highlights{padding:0!important;border-radius:0!important;}
 #cardsPane .card-pagination{border-radius:0!important;}
-@media(max-width:767px){
+@media (max-width:767px){
   #cardsPane .card-pagination{padding:14px 0 24px!important;margin:10px 0 22px!important;}
 }
 
@@ -2060,7 +2060,7 @@ body.dark-mode #homeScreen #cardsPane[data-mode="trocas"] .trade-history-group{
 }
 #cardsPane[data-mode="trocas"] .trade-section .game-box{align-self:stretch;}
 #cardsPane[data-mode="trocas"] .trade-pending .section-heading{margin:0!important;}
-@media(min-width:768px){
+@media (min-width:768px){
   #cardsPane[data-mode="trocas"] .trade-columns{
     display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
     gap:24px!important;align-items:start;width:100%;
@@ -2073,7 +2073,7 @@ body.dark-mode #homeScreen #cardsPane[data-mode="trocas"] .trade-history-group{
   #cardsPane[data-mode="trocas"] .trade-history-group{min-width:0;gap:12px;}
   #cardsPane[data-mode="trocas"] .trade-section>.game-box{padding:24px!important;}
 }
-@media(min-width:768px) and (max-width:960px){
+@media (min-width:768px) and (max-width:960px){
   #cardsPane[data-mode="trocas"] .trade-columns{grid-template-columns:1fr!important;}
   #cardsPane[data-mode="trocas"] .trade-pending{grid-column:1;grid-template-columns:1fr!important;}
 }
@@ -2089,11 +2089,11 @@ body.dark-mode #homeScreen #cardsPane[data-mode="trocas"] .trade-history-group{
 #petPane .poro-item-empty{margin:0;font-size:14px;line-height:1.5;}
 #petPane .poro-expeditions-column .expedition-choice{gap:12px;}
 #petPane .poro-expeditions-column .expedition-choice .soft-action{align-self:flex-start;}
-@media(min-width:768px){
+@media (min-width:768px){
   #petPane .poro-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:24px;}
   #petPane .poro-main-card .pet-visual-large{height:clamp(240px,29vw,370px)!important;}
 }
-@media(max-width:767px){
+@media (max-width:767px){
   #petPane .poro-inline-control,#petPane .poro-equipment-control{flex-wrap:wrap;}
   #petPane .poro-inline-control button,#petPane .poro-equipment-control button{flex:1 0 100%;}
 }
@@ -2115,7 +2115,7 @@ body.dark-mode #homeScreen #cardsPane[data-mode="trocas"] .trade-history-group{
 
 /* Perfil mobile: retrato compacto com item equipado, sem carregar outro modelo 3D. */
 #profileContent .mobile-pet-widget{display:none;}
-@media(max-width:767px){
+@media (max-width:767px){
   #profileContent .mobile-pet-widget:not([hidden]){
     display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;
     border-radius:20px;padding:16px;background:var(--rc-ui-d14f901611,#fff);color:var(--rc-ui-79fa534c31,#303872);
@@ -2202,7 +2202,7 @@ body.dark-mode #cardModal.profile-info-fullscreen .profile-info-status{
   max-width:24px!important;max-height:24px!important;object-fit:contain;
 }
 /* Um espaço real no final da região rolável, preservado depois do último card. */
-@media (min-width:768px){
+@media  (min-width:768px){
   .content-page .scroll-content{padding-bottom:84px!important;scroll-padding-bottom:84px;}
   #profileContent{padding-bottom:70px!important;}
   #publicProfilePage .scroll-content{padding-bottom:84px!important;}
@@ -2231,10 +2231,10 @@ body:not(.dark-mode) #petPane .poro-name-banner{color:var(--rc-ui-1f30f83311,#27
 #petPane .poro-care-actions-card{display:flex;flex-direction:column;gap:14px;}
 #petPane .poro-care-actions-card .select-input{width:100%;}
 #petPane .poro-rescue-card>.main-action{margin-top:14px;}
-@media(min-width:768px){
+@media (min-width:768px){
   #petPane .poro-layout{grid-template-columns:minmax(0,1.02fr) minmax(0,.98fr);align-items:start;gap:24px;}
 }
-@media(max-width:767px){
+@media (max-width:767px){
   #petPane .poro-name-banner{font-size:24px;min-height:50px;}
   #petPane .poro-main-card .pet-visual-large{height:clamp(250px,46vw,340px)!important;}
 }
@@ -2250,17 +2250,17 @@ body:not(.dark-mode) #petPane .poro-name-banner{color:var(--rc-ui-1f30f83311,#27
 .public-member-cards-grid .card-art{height:auto;aspect-ratio:3/4;width:100%;border-radius:10px;}
 .public-member-cards-grid .card-tile strong{white-space:normal;line-height:1.3;overflow-wrap:anywhere;}
 .public-member-cards-grid .card-tile small{line-height:1.2;}
-@media(min-width:768px){
+@media (min-width:768px){
   .public-profile-aside .public-member-cards-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
-@media(max-width:767px){
+@media (max-width:767px){
   .public-member-cards{margin-top:16px;}
   .public-member-cards-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
 }
 
 
 /* RECANTO 0.1.25 — Barra de busca segue o tema; ícone apenas de usuário. */
-@media(min-width:768px){
+@media (min-width:768px){
   .desktop-search{
     background:var(--rc-ui-80751746fd,#f7f8ff) !important;
     color:var(--rc-ui-8aee9aa6da,#28365e) !important;
@@ -2296,7 +2296,7 @@ body.dark-mode #profilesPane .profiles-search::placeholder{color:var(--rc-ui-c6d
 
 
 /* RECANTO 0.2.0 — lista de adoção sem colunas apertadas no celular. */
-@media (max-width: 767px) {
+@media  (max-width: 767px) {
   #petPane .pet-grid {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) !important;
@@ -2362,14 +2362,14 @@ body.dark-mode .admin-artwork-preview{background:var(--rc-ui-4fef8ee70f,rgba(8,1
 button.action-pending{position:relative;cursor:progress!important;opacity:.8;pointer-events:none;}
 button.action-pending:not(.feed-like){padding-right:clamp(26px,2.5vw,36px)!important;}
 button.action-pending:not(.feed-like)::after{
-  content:'';position:absolute;right:9px;top:calc(50% - 6px);width:12px;height:12px;
+  content:"";position:absolute;right:9px;top:calc(50% - 6px);width:12px;height:12px;
   border-radius:50%;border:2px solid currentColor;border-right-color:transparent;
   animation:recanto-action-spin .8s linear infinite;pointer-events:none;
 }
 @keyframes recanto-action-spin{to{transform:rotate(360deg);}}
 .feed-like.like-awaiting-confirmation{opacity:.7;cursor:progress!important;}
 .coins-awaiting-confirmation{opacity:.75;text-decoration:underline dotted;text-underline-offset:3px;}
-@media(prefers-reduced-motion:reduce){button.action-pending::after{animation:none!important;}}
+@media (prefers-reduced-motion:reduce){button.action-pending::after{animation:none!important;}}
 
 
 /* Recanto 0.2.2 — Troca segura de Poros e espera após falecimento. */
@@ -2390,7 +2390,7 @@ body.dark-mode #petPane .poro-home-badge{background:var(--rc-ui-828e3b3514,#3046
 /* O retrato dá prioridade ao modelo 3D, sem cortar o colecionável equipado. */
 #petPane .poro-main-card .pet-visual-large{min-height:340px!important;height:clamp(340px,38vw,540px)!important;}
 #petPane .poro-main-card .pet-visual-large model-viewer{width:100%;height:100%;}
-@media(max-width:767px){
+@media (max-width:767px){
   #petPane .poro-main-card .pet-visual-large{min-height:290px!important;height:clamp(290px,100vw,450px)!important;}
 }
 /* Cuidados de outros membros, agrupados no próprio bloco do Poro visitado. */
@@ -2449,7 +2449,7 @@ body.dark-mode .poro-preview-name{color:var(--rc-ui-d14f901611,#fff);}
 body.dark-mode .poro-preview-status{color:var(--rc-ui-2fc35cbe43,#f2f5ff);background:var(--rc-ui-8ddd29dc46,#344773);}
 body.dark-mode .poro-stat-track{background:var(--rc-ui-99471bcb1e,#37486e);}
 body.dark-mode .poro-stat-header{color:var(--rc-ui-ad55066e48,#eaf0ff);}
-@media(max-width:767px){
+@media (max-width:767px){
   #profileContent .mobile-pet-widget:not([hidden]){
     gap:12px!important;padding:18px!important;border-radius:22px;
   }
@@ -2540,7 +2540,7 @@ body.dark-mode .poro-stat-header{color:var(--rc-ui-ad55066e48,#eaf0ff);}
 .admin-collection-frame-editor .admin-frame-preview>small{max-width:230px;line-height:1.55;}
 .admin-style-help{line-height:1.5;font-size:12px;opacity:.85;}
 .admin-rarity-frame-row{display:flex;flex-direction:column;gap:8px;margin:14px 0;padding:12px;border:1px solid var(--rc-ui-5ff983b58a,rgba(98,114,203,.18));border-radius:14px;background:var(--rc-ui-d9a3b7296f,rgba(88,101,242,.04));}
-@media(max-width:767px){
+@media (max-width:767px){
   .recanto-framed-art{--recanto-frame-thickness:clamp(7px,1.9vw,10px);}
   .detail-art.recanto-framed-art{--recanto-frame-thickness:10px;}
   #cardModal.favorite-fullscreen .detail-art.recanto-framed-art{width:min(82vw,380px)!important;max-width:min(82vw,380px)!important;}
@@ -2553,7 +2553,7 @@ body.dark-mode .poro-stat-header{color:var(--rc-ui-ad55066e48,#eaf0ff);}
 .admin-rarity-reward-item input{width:100%;min-width:0;}
 .admin-rarity-reward-item button{align-self:stretch;}
 .admin-rarity-reward-item .admin-reward-status{min-height:1em;font-size:12px;}
-@media(max-width:640px){.admin-rarity-reward-grid{grid-template-columns:1fr;}}
+@media (max-width:640px){.admin-rarity-reward-grid{grid-template-columns:1fr;}}
 
 
 /* RECANTO 0.2.7 — A FOTO FICA ATRÁS DA MOLDURA TRANSPARENTE.
@@ -2592,7 +2592,7 @@ body.dark-mode .poro-stat-header{color:var(--rc-ui-ad55066e48,#eaf0ff);}
 /* RECANTO v0.2.8 — Cards de coleção SEM achatamento no PC.
    A imagem e a moldura preservam sempre 2:3, mesmo em telas largas.
    O limite antigo de 480px truncava a altura e transformava o Card em quadrado. */
-@media (min-width:768px) {
+@media  (min-width:768px) {
   #cardsPane .filtered-cards .card-grid {
     display:grid!important;
     grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))!important;
@@ -2615,7 +2615,7 @@ body.dark-mode .poro-stat-header{color:var(--rc-ui-ad55066e48,#eaf0ff);}
   }
 }
 /* O mobile mantém duas colunas, com a mesma proporção vertical da arte. */
-@media (max-width:767px) {
+@media  (max-width:767px) {
   #cardsPane .filtered-cards .card-tile>.card-art.recanto-framed-art {
     height:auto!important;
     max-height:none!important;
@@ -2644,7 +2644,7 @@ body.dark-mode .poro-stat-header{color:var(--rc-ui-ad55066e48,#eaf0ff);}
 #profileContent .profile-champions .game-icons{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;justify-items:center;align-items:center;}
 #profileContent .profile-champions .game-icon img,.public-champions .game-icon img{border-radius:50%;}
 #profileContent .profile-champions .game-icon{width:clamp(40px,10vw,62px);height:clamp(40px,10vw,62px);}
-@media(min-width:768px){
+@media (min-width:768px){
   #profileContent .profile-champions .game-icon{width:clamp(48px,5vw,76px);height:clamp(48px,5vw,76px);}
 }
 .champion-choices{grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:8px;max-height:min(55dvh,460px);overflow-y:auto;}
@@ -2652,15 +2652,15 @@ body.dark-mode .poro-stat-header{color:var(--rc-ui-ad55066e48,#eaf0ff);}
 .champion-choices .game-choice-icon{width:58px;height:58px;display:grid;place-items:center;}
 .champion-choices .game-choice-icon img{height:100%;width:100%;object-fit:cover;border-radius:12px;}
 /* Grades de três caixas no PC; cada caixa preserva campos empilhados verticalmente. */
-@media(min-width:1130px){
+@media (min-width:1130px){
   .admin-page .admin-scroll{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:18px!important;align-content:start!important;}
   .admin-page .admin-dialog{width:min(100%,1560px)!important;max-width:1560px!important;}
   .admin-page .admin-scroll>.game-box{grid-column:auto;align-self:start;min-width:0;width:100%;}
 }
-@media(min-width:768px) and (max-width:1129px){
+@media (min-width:768px) and (max-width:1129px){
   .admin-page .admin-scroll{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important;align-content:start!important;}
 }
-@media(max-width:767px){.admin-page .admin-scroll{display:flex!important;flex-direction:column!important;}}
+@media (max-width:767px){.admin-page .admin-scroll{display:flex!important;flex-direction:column!important;}}
 .admin-page .admin-scroll>.game-box{display:flex;flex-direction:column;align-items:stretch;gap:12px;min-width:0;}
 .admin-page .admin-scroll>.game-box>*{min-width:0;max-width:100%;}
 .admin-page .admin-scroll>.game-box input,
@@ -2674,7 +2674,7 @@ body.dark-mode .poro-stat-header{color:var(--rc-ui-ad55066e48,#eaf0ff);}
 #petPane .expedition-info>.soft-action{align-self:flex-start;margin-top:4px;}
 #petPane .expedition-choice .expedition-cover{width:100%;height:clamp(155px,20vw,240px);object-fit:cover;}
 #petPane .expedition-choice .expedition-cover img{width:100%;height:100%;object-fit:cover;}
-@media(min-width:768px){
+@media (min-width:768px){
   #petPane .expedition-choice{display:grid;grid-template-columns:minmax(0,1fr) minmax(160px,36%);align-items:center;column-gap:20px;}
   #petPane .expedition-cover{height:clamp(150px,14vw,230px)!important;min-width:0;}
 }
@@ -2700,7 +2700,7 @@ body.dark-mode .poro-stat-header{color:var(--rc-ui-ad55066e48,#eaf0ff);}
 .content-page .content-head h1 > .section-title-icon > svg{
   width:100%!important;height:100%!important;
 }
-@media(max-width:767px){
+@media (max-width:767px){
   .content-page .content-head h1{font-size:clamp(26px,7vw,30px)!important;gap:9px;}
 }
 
@@ -2716,7 +2716,7 @@ body.dark-mode .poro-stat-header{color:var(--rc-ui-ad55066e48,#eaf0ff);}
 
 
 /* RECANTO 0.2.14 — Pets: estrutura solicitada para PC e sequência útil no celular. */
-@media(min-width:768px){
+@media (min-width:768px){
   /* A coluna da esquerda contém retrato e troca de Pet.
      A da direita contém nome, cuidados, status, colecionável e expedições. */
   #petPane .poro-layout{
@@ -2751,7 +2751,7 @@ body.dark-mode .poro-stat-header{color:var(--rc-ui-ad55066e48,#eaf0ff);}
     overflow-wrap:anywhere;
   }
 }
-@media(max-width:767px){
+@media (max-width:767px){
   /* Sem duas colunas estreitas no telefone. As áreas continuam em ordem de uso. */
   #petPane .poro-layout{display:flex!important;flex-direction:column!important;gap:16px!important;}
   #petPane .poro-layout>.poro-care-column,
@@ -2806,13 +2806,13 @@ body.dark-mode .pet-visual.pet-has-3d .pet-3d-loading{
   background:linear-gradient(145deg,var(--rc-ui-dd6c2283bf,#253656),var(--rc-ui-eae7de4ea1,#1b2947));color:var(--rc-ui-3e878754d2,#d4dfff);
 }
 @keyframes recanto-3d-loader{0%,100%{opacity:.35;transform:scale(.85)}50%{opacity:.9;transform:scale(1.12)}}
-@media(prefers-reduced-motion:reduce){.pet-visual.pet-has-3d .pet-3d-loading-icon{animation:none;}}
+@media (prefers-reduced-motion:reduce){.pet-visual.pet-has-3d .pet-3d-loading-icon{animation:none;}}
 
 
 /* RECANTO 0.2.16 — contrastes dos ícones e preenchimento da moeda no Mobile.
    Apenas a área de perfil e os títulos mobile são afetados; ícones do PC
    e da navegação inferior mantêm as cores e dimensões próprias. */
-@media (max-width:767px) {
+@media  (max-width:767px) {
   /* O ícone personalizado deve preencher por completo a bolinha de moedas.
      Sem os limites globais de 61%/82% aplicados aos outros ícones. */
   #profileContent .stats-list .stat:first-child .stat-icon.asset-icon-host {
@@ -2945,7 +2945,7 @@ body.dark-mode .feed-reply-empty,body.dark-mode .feed-proposal-status{color:var(
 body.dark-mode .feed-reply-meta time{color:var(--rc-ui-1ced800f10,#b6c2e1);}
 body.dark-mode .feed-proposal-pill{background:var(--rc-ui-f447026eea,#235044);color:var(--rc-ui-fb44ea17fc,#aaf0d3);}
 body.dark-mode .feed-proposal-pill.closed{background:var(--rc-ui-6d865658bc,#39445f);color:var(--rc-ui-72f856ef70,#c7d1e4);}
-@media(max-width:767px){
+@media (max-width:767px){
   .feed-trade-composer-bar{align-items:stretch;flex-direction:column;}
   .feed-trade-composer-bar button{width:100%;}
   .feed-reply-offer-row{grid-template-columns:1fr;}
@@ -2979,7 +2979,7 @@ body.dark-mode #missionPane .mission-category > .mission-category-title {
   color:var(--rc-ui-1a31bb32f7,#f4f7ff)!important;
   border-color:var(--rc-ui-66a8dc7a4e,#526791)!important;
 }
-@media(max-width:767px){
+@media (max-width:767px){
   #missionPane .mission-category > .mission-category-title {
     min-height:52px!important;
     font-size:19px!important;
@@ -3039,7 +3039,7 @@ body.dark-mode :is(
 /* RECANTO 0.2.19 — respiro após a última seção do Perfil no PC.
    A grade tem duas colunas com alturas diferentes; o espaçador ocupa uma
    última linha real, para que nenhuma coluna termine rente ao rodapé. */
-@media (min-width:768px){
+@media  (min-width:768px){
   #profileContent{
     padding-bottom:clamp(72px,9vh,112px)!important;
     scroll-padding-bottom:clamp(72px,9vh,112px);
@@ -3056,7 +3056,7 @@ body.dark-mode :is(
 
 /* RECANTO 0.2.20 — Ícones dos títulos brancos no modo claro do Mobile.
    Regra propositalmente posterior ao tema geral 0.2.18. */
-@media (max-width: 767px) {
+@media  (max-width: 767px) {
   body:not(.dark-mode) #homeScreen .content-page .content-head h1 > .section-title-icon,
   body:not(.dark-mode) #homeScreen .content-page .content-head h1 > .section-title-icon > svg {
     color:var(--rc-ui-d14f901611,#fff)!important;
@@ -3070,7 +3070,7 @@ body.dark-mode :is(
 
 /* RECANTO 0.2.20 — Capas da Loja acompanham a largura do produto no Mobile.
    Imagem preenche o quadro sem distorção e sem faixas vazias. */
-@media (max-width: 767px) {
+@media  (max-width: 767px) {
   #shopPane .product-card {min-width:0;overflow:hidden;}
   #shopPane .product-card > .product-cover {
     position:relative;
@@ -3092,7 +3092,7 @@ body.dark-mode :is(
 /* RECANTO 0.2.20 — Espaço final verdadeiro no contêiner rolável do Perfil do PC.
    Um elemento real ocupa a última linha da grade, após ambas as colunas. */
 #profileContent > .desktop-profile-bottom-spacer{display:none;}
-@media (min-width: 768px) {
+@media  (min-width: 768px) {
   #profileContent > .desktop-profile-bottom-spacer {
     display:block!important;
     grid-column:1 / -1!important;
@@ -3109,7 +3109,7 @@ body.dark-mode :is(
 
 /* RECANTO 0.2.20 — No PC, ícones dos títulos seguem o azul do texto.
    No Mobile continuam brancos no modo claro; tema escuro fica claro em ambos. */
-@media (min-width:768px) {
+@media  (min-width:768px) {
   body:not(.dark-mode) #homeScreen .content-page .content-head h1 > .section-title-icon,
   body:not(.dark-mode) #homeScreen .content-page .content-head h1 > .section-title-icon > svg {
     color:var(--rc-ui-1cc8eda306,#263b86)!important;
@@ -3122,7 +3122,7 @@ body.dark-mode :is(
 }
 
 /* Respiro que faz parte da área rolável, independente da altura das colunas. */
-@media (min-width:768px) {
+@media  (min-width:768px) {
   #profileContent {
     padding-bottom:24px!important;
   }
@@ -3136,16 +3136,16 @@ body.dark-mode :is(
     pointer-events:none;
   }
 }
-@media (min-width:1321px){
+@media  (min-width:1321px){
   #profileContent > .desktop-profile-bottom-spacer {grid-row:2!important;}
 }
-@media (min-width:768px) and (max-width:1320px){
+@media  (min-width:768px) and (max-width:1320px){
   #profileContent > .desktop-profile-bottom-spacer {grid-row:3!important;}
 }
 
 /* A regra geral de ícones contém seletores de configuração de maior peso.
    Forçar aqui a cor dos SVGs de título nos dois breakpoints, após a cascata. */
-@media (max-width:767px) {
+@media  (max-width:767px) {
   body:not(.dark-mode) #homeScreen#homeScreen .content-page .content-head h1 > .section-title-icon > svg {
     color:var(--rc-ui-d14f901611,#fff)!important;
     stroke:currentColor!important;
@@ -3154,7 +3154,7 @@ body.dark-mode :is(
     filter:brightness(0) invert(1)!important;
   }
 }
-@media (min-width:768px) {
+@media  (min-width:768px) {
   body:not(.dark-mode) #homeScreen#homeScreen .content-page .content-head h1 > .section-title-icon > svg {
     color:var(--rc-ui-1cc8eda306,#263b86)!important;
     stroke:currentColor!important;
@@ -3167,7 +3167,7 @@ body.dark-mode :is(
 /* RECANTO 0.2.21 — respiro real após Jogos favoritos no Perfil do PC.
    A coluna esquerda é um flex container: o pseudo-elemento participa
    diretamente da altura rolável, em vez de uma linha separada da grid. */
-@media (min-width:768px) {
+@media  (min-width:768px) {
   #profileContent > .desktop-left-column::after {
     content:"";
     display:block!important;
@@ -3212,7 +3212,7 @@ body.dark-mode :is(
 .recanto-level-fill{height:100%;border-radius:inherit;background:var(--rc-ui-0580bff46d,#5865f2);transition:width .35s ease;}
 .profile-level-desktop{display:none;}
 .profile-level-mobile{display:flex;}
-@media(max-width:767px){
+@media (max-width:767px){
   #profileContent>.profile-level-host,#profileContent>.desktop-left-column>.profile-level-mobile{display:flex!important;
     margin:0!important;background:var(--rc-ui-d14f901611,#fff);color:var(--rc-ui-513a3773ca,#293a81);width:100%;max-width:100%;padding:17px 20px;
     border-radius:20px;min-height:82px;box-shadow:0 6px 22px var(--rc-ui-2997b6187c,rgba(33,40,121,.10));align-items:center;}
@@ -3220,7 +3220,7 @@ body.dark-mode :is(
   .recanto-level{gap:14px;}
   .recanto-level-icon{height:46px;width:46px;flex-basis:46px;}
 }
-@media(min-width:768px){
+@media (min-width:768px){
   #profileContent .profile-level-mobile{display:none!important;}
   #profileContent .desktop-identity .profile-level-desktop{display:block!important;
     width:100%;min-width:0;max-width:400px;margin-top:17px;}
@@ -3250,7 +3250,7 @@ body.dark-mode .recanto-level-track{background:var(--rc-ui-314bc379e0,#3e4d80);}
 .admin-xp-row{display:flex;gap:8px;align-items:flex-end;min-width:0;}
 .admin-xp-row .admin-field{flex:1 1 auto;min-width:0;margin:0;}
 .admin-xp-row button{flex:0 0 auto;min-height:39px;}
-@media(max-width:390px){.admin-xp-row{flex-direction:column;align-items:stretch;}}
+@media (max-width:390px){.admin-xp-row{flex-direction:column;align-items:stretch;}}
 /* Descrições de perfil/selos: manter centralizadas em ambos os formatos. */
 #cardModal.profile-info-fullscreen #cardDetail > .profile-info-description,
 #cardModal.profile-info-fullscreen #cardDetail > .profile-info-note,
@@ -3285,7 +3285,7 @@ body.dark-mode .recanto-level-track{background:var(--rc-ui-314bc379e0,#3e4d80);}
   white-space:normal!important;overflow-wrap:normal!important;
 }
 /* Barra ligeiramente mais curta, afastando-a do Card Favorito. */
-@media(min-width:768px){
+@media (min-width:768px){
   #profileContent .desktop-identity .profile-level-desktop{max-width:330px!important;}
   #profileContent .desktop-identity .recanto-level{max-width:330px!important;}
   #publicProfilePage .public-level-desktop{width:100%;max-width:310px!important;margin-top:19px;}
@@ -3297,7 +3297,7 @@ body.dark-mode .recanto-level-track{background:var(--rc-ui-314bc379e0,#3e4d80);}
     white-space:nowrap!important;overflow-wrap:normal!important;
   }
 }
-@media(max-width:767px){
+@media (max-width:767px){
   #profileContent .profile-games .game-icons > p,
   #profileContent .profile-champions .game-icons > p,
   #publicProfilePage .public-games .game-icons > p,
@@ -3338,7 +3338,7 @@ body.dark-mode .recanto-level-track{background:var(--rc-ui-314bc379e0,#3e4d80);}
   border-radius:50%;background:var(--rc-ui-6f6c3e4567,#eef0ff);overflow:hidden;padding:0;}
 #publicProfilePage .public-profile-layout-v030 .public-games .game-icon img,
 #publicProfilePage .public-profile-layout-v030 .public-champions .game-icon img{border-radius:50%;}
-@media(min-width:768px){
+@media (min-width:768px){
   #publicProfilePage .public-profile-layout-v030{grid-template-columns:minmax(0,1.65fr) minmax(280px,.94fr);gap:var(--recanto-card-gap);}
   #publicProfilePage .public-profile-hero-v030{
     display:grid!important;position:relative;grid-template-columns:clamp(125px,13vw,220px) minmax(0,1fr) clamp(110px,12vw,188px);
@@ -3359,11 +3359,11 @@ body.dark-mode .recanto-level-track{background:var(--rc-ui-314bc379e0,#3e4d80);}
   #publicProfilePage .public-profile-layout-v030 .public-profile-main{min-width:0;}
   #publicProfilePage .public-profile-layout-v030 .public-profile-aside{min-width:0;}
 }
-@media(min-width:768px) and (max-width:1080px){
+@media (min-width:768px) and (max-width:1080px){
   #publicProfilePage .public-profile-layout-v030{grid-template-columns:1fr!important;}
   #publicProfilePage .public-profile-hero-v030{grid-template-columns:clamp(118px,17vw,170px) minmax(0,1fr) clamp(105px,15vw,160px);}
 }
-@media(max-width:767px){
+@media (max-width:767px){
   /* Mesmo visual azul do perfil próprio, sem afetar as outras telas. */
   #publicProfilePage.public-profile-page{background:var(--rc-ui-0580bff46d,#5865f2)!important;color:var(--rc-ui-d14f901611,#fff);padding:0 0 0!important;}
   #publicProfilePage .full-page-header{display:flex;align-items:center;justify-content:center;flex:none;
@@ -3390,7 +3390,7 @@ body.dark-mode .recanto-level-track{background:var(--rc-ui-314bc379e0,#3e4d80);}
   #publicProfilePage .public-identity-info{display:none!important;}
   #publicProfilePage .public-visited-stats{display:flex!important;grid-column:1;align-self:stretch;
     flex-direction:column;justify-content:center;gap:clamp(10px,1.7dvh,17px);position:relative;min-width:0;}
-  #publicProfilePage .public-visited-stats::after{content:'';position:absolute;right:-6%;top:10%;bottom:10%;width:1px;background:var(--rc-ui-95f780d52a,#d6d6d6);}
+  #publicProfilePage .public-visited-stats::after{content:"";position:absolute;right:-6%;top:10%;bottom:10%;width:1px;background:var(--rc-ui-95f780d52a,#d6d6d6);}
   #publicProfilePage .public-visited-stat{display:flex;align-items:center;gap:8px;min-width:0;
     color:var(--rc-ui-0580bff46d,#5865f2);white-space:nowrap;font-size:clamp(12px,3.2vw,17px);}
   #publicProfilePage .public-stat-symbol{font-size:clamp(18px,5.5vw,27px);flex:none;}
@@ -3419,13 +3419,13 @@ body.dark-mode #publicProfilePage .public-level-mobile,
 body.dark-mode #publicProfilePage .public-profile-layout-v030 .public-section{background:var(--rc-ui-5cc72e2aef,#1b2949)!important;color:var(--rc-ui-a1e8562550,#f3f6ff)!important;}
 body.dark-mode #publicProfilePage .public-identity-info h3{color:var(--rc-ui-a1e8562550,#f3f6ff)!important;}
 body.dark-mode #publicProfilePage .public-level-mobile .recanto-level{color:var(--rc-ui-a1e8562550,#f3f6ff)!important;}
-@media(max-width:767px){
+@media (max-width:767px){
   body.dark-mode #publicProfilePage.public-profile-page{background:var(--rc-ui-b160779b0a,#111a33)!important;}
   body.dark-mode #publicProfilePage .public-visited-greeting{color:var(--rc-ui-a1e8562550,#f3f6ff)!important;}
 }
 /* v0.3.0 — O Card Favorito do perfil visitado fica integralmente dentro
    da caixa branca no Mobile; não invade a faixa do nível. */
-@media(max-width:767px){
+@media (max-width:767px){
   #publicProfilePage .public-profile-hero-v030{
     height:clamp(340px,42dvh,425px)!important;
     min-height:340px!important;
@@ -3460,7 +3460,7 @@ body.dark-mode #publicProfilePage .public-level-mobile .recanto-level{color:var(
 .admin-selective-reset .admin-reset-summary{font-size:12px;color:var(--text-muted,var(--rc-ui-a58e914dda,#5b6191));overflow-wrap:anywhere;}
 .admin-selective-reset .admin-field select,.admin-selective-reset .admin-field input{width:100%;}
 body.dark-mode .admin-selective-reset .admin-reset-choice,body.dark-mode .admin-selective-reset .admin-reset-select-all{background:var(--rc-ui-6507b83c3c,rgba(104,118,225,.12));border-color:var(--rc-ui-63149613af,rgba(207,215,255,.22));}
-@media (max-width:680px){.admin-selective-reset .admin-reset-categories{grid-template-columns:minmax(0,1fr);}}
+@media  (max-width:680px){.admin-selective-reset .admin-reset-categories{grid-template-columns:minmax(0,1fr);}}
 
 
 /* Recanto 0.3.3 — Faixas de eventos ativos no topo e acima do resumo no Mobile. */
@@ -3483,7 +3483,7 @@ body.dark-mode .recanto-shop-discount{color:var(--rc-ui-bdc0879dc1,#abebc9)}
 .recanto-admin-event-item strong{font-size:13px}.recanto-admin-event-item small{font-size:10px;font-weight:800}.recanto-admin-event-item p{font-size:11px;margin:0;white-space:normal;overflow-wrap:anywhere}
 .recanto-admin-event-item:hover{background:var(--rc-ui-ce7c1a9ea3,rgba(115,128,217,.13))}
 .recanto-event-status{font-weight:700}
-@media(min-width:768px){
+@media (min-width:768px){
   .recanto-event-banners-mobile{display:none!important}
   .recanto-event-banners-desktop:not([hidden]){display:flex;flex:0 1 330px;max-width:330px;min-width:125px;max-height:68px;gap:7px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory}
   .recanto-event-banners-desktop .recanto-live-event{min-width:170px;max-width:330px;flex:0 0 100%;scroll-snap-align:start;padding:7px 10px;}
@@ -3492,7 +3492,7 @@ body.dark-mode .recanto-shop-discount{color:var(--rc-ui-bdc0879dc1,#abebc9)}
   .recanto-event-banners-desktop .recanto-live-event-details small{font-size:10px;max-height:28px;overflow:hidden}
   .desktop-topbar-actions{min-width:0}
 }
-@media(max-width:767px){
+@media (max-width:767px){
   #profileContent .desktop-left-column > .recanto-event-banners-mobile{width:100%;flex:none;margin-top:12px}
   /* O cabeçalho e o banner precedem o resumo, sem se sobrepor ao Avatar. */
   #profileContent .desktop-left-column:has(.recanto-event-banners-mobile:not([hidden])) > .desktop-profile-hero{margin-top:clamp(105px,13dvh,160px)}
@@ -3513,7 +3513,7 @@ body.dark-mode .recanto-shop-discount{color:var(--rc-ui-bdc0879dc1,#abebc9)}
 }
 /* Um overlay de cor faz a raridade surgir suavemente após o primeiro toque. */
 #packReveal.pack-reveal::before{
-  content:'';position:absolute;inset:0;z-index:-2;pointer-events:none;opacity:0;
+  content:"";position:absolute;inset:0;z-index:-2;pointer-events:none;opacity:0;
   background:var(--reward-background,radial-gradient(ellipse at 50% 40%,var(--rc-ui-60c40b3a11,#819bff),var(--rc-ui-4026dc943e,#4553c9) 50%,var(--rc-ui-749339a650,#18215b)));
   transition:opacity .48s ease;
 }
@@ -3567,8 +3567,8 @@ body.dark-mode .recanto-shop-discount{color:var(--rc-ui-bdc0879dc1,#abebc9)}
   color:var(--rc-ui-d8f57502fa,#fff8cb);font-size:clamp(72px,13vmin,132px);gap:4px;
   box-shadow:inset 0 0 0 3px var(--rc-ui-75abcece62,#5467d4),inset 0 0 0 9px var(--rc-ui-b481a3918e,#d4e3ff7d),0 16px 40px var(--rc-ui-5fe248fd72,#081241ac),0 0 35px var(--rc-ui-75ed981e7f,#b0c6ff45);
 }
-#packReveal .flip-back::before{content:'';position:absolute;inset:11%;border:2px solid var(--rc-ui-c7897d16c7,#dbe4ffc0);border-radius:10px;pointer-events:none}
-#packReveal .flip-back::after{content:'';position:absolute;inset:19%;border:1px solid var(--rc-ui-1d64c35bfb,#dbe4ff73);border-radius:50%;pointer-events:none}
+#packReveal .flip-back::before{content:"";position:absolute;inset:11%;border:2px solid var(--rc-ui-c7897d16c7,#dbe4ffc0);border-radius:10px;pointer-events:none}
+#packReveal .flip-back::after{content:"";position:absolute;inset:19%;border:1px solid var(--rc-ui-1d64c35bfb,#dbe4ff73);border-radius:50%;pointer-events:none}
 /* Após o giro, isola o verso para evitar vazamento visual em navegadores com 3D. */
 #packReveal[data-phase="revealed"] .flip-back{visibility:hidden}
 #packReveal .flip-face.flip-front{transform:rotateY(180deg);background:transparent;border:0;padding:0;overflow:hidden}
@@ -3578,7 +3578,7 @@ body.dark-mode .recanto-shop-discount{color:var(--rc-ui-bdc0879dc1,#abebc9)}
   font-weight:700;max-width:min(90vw,560px);min-height:1.5em;color:white;text-shadow:0 2px 12px var(--rc-ui-7bdc44be1f,#0009)}
 body.recanto-reward-open{overscroll-behavior:none}
 .action-pending{position:relative;opacity:.8;cursor:progress!important}
-.action-pending::after{content:'';display:inline-block;width:12px;height:12px;margin-left:8px;
+.action-pending::after{content:"";display:inline-block;width:12px;height:12px;margin-left:8px;
  border:2px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:-1px;
  animation:recanto-reward-rotate .7s linear infinite}
 @keyframes recanto-reward-rotate{to{transform:rotate(360deg)}}
@@ -3586,16 +3586,16 @@ body.recanto-reward-open{overscroll-behavior:none}
 @keyframes recanto-reward-flash{0%{opacity:.15;scale:.72}40%{opacity:.95;scale:1.3}100%{opacity:.48;scale:1}}
 @keyframes recanto-reward-particles{to{rotate:14deg;scale:1.08}}
 @keyframes recanto-card-hover{50%{transform:translateY(-8px)}}
-@media(max-width:600px){
+@media (max-width:600px){
  #packReveal.pack-reveal:not([hidden]){gap:clamp(12px,2.1dvh,24px);padding-left:14px;padding-right:14px}
  #packReveal .flip-stage{width:min(66vw,310px);max-height:54dvh}
 }
-@media(max-height:640px){
+@media (max-height:640px){
  #packReveal.pack-reveal:not([hidden]){gap:9px;padding-top:10px;padding-bottom:10px}
  #packReveal .flip-stage{width:min(50vw,245px);max-height:49dvh}
  #packReveal .reveal-hint{font-size:18px}
 }
-@media(prefers-reduced-motion:reduce){
+@media (prefers-reduced-motion:reduce){
  #packReveal .recanto-reward-rays,#packReveal .recanto-reward-halo,#packReveal .recanto-reward-particles,
  #packReveal .flip-stage,#packReveal .flip-card,#packReveal.pack-reveal::before{
    animation:none!important;transition:none!important;
@@ -3671,7 +3671,7 @@ body.recanto-reward-open{overscroll-behavior:none}
   align-self:flex-start;margin-top:4px;min-height:38px;padding:9px 17px;
 }
 /* Uma coluna de expedições não deve comprimir a arte ou os dados. */
-@container (max-width:540px){
+@container  (max-width:540px){
   #petPane .poro-expedition-card .expedition-choice{
     display:flex!important;flex-direction:column!important;align-items:stretch!important;
   }
@@ -3681,7 +3681,7 @@ body.recanto-reward-open{overscroll-behavior:none}
   }
   #petPane .poro-expedition-card .expedition-info{width:100%;}
 }
-@media(max-width:767px){
+@media (max-width:767px){
   #petPane .poro-expedition-card .expedition-choice{
     display:flex!important;flex-direction:column!important;align-items:stretch!important;
   }
@@ -3737,7 +3737,7 @@ body.dark-mode .rc-customizer .rc-color-modified{border-color:#a6aafa}
 body.dark-mode .rc-customizer .rc-custom-entry{background:#29375a}
 body.dark-mode .rc-customizer .rc-custom-status{color:#9bd5ad}
 body.dark-mode .rc-customizer .rc-custom-error{color:#ff91a7}
-@media(max-width:600px){
+@media (max-width:600px){
 .rc-customizer .rc-color-row{grid-template-columns:28px minmax(70px,1fr) 37px minmax(82px,100px);gap:6px;padding:8px}
 .rc-customizer .rc-color-row button{grid-column:auto;min-width:40px}
 .rc-customizer .rc-color-info small{font-size:10px}
@@ -3754,18 +3754,18 @@ body.dark-mode .rc-customizer .rc-custom-error{color:#ff91a7}
 }
 .feed-preview.feed-preview-card .recanto-framed-art{width:100%;height:auto;display:block;}
 .feed-preview.feed-preview-card .card-art.recanto-framed-art{aspect-ratio:2/3!important;}
-@media(min-width:768px){.feed-entity .feed-preview.feed-preview-card{width:192px!important;height:auto!important;}}
+@media (min-width:768px){.feed-entity .feed-preview.feed-preview-card{width:192px!important;height:auto!important;}}
 .gift-dialog-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;}
 .gift-dialog-actions button{flex:1 1 160px;}
 .inventory-empty-action{display:flex;align-items:center;justify-content:center;text-align:center;white-space:normal;}
 #inventoryPane .collectible-grid:empty{display:none;}
 #inventoryPane > .collectible-grid{align-self:stretch;}
 /* Recanto 0.3.12 — Loja: recompensa diária mais próxima do título. */
-@media(min-width:900px){
+@media (min-width:900px){
   #shopScreen #shopContent{margin-top:-38px;}
   #shopScreen #shopContent>.shop-daily-coins{min-height:70px!important;padding:10px 16px!important;}
 }
-@media(min-width:768px) and (max-width:899px){
+@media (min-width:768px) and (max-width:899px){
   #shopScreen #shopContent{margin-top:-12px;}
   #shopScreen #shopContent>.shop-daily-coins{min-height:70px!important;padding:10px 14px!important;}
 }
@@ -3811,11 +3811,11 @@ body.dark-mode .rc-customizer .rc-custom-error{color:#ff91a7}
 #adminModal .admin-shop-rates .is-invalid{color:#cd493c;font-weight:700;}
 #adminModal .admin-shop-editor>.soft-action{align-self:flex-start;}
 #adminModal .admin-shop-editor>.admin-entry-status{font-size:12px;}
-@media (min-width:768px) and (max-width:1129px){
+@media  (min-width:768px) and (max-width:1129px){
   #adminModal #adminContent .admin-masonry-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important;}
   #adminModal #adminContent .admin-masonry-column{gap:14px!important;}
 }
-@media (max-width:767px){
+@media  (max-width:767px){
   #adminModal #adminContent .admin-masonry-grid{grid-template-columns:minmax(0,1fr)!important;gap:12px!important;}
   #adminModal #adminContent .admin-masonry-column{gap:12px!important;}
 }
@@ -3838,7 +3838,7 @@ body.dark-mode .rc-customizer .rc-custom-error{color:#ff91a7}
 #adminModal .admin-layout-assign select{min-width:0;flex:1 1 auto;margin:0;font-size:12px;}
 #adminModal .admin-layout-empty{padding:18px;border:1px dashed #8798b9;border-radius:12px;line-height:1.5;}
 body.dark-mode #adminModal .admin-layout-assign{background:rgba(127,148,217,.15);}
-@media(max-width:520px){#adminModal .admin-layout-category-row>input{flex:1 1 100%;}}
+@media (max-width:520px){#adminModal .admin-layout-category-row>input{flex:1 1 100%;}}
 
 /* RECANTO 0.3.17 — raridades dos CARDS: Bronze, Prata, Ouro; Prismático permanece original.
    As variáveis rc-ui continuam a permitir as cores salvas pelo administrador. */
@@ -3890,7 +3890,7 @@ body.dark-mode .feed-rarity-lendario{color:var(--rc-ui-aa0e9f0251,#ffdb80)!impor
   min-width:0!important;
   max-width:78px;
 }
-@media(max-width:490px){
+@media (max-width:490px){
   #profileContent .profile-badges .badge-strip,
   #publicProfilePage .public-badges-row {gap:6px!important;}
 }
@@ -3927,7 +3927,7 @@ body.dark-mode .feed-rarity-lendario{color:var(--rc-ui-aa0e9f0251,#ffdb80)!impor
 .pokemon-team-art .pokemon-sprite{padding:4px;}
 .pokemon-team-name {font-size:clamp(10px,.8vw,12px);font-weight:700;line-height:1.3;overflow-wrap:anywhere;}
 .pokemon-team-empty {grid-column:1/-1;font-size:13px;margin:0;opacity:.85;}
-@media(max-width:600px){
+@media (max-width:600px){
   .pokemon-team-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
   .pokemon-team-art{max-width:110px;}
   .pokemon-team-name{font-size:12px;}
@@ -3956,7 +3956,7 @@ body.dark-mode .feed-rarity-lendario{color:var(--rc-ui-aa0e9f0251,#ffdb80)!impor
 body.dark-mode #profileContent .profile-pokemon-team{background:#1d294a!important;color:#edf0ff!important;}
 body.dark-mode :is(.pokemon-editor-slot,.pokemon-editor-choice){background:#293657;color:#f3f5ff;border-color:#4d5d87;}
 body.dark-mode .pokemon-team-art{background:#2b3b62;border-color:#4d5d87;}
-@media(max-width:390px){
+@media (max-width:390px){
   .pokemon-editor-filters{grid-template-columns:minmax(0,1fr);}
   .pokemon-editor-list{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
@@ -4003,451 +4003,221 @@ body.dark-mode .pokemon-team-art{background:#2b3b62;border-color:#4d5d87;}
 
 
 /* Recanto 0.3.20 — modo Pokémon independente dentro de Pets. */
-.recanto-pet-tabs{margin-bottom:16px;}
-.recanto-pet-tab-content{min-width:0;}
-.recanto-pet-tab-content>.game-box{margin-bottom:14px;}
-.recanto-pokemon-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;}
-.recanto-pokemon-tab{border:1px solid #b9c6e8;background:#e9eeff;color:#344a8c;
- border-radius:12px;padding:10px 13px;cursor:pointer;font-weight:700;font-size:13px;}
-.recanto-pokemon-tab.selected{background:#5865f2;color:white;border-color:#5865f2;}
-.recanto-pokemon-summary{display:flex;gap:14px;flex-wrap:wrap;align-items:center;
- padding:12px 16px;border-radius:13px;background:#e9efff;margin-bottom:12px;color:#293e80;}
-.recanto-pokemon-starters,.recanto-pokemon-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:12px;margin:12px 0;}
-.recanto-pokemon-tile,.recanto-pokemon-shop-item,.recanto-pokemon-quest,.recanto-pokemon-trade,.recanto-pokemon-hospital{
- border:1px solid #dee5f9;background:#f5f7ff;border-radius:16px;padding:12px;min-width:0;display:flex;flex-direction:column;gap:8px;}
-.recanto-pokemon-tile{text-align:center;align-items:center;}
-.recanto-pokemon-image{width:100%;max-height:120px;aspect-ratio:1;object-fit:contain;}
-.recanto-pokemon-starters .recanto-pokemon-image{max-height:95px;}
-.recanto-pokemon-tile button,.recanto-pokemon-shop-item button{width:100%;white-space:normal;margin-top:auto;}
-.recanto-pokemon-tile small,.recanto-pokemon-shop-item small{color:#55618a;font-size:12px;}
-.recanto-pokemon-alert{color:#c44b52!important;}
-.recanto-wild-card{max-width:450px;margin:auto;text-align:center;}
-.recanto-wild-card .recanto-pokemon-image{max-height:240px;}
-.recanto-pokemon-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
-.recanto-pokemon-hospital{display:grid;grid-template-columns:65px 1fr auto;align-items:center;}
-.recanto-pokemon-hospital .recanto-pokemon-image{max-height:60px;}
-.recanto-pokemon-trade-form,.recanto-pokemon-admin-settings,.recanto-pokemon-admin-list{
- display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:12px 0;}
-.recanto-pokemon-trade-form>strong{align-self:end;}
-.recanto-pokemon-trade-form>.main-action{grid-column:1/-1;}
-.recanto-pokemon-admin-settings label,.recanto-pokemon-admin-list label{display:flex;flex-direction:column;gap:5px;font-size:12px;}
-.recanto-pokemon-admin-settings input,.recanto-pokemon-admin-list input{width:100%;min-width:0;}
-body.dark-mode .recanto-pokemon-tile,body.dark-mode .recanto-pokemon-shop-item,
-body.dark-mode .recanto-pokemon-quest,body.dark-mode .recanto-pokemon-trade,
-body.dark-mode .recanto-pokemon-hospital{background:#263658!important;border-color:#48577c;color:white;}
-body.dark-mode .recanto-pokemon-summary{background:#273a65;color:#fff;}
-body.dark-mode .recanto-pokemon-tab{background:#263658;color:#dbe6ff;border-color:#586d9e;}
-body.dark-mode .recanto-pokemon-tab.selected{background:#5865f2;color:#fff;}
-body.dark-mode .recanto-pokemon-tile small{color:#cad6f1;}
-@media(max-width:500px){.recanto-pokemon-starters,.recanto-pokemon-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
- .recanto-pokemon-tab{padding:9px;font-size:12px;}.recanto-pokemon-hospital{grid-template-columns:52px minmax(0,1fr);}
- .recanto-pokemon-hospital button{grid-column:1/-1;}}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /* Recanto 0.3.23 — refinamento visual da área Pokémon no modo claro */
-.recanto-pokemon-shell,.recanto-pokemon-tabs-wrap{background:#dfe5f7;}
-.recanto-pokemon-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;}
-body:not(.dark-mode) .recanto-pokemon-tab{background:#eef2ff;color:#324793;border-color:#a8b6de;opacity:1;font-weight:700;}
-body:not(.dark-mode) .recanto-pokemon-tab.selected{background:#5865f2;color:#fff;border-color:#5865f2;}
-body:not(.dark-mode) .recanto-pokemon-summary{background:#e4eaf9;color:#263b7d;}
-body:not(.dark-mode) .recanto-pokemon-tile,body:not(.dark-mode) .recanto-pokemon-shop-item,body:not(.dark-mode) .recanto-pokemon-quest,body:not(.dark-mode) .recanto-pokemon-trade,body:not(.dark-mode) .recanto-pokemon-hospital{background:#eef2ff;border-color:#cad4ee;}
-.recanto-pokemon-two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;}
-.recanto-wild-card{max-width:780px;margin:auto;text-align:center;}
-.recanto-wild-scene{position:relative;display:flex;align-items:flex-end;justify-content:center;min-height:260px;border-radius:22px;padding:20px;overflow:hidden;background:linear-gradient(180deg,rgba(165,214,167,.92),rgba(102,187,106,.85)), radial-gradient(circle at 20% 20%, rgba(255,255,255,.35), transparent 35%), radial-gradient(circle at 80% 15%, rgba(255,255,255,.28), transparent 30%), linear-gradient(0deg,#486b39 0%,#74a55f 28%,#8cc47a 55%,#b8df9d 100%);}
-.recanto-wild-scene::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 10% 100%, rgba(60,90,45,.4) 0 12%, transparent 13%),radial-gradient(circle at 30% 100%, rgba(60,90,45,.45) 0 16%, transparent 17%),radial-gradient(circle at 70% 100%, rgba(60,90,45,.35) 0 14%, transparent 15%),radial-gradient(circle at 90% 100%, rgba(60,90,45,.4) 0 12%, transparent 13%);opacity:.9;}
-.recanto-wild-scene .recanto-pokemon-image{position:relative;z-index:1;max-height:220px;filter:drop-shadow(0 10px 14px rgba(0,0,0,.18));}
-.recanto-wild-empty{min-height:190px;}
-.recanto-wild-placeholder{position:relative;z-index:1;font-size:64px;opacity:.9;}
-.recanto-joy-hero{display:grid;grid-template-columns:90px 1fr;gap:14px;align-items:center;margin:8px 0 14px;}
-.recanto-joy-avatar{width:90px;height:90px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#ffd4e5,#ffb6d0);font-size:38px;border:3px solid #f3a1c2;box-shadow:0 8px 18px rgba(0,0,0,.08);}
-.recanto-battle-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0;}
-.recanto-battle-side{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px;border:1px solid #cad4ee;background:#f4f7ff;border-radius:16px;position:relative;}
-.recanto-battle-side.enemy{background:#fff3f3;border-color:#f0cccc;}
-.recanto-battle-side-title{grid-column:1/-1;font-size:12px;font-weight:700;color:#55618a;}
-.recanto-battle-slot{height:36px;border-radius:12px;background:#d7def3;border:1px dashed #a8b6de;display:grid;place-items:center;font-size:12px;color:#55618a;}
-.recanto-battle-slot.enemy{background:#f6dbdb;border-color:#e4b1b1;}
-.recanto-pokemon-shop-item.is-empty{opacity:.7;}
-@media(max-width:900px){.recanto-pokemon-two-col{grid-template-columns:1fr;}}
-@media(max-width:500px){.recanto-joy-hero{grid-template-columns:72px 1fr;}.recanto-joy-avatar{width:72px;height:72px;font-size:32px;}.recanto-battle-board{grid-template-columns:1fr;}}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /* Recanto 0.3.24 — refinamentos Pokémon */
-.recanto-pet-tabs.mini-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
-.recanto-pet-tabs .recanto-pet-tab{min-height:54px;font-size:16px;font-weight:800;}
-body:not(.dark-mode) .recanto-pet-tabs .recanto-pet-tab{background:#2a3e84;border-color:#4059aa;color:#eef2ff;opacity:1;}
-body:not(.dark-mode) .recanto-pet-tabs .recanto-pet-tab.mini-active{background:#5865f2;border-color:#5865f2;color:#fff;}
-body.dark-mode .recanto-pet-tabs .recanto-pet-tab{background:#eef2ff;border-color:#aebeea;color:#2c428b;opacity:1;}
-body.dark-mode .recanto-pet-tabs .recanto-pet-tab.mini-active{background:#5865f2;border-color:#5865f2;color:#fff;}
 
-.recanto-wild-card-large{max-width:none;}
-.recanto-wild-card-large .recanto-wild-scene{width:100%;min-height:320px;border-radius:24px;}
-.recanto-pokemon-bag{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:12px 0;}
-.recanto-bag-item{display:flex;flex-direction:column;gap:8px;padding:16px;border-radius:18px;border:1px solid #cad4ee;background:#eef2ff;min-height:150px;}
-.recanto-bag-item.is-empty{opacity:.72;}
-.recanto-bag-item button{margin-top:auto;}
-body.dark-mode .recanto-bag-item{background:#263658;border-color:#48577c;color:#fff;}
-body.dark-mode .recanto-bag-item small{color:#cad6f1;}
 
-.pokemon-expedition-cover{width:245px;min-width:245px;min-height:250px;border-radius:18px;display:grid;place-items:center;font-size:62px;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);overflow:hidden;position:relative;background:linear-gradient(180deg,#8bbf7c,#4f8a50);}
-.pokemon-expedition-cover::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 20% 15%, rgba(255,255,255,.22), transparent 35%),radial-gradient(circle at 70% 100%, rgba(0,0,0,.18), transparent 38%),linear-gradient(180deg,rgba(255,255,255,.05),rgba(0,0,0,.1));}
-.pokemon-expedition-cover::after{content:'';position:absolute;inset:auto 0 0 0;height:28%;background:radial-gradient(circle at 10% 100%, rgba(50,92,55,.65) 0 20%, transparent 21%),radial-gradient(circle at 35% 100%, rgba(50,92,55,.58) 0 23%, transparent 24%),radial-gradient(circle at 65% 100%, rgba(50,92,55,.65) 0 20%, transparent 21%),radial-gradient(circle at 90% 100%, rgba(50,92,55,.58) 0 23%, transparent 24%);}
-.pokemon-expedition-cover{isolation:isolate;}
-.pokemon-expedition-cover{font-size:72px;}
-.pokemon-expedition-cover>*{position:relative;z-index:1;}
-.pokemon-expedition-cover.water{background:linear-gradient(180deg,#7fc5ef,#4875b9);}
-.pokemon-expedition-cover.fire{background:linear-gradient(180deg,#ffb25f,#d85a33);}
-.pokemon-expedition-cover.forest{background:linear-gradient(180deg,#9dd47f,#56894c);}
-.pokemon-expedition-cover.neutral{background:linear-gradient(180deg,#a8b7d8,#6178a2);}
-.pokemon-expedition-cover.battle{background:linear-gradient(180deg,#a6a9c9,#6d537f);}
-.pokemon-expedition-cover.active{background:linear-gradient(180deg,#d9cf96,#91854e);}
 
-body:not(.dark-mode) .recanto-pokemon-tabs{background:#2c428b;padding:10px;border-radius:18px;}
-body:not(.dark-mode) .recanto-pokemon-tab{background:#e8eeff;color:#2c428b;border-color:#aebeea;}
-body:not(.dark-mode) .recanto-pokemon-tab.selected{background:#5865f2;color:#fff;}
-body.dark-mode .recanto-pokemon-tabs{background:#eef2ff;padding:10px;border-radius:18px;}
-body.dark-mode .recanto-pokemon-tab{background:#eef2ff;color:#2c428b;border-color:#aebeea;}
-body.dark-mode .recanto-pokemon-tab.selected{background:#5865f2;color:#fff;}
 
-body.dark-mode .pokemon-expedition-cover{box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);}
-body.dark-mode .recanto-battle-side{background:#31466f;border-color:#4f628d;}
-body.dark-mode .recanto-battle-side.enemy{background:#4b3649;border-color:#735170;}
-body.dark-mode .recanto-battle-slot{background:#24365c;color:#dce6ff;border-color:#50658f;}
-body.dark-mode .recanto-battle-slot.enemy{background:#5e4151;border-color:#8a667b;}
 
-@media(max-width:900px){
-  .pokemon-expedition-cover{width:100%;min-width:0;min-height:220px;}
-}
-@media(max-width:620px){
-  .recanto-wild-card-large .recanto-wild-scene{min-height:240px;}
-  .recanto-pokemon-bag{grid-template-columns:1fr;}
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /* Recanto 0.3.25 — mesma estrutura de cartão das Expedições dos Pets.
    Os cartões Pokémon usam .poro-expedition-card > .expedition-choice >
    .expedition-cover + .expedition-info, exatamente como os Pets. */
-#petPane .recanto-pokemon-expedition-card .expedition-choice {
-  display:grid!important;
-  grid-template-columns:minmax(145px,34%) minmax(0,1fr)!important;
-  align-items:start!important;
-  gap:16px!important;
-  margin:13px 0 0!important;
-  padding:14px!important;
-  border:1px solid var(--rc-ui-afe7c7521b,#dce3f9)!important;
-  border-radius:16px!important;
-  background:var(--rc-ui-6345633e28,#f7f9ff)!important;
-  min-width:0;
-}
-#petPane .recanto-pokemon-expedition-card .expedition-cover {
-  grid-column:1!important;
-  width:100%!important;
-  min-width:0!important;
-  max-width:100%!important;
-  min-height:180px!important;
-  max-height:280px!important;
-  aspect-ratio:4/5!important;
-  height:100%!important;
-  align-self:start!important;
-  object-fit:cover;
-  border-radius:12px;
-  margin:0!important;
-}
-#petPane .recanto-pokemon-expedition-card .expedition-cover img {
-  width:100%;height:100%;object-fit:cover;
-  position:absolute;inset:0;z-index:2;
-}
-#petPane .recanto-pokemon-expedition-card .expedition-info {
-  grid-column:2!important;
-  display:flex!important;
-  flex-direction:column!important;
-  gap:12px!important;
-  min-width:0!important;
-  align-items:stretch!important;
-}
-#petPane .recanto-pokemon-expedition-card .expedition-info .expedition-send {
-  align-self:flex-start!important;
-  margin-top:4px!important;
-  min-height:38px!important;
-  padding:9px 17px!important;
-}
+
+
+
+
+
 /* O tabuleiro permanece dentro da coluna direita e não força o cartão a transbordar. */
-#petPane .recanto-pokemon-expedition-card .recanto-battle-board {
-  width:100%;max-width:360px;min-width:0;margin:0;
-}
-#petPane .recanto-pokemon-expedition-card .recanto-battle-side {
-  min-width:0;padding:8px;gap:5px;
-}
-#petPane .recanto-pokemon-expedition-card .recanto-battle-slot {
-  height:27px;min-width:0;font-size:11px;
-}
-body.dark-mode #petPane .recanto-pokemon-expedition-card .expedition-choice {
-  background:var(--rc-ui-6325356cad,#1f2e50)!important;
-  border-color:var(--rc-ui-501538be55,#40527a)!important;
-}
+
+
+
+
 /* Abaixo de 1240 px, preservar cartões com a imagem à esquerda
    colocando as duas seções uma abaixo da outra. */
-@media (min-width:768px) and (max-width:1240px){
-  #petPane .recanto-pokemon-adventure-columns {grid-template-columns:1fr!important;}
-}
-@media (min-width:768px){
-  #petPane .recanto-pokemon-expedition-card .expedition-choice {
-    display:grid!important;
-    grid-template-columns:minmax(145px,34%) minmax(0,1fr)!important;
-  }
-  #petPane .recanto-pokemon-expedition-card .expedition-cover {height:100%!important;max-height:280px!important;}
-  #petPane .recanto-pokemon-expedition-card .expedition-info {grid-column:2!important;}
-}
-@media (max-width:767px){
-  #petPane .recanto-pokemon-expedition-card .expedition-choice {
-    display:flex!important;flex-direction:column!important;align-items:stretch!important;
-  }
-  #petPane .recanto-pokemon-expedition-card .expedition-cover {
-    width:100%!important;min-height:180px!important;height:clamp(180px,46vw,225px)!important;
-    max-height:225px!important;aspect-ratio:auto!important;
-  }
-  #petPane .recanto-pokemon-expedition-card .expedition-info {width:100%!important;}
-}
+
+
+
 
 /* Recanto 0.3.25 — contraste do modo escuro na área Pokémon.
    A 0.3.24 deixava o fundo das subtabs quase branco (#eef2ff) mesmo no tema escuro. */
-body.dark-mode #petPane .recanto-pet-tabs {
-  background: #172440 !important;
-  border: 1px solid #35476a;
-  padding: 8px;
-  border-radius: 16px;
-}
-body.dark-mode #petPane .recanto-pet-tabs .recanto-pet-tab,
-body.dark-mode #petPane .recanto-pet-tabs .recanto-pet-tab:not(.mini-active) {
-  background: #263959 !important;
-  border: 1px solid #485d89 !important;
-  color: #eef2ff !important;
-  opacity: 1;
-}
-body.dark-mode #petPane .recanto-pet-tabs .recanto-pet-tab.mini-active {
-  background: #5865f2 !important;
-  border-color: #7d89ff !important;
-  color: #fff !important;
-}
-body.dark-mode #petPane .recanto-pokemon-tabs,
-body.dark-mode #petPane .recanto-pokemon-tabs-wrap,
-body.dark-mode #petPane .recanto-pokemon-shell {
-  background: #172440 !important;
-  border: 1px solid #35476a;
-  border-radius: 16px;
-}
-body.dark-mode #petPane .recanto-pokemon-tabs {
-  padding: 10px;
-}
-body.dark-mode #petPane .recanto-pokemon-tabs .recanto-pokemon-tab,
-body.dark-mode #petPane .recanto-pokemon-tabs .recanto-pokemon-tab:not(.selected) {
-  background: #263959 !important;
-  border-color: #4b6090 !important;
-  color: #edf2ff !important;
-}
-body.dark-mode #petPane .recanto-pokemon-tabs .recanto-pokemon-tab.selected {
-  background: #5865f2 !important;
-  border-color: #7e8aff !important;
-  color: #fff !important;
-}
-body.dark-mode #petPane .recanto-pokemon-tab-content,
-body.dark-mode #petPane .recanto-pokemon-summary {
-  color: #edf2ff !important;
-}
-body.dark-mode #petPane .recanto-pokemon-summary {
-  background: #25365b !important;
-  border: 1px solid #43577d;
-}
-body.dark-mode #petPane .recanto-pokemon-expedition-card {
-  background: #1b2949 !important;
-  border-color: #405376 !important;
-  color: #f6f8ff !important;
-}
-body.dark-mode #petPane .recanto-pokemon-expedition-card .expedition-choice {
-  background: #253758 !important;
-  border-color: #465b83 !important;
-  color: #f6f8ff !important;
-}
-body.dark-mode #petPane .recanto-pokemon-expedition-card .expedition-info,
-body.dark-mode #petPane .recanto-pokemon-expedition-card .expedition-title {
-  color: #f6f8ff !important;
-}
-body.dark-mode #petPane .recanto-pokemon-expedition-card .expedition-section-label {
-  color: #c3d2f2 !important;
-}
-body.dark-mode #petPane .recanto-pokemon-expedition-card .expedition-tag {
-  color: #f4f7ff !important;
-  background: #32476d !important;
-  border-color: #526991 !important;
-}
-body.dark-mode #petPane .recanto-pokemon-expedition-card .expedition-duration {
-  color: #f0f3ff !important;
-  background: #3b5386 !important;
-}
-body.dark-mode #petPane .recanto-pokemon-expedition-card .recanto-battle-side {
-  background: #304568 !important;
-  border-color: #526891 !important;
-}
-body.dark-mode #petPane .recanto-pokemon-expedition-card .recanto-battle-side.enemy {
-  background: #4b354b !important;
-  border-color: #765474 !important;
-}
-body.dark-mode #petPane .recanto-pokemon-expedition-card .recanto-battle-slot {
-  background: #253758 !important;
-  color: #e7ecff !important;
-  border-color: #5a72a0 !important;
-}
-body.dark-mode #petPane .recanto-pokemon-expedition-card .recanto-battle-slot.enemy {
-  background: #5d4054 !important;
-  border-color: #946f85 !important;
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* 0.3.25 — tipos Pokémon legíveis em português, contorno na cor do tipo. */
-.recanto-pokemon-types {display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;margin:4px 0 10px;}
-.recanto-pokemon-type {display:inline-flex;padding:4px 10px;border:2px solid var(--type-color,#929cae);
-  background:color-mix(in srgb,var(--type-color,#929cae) 14%,transparent);
-  color:inherit;border-radius:999px;line-height:1.25;font-size:12px;font-weight:750;white-space:nowrap;}
+
+
 .type-normal{--type-color:#a8a77a}.type-fire{--type-color:#ee8130}.type-water{--type-color:#6390f0}
 .type-electric{--type-color:#f7d02c}.type-grass{--type-color:#7ac74c}.type-ice{--type-color:#96d9d6}
 .type-fighting{--type-color:#c22e28}.type-poison{--type-color:#a33ea1}.type-ground{--type-color:#e2bf65}
 .type-flying{--type-color:#a98ff3}.type-psychic{--type-color:#f95587}.type-bug{--type-color:#a6b91a}
 .type-rock{--type-color:#b6a136}.type-ghost{--type-color:#735797}.type-dragon{--type-color:#6f35fc}
 .type-dark{--type-color:#705746}.type-steel{--type-color:#b7b7ce}.type-fairy{--type-color:#d685ad}
-.recanto-capture-timer {font-weight:800;}
-.recanto-capture-expired .recanto-wild-scene{filter:grayscale(.65);}
-@media(min-width:1024px){#petPane .recanto-wild-card-large .recanto-wild-scene{min-height:410px;}}
-@media(max-width:767px){#petPane .recanto-wild-card-large .recanto-wild-scene{min-height:295px!important;}}
-#petPane .recanto-wild-card-large{display:flex;flex-direction:column;gap:14px;}
-#petPane .recanto-wild-card-large .recanto-wild-scene{width:100%;background-size:cover;background-position:center;}
-#petPane .recanto-wild-card-large>h3,#petPane .recanto-wild-card-large>p {margin:2px 0;}
+
+
+
+
+
+
+
 
 /* Recanto 0.4.0 — cenário de captura: ocupa toda a área disponível */
-#petPane .recanto-pokemon-capture-columns{grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr);align-items:stretch;gap:18px;}
-#petPane .recanto-pokemon-capture-columns>.game-box{min-width:0;max-width:none;}
-#petPane .recanto-wild-card,
-#petPane .recanto-wild-card-large{
-  width:100%!important;max-width:none!important;min-width:0!important;
-  margin:0!important;display:flex;flex-direction:column;gap:0;
-  box-sizing:border-box;
-}
-#petPane .recanto-wild-card-large .recanto-wild-scene{
-  box-sizing:border-box!important;display:flex!important;width:100%!important;
-  max-width:none!important;min-width:0!important;min-height:390px!important;
-  aspect-ratio:auto!important;border-radius:18px;padding:22px;
-  background-position:center!important;background-size:cover!important;
-  background-repeat:no-repeat!important;
-}
-#petPane .recanto-wild-scene .recanto-pokemon-image{
-  width:min(42%,220px);max-width:220px;height:auto;max-height:250px;
-  aspect-ratio:1;object-fit:contain;z-index:2;
-}
-#petPane .recanto-wild-scene-details{
-  width:100%;padding-top:19px;display:flex;align-items:center;
-  flex-direction:column;gap:9px;min-width:0;
-}
-#petPane .recanto-wild-scene-details h3,
-#petPane .recanto-wild-scene-details p{margin:0;line-height:1.5;}
-#petPane .recanto-wild-scene-details .recanto-pokemon-types{margin:0;}
-#petPane .recanto-wild-scene-footer{
-  width:100%;display:flex;flex-direction:column;gap:10px;
-  align-items:stretch;margin-top:16px;
-}
-#petPane .recanto-wild-scene-footer button{width:100%;min-height:43px;}
-#petPane .recanto-wild-scene-footer .recanto-capture-limit{margin:0;text-align:center;}
-#petPane .recanto-wild-custom-background::before{display:none;}
-#petPane .recanto-pokemon-capture-columns .recanto-pokemon-bag{
-  grid-template-columns:repeat(2,minmax(0,1fr));
-}
-.recanto-pokemon-bg-editor{display:grid;gap:12px;padding:16px;border:1px solid #cbd5ee;border-radius:16px;margin-top:18px;}
-.recanto-pokemon-bg-editor>h4,.recanto-pokemon-bg-editor>p{margin:0;}
-.recanto-pokemon-bg-preview{width:100%;aspect-ratio:16/7;min-height:110px;
-  background:#91be87;background-size:cover;background-position:center;
-  border-radius:12px;display:flex;align-items:center;justify-content:center;
-  color:#254829;font-size:12px;text-align:center;padding:12px;box-sizing:border-box;}
-body.dark-mode .recanto-pokemon-bg-editor{border-color:#46577c;}
-@media(max-width:1050px){
-  #petPane .recanto-pokemon-capture-columns{grid-template-columns:1fr!important;}
-  #petPane .recanto-pokemon-capture-columns .recanto-pokemon-bag{grid-template-columns:repeat(3,minmax(0,1fr));}
-}
-@media(max-width:600px){
-  #petPane .recanto-wild-card-large .recanto-wild-scene{
-    width:100%!important;min-height:300px!important;padding:12px;border-radius:15px;
-  }
-  #petPane .recanto-wild-scene .recanto-pokemon-image{width:min(55%,195px);max-height:200px;}
-  #petPane .recanto-pokemon-capture-columns .recanto-pokemon-bag{grid-template-columns:repeat(2,minmax(0,1fr));}
-  #petPane .recanto-wild-scene-details{padding-top:16px;gap:7px;}
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* Recanto 0.4.1 — atributos de espécie e editor de sprites (GIF/WEBP/PNG). */
-.recanto-pokemon-traits{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;margin:4px 0;}
-.recanto-pokemon-gender,.recanto-pokemon-shiny{display:inline-flex;padding:3px 9px;border-radius:12px;border:1px solid #aebbd2;font-size:11px;font-weight:750;white-space:nowrap;}
-.recanto-pokemon-gender.male{border-color:#579bde;background:#e4f1ff;color:#23659a;}
-.recanto-pokemon-gender.female{border-color:#e486b9;background:#fff0f9;color:#aa447c;}
-.recanto-pokemon-gender.unknown{border-color:#a6b1bf;background:#edf0f4;color:#55636e;}
-.recanto-pokemon-shiny{color:#765500;border-color:#ddb234;background:#fff1ba;}
-.recanto-pokemon-image.is-shiny{filter:drop-shadow(0 0 7px rgba(245,202,67,.4));}
-.recanto-pokemon-sprite-editor{display:grid;gap:10px;margin-top:18px;padding:16px;border-radius:18px;border:1px solid #cbd5ee;min-width:0;}
-.recanto-pokemon-sprite-editor>h4,.recanto-pokemon-sprite-editor>p{margin:0;}
-.recanto-pokemon-sprite-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
-.recanto-pokemon-sprite-choices label{display:flex;flex-direction:column;gap:5px;min-width:0;}
-.recanto-pokemon-sprite-choices input,.recanto-pokemon-sprite-choices select{width:100%;min-width:0;}
-.recanto-pokemon-sprite-preview{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:150px;border-radius:16px;padding:12px;background:rgba(130,140,180,.09);border:1px dashed #aebbd2;}
-.recanto-pokemon-sprite-preview img{width:160px;height:130px;object-fit:contain;}
-body.dark-mode .recanto-pokemon-sprite-editor{border-color:#506183;}
-body.dark-mode .recanto-pokemon-gender.unknown{background:#344560;color:#e0e6ef;}
-@media(max-width:600px){.recanto-pokemon-sprite-choices{grid-template-columns:1fr;}}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* Recanto 0.4.2 — sprites permanecem dentro de cada casa no tabuleiro.
    Todas as 6 casas têm a mesma altura, vazias ou ocupadas. Evita que o
    aspect-ratio global dos sprites aumente a linha da grade. */
-#petPane .recanto-pokemon-expedition-card .recanto-battle-side {
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  grid-auto-rows:minmax(0,auto);
-  align-items:stretch;
-}
-#petPane .recanto-pokemon-expedition-card .recanto-battle-slot {
-  position:relative;
-  box-sizing:border-box;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  width:100%;
-  height:46px !important;
-  min-height:46px;
-  min-width:0;
-  overflow:hidden;
-  isolation:isolate;
-  padding:2px;
-  line-height:1;
-}
-#petPane .recanto-pokemon-expedition-card .recanto-battle-slot .recanto-pokemon-image {
-  display:block;
-  position:absolute;
-  z-index:1;
-  top:2px;
-  left:2px;
-  width:calc(100% - 4px) !important;
-  height:calc(100% - 4px) !important;
-  max-width:none;
-  max-height:none !important;
-  min-width:0;
-  min-height:0;
-  aspect-ratio:auto;
-  object-fit:contain;
-  object-position:center;
-  margin:0 !important;
-  padding:0;
-  transform:none;
-  pointer-events:none;
-}
-@media(max-width:600px){
-  #petPane .recanto-pokemon-expedition-card .recanto-battle-slot {
-    height:40px !important;
-    min-height:40px;
-  }
-}
 
-.recanto-pokemon-trade-sprites{display:flex;gap:12px;justify-content:center;}
-.recanto-pokemon-trade-sprites .recanto-pokemon-image{width:70px;height:70px;max-height:70px;object-fit:contain;}
+
+
+
+
+
+
 
 /* Recanto 0.4.3 — Pokémons Favoritos: mensagem vazia usa o mesmo
    alinhamento, cor e quebra de Jogos/Campeões Favoritos. */
@@ -4471,13 +4241,13 @@ body.dark-mode .recanto-pokemon-gender.unknown{background:#344560;color:#e0e6ef;
   overflow-wrap:normal!important;
   color:var(--rc-ui-016e22dc92,#7880b1);
 }
-@media (min-width:768px) {
+@media  (min-width:768px) {
   #profileContent .profile-pokemon-team .game-icons > p,
   #publicProfilePage .public-pokemon-team .game-icons > p {
     white-space:nowrap!important;
   }
 }
-@media (max-width:767px) {
+@media  (max-width:767px) {
   #profileContent .profile-pokemon-team .game-icons > p,
   #publicProfilePage .public-pokemon-team .game-icons > p {
     font-size:13px!important;
@@ -4520,18 +4290,18 @@ body.dark-mode .recanto-mission-description{color:#d3def6;}
 .recanto-achievement-close{border:0;background:transparent;color:#fff;font-size:22px;cursor:pointer;padding:0;align-self:start;}
 .recanto-achievement-exit{opacity:0;transform:translateX(22px);transition:opacity .22s,transform .22s;}
 @keyframes rc-achievement-appear{from{opacity:0;transform:translateX(35px)}to{opacity:1;transform:translateX(0)}}
-@media(max-width:600px){.recanto-achievement-alerts{top:calc(env(safe-area-inset-top) + 9px);right:8px;max-width:calc(100vw - 16px);}.recanto-achievement-alert{padding:11px;}}
-@media(prefers-reduced-motion:reduce){.recanto-achievement-alert{animation:none;}.recanto-achievement-exit{transition:none;}}
+@media (max-width:600px){.recanto-achievement-alerts{top:calc(env(safe-area-inset-top) + 9px);right:8px;max-width:calc(100vw - 16px);}.recanto-achievement-alert{padding:11px;}}
+@media (prefers-reduced-motion:reduce){.recanto-achievement-alert{animation:none;}.recanto-achievement-exit{transition:none;}}
 
 
 /* 0.4.7 — Abas da Gestão em DOM persistente: sem repintura a cada clique. */
 #adminModal #adminContent .admin-masonry-grid{display:block!important;}
 #adminModal #adminContent .admin-group-view{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;width:100%;min-width:0;align-items:start;}
 #adminModal #adminContent .admin-group-view[hidden]{display:none!important;}
-@media (min-width:768px) and (max-width:1129px){
+@media  (min-width:768px) and (max-width:1129px){
   #adminModal #adminContent .admin-group-view{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
 }
-@media (max-width:767px){
+@media  (max-width:767px){
   #adminModal #adminContent .admin-group-view{grid-template-columns:minmax(0,1fr);gap:12px;}
 }
 
@@ -4602,172 +4372,148 @@ body.dark-mode #adminModal #adminContent[data-admin-building="true"]::before {
 .recanto-install-guide-panel .recanto-install-guide-note{font-size:13px;padding:12px;border-radius:12px;background:#eef2ff;}
 .recanto-install-guide-panel a{color:#364dbb;font-weight:700;}
 .recanto-install-guide-close{position:absolute;right:17px;top:17px;width:36px;height:36px;border:0;border-radius:50%;background:#edf0fb;color:#2d4191;font-size:16px;display:grid;place-items:center;}
-@media(max-width:480px){.recanto-install-guide{padding:12px;}.recanto-install-guide-panel{padding:22px 18px;max-height:85dvh;}.recanto-install-guide-panel h2{font-size:20px;}}
+@media (max-width:480px){.recanto-install-guide{padding:12px;}.recanto-install-guide-panel{padding:22px 18px;max-height:85dvh;}.recanto-install-guide-panel h2{font-size:20px;}}
 
 /* Recanto 0.4.14 — combate PvE fullscreen e editor visual Pokémon */
-.recanto-battle-is-open{overflow:hidden!important;}
-.recanto-battle-overlay{position:fixed;inset:0;z-index:999999;background:#081224;display:flex;align-items:stretch;justify-content:center;}
-.recanto-battle-fullscreen{width:100%;height:100%;min-height:0;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;padding:clamp(12px,2.4vw,30px);color:#fff;background:radial-gradient(circle at 50% 20%,#344b70 0%,#152a4e 60%,#0a1531 100%);background-size:cover;background-position:center;overflow:auto;}
-.recanto-battle-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#101b35b8;border:1px solid #ffffff30;border-radius:16px;padding:12px 16px;}
-.recanto-battle-heading h2{color:#fff;font-size:clamp(18px,2vw,26px);margin:0 0 3px;}
-.recanto-battle-heading p{color:#dce5fa;margin:0;font-size:13px;}
-.recanto-battle-heading button{width:auto!important;min-width:unset;flex-shrink:0;}
-.recanto-battle-arena{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(12px,4vw,90px);width:min(1300px,100%);flex:1;min-height:380px;margin:auto;align-items:center;}
-.recanto-battle-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(130px,1fr));gap:clamp(8px,1.3vw,17px);align-items:center;min-width:0;}
-.recanto-battle-unit{position:relative;box-sizing:border-box;width:100%;height:100%;min-width:0;min-height:145px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding:10px 4px 7px;border:1px solid #b7d9fb3d;border-radius:22px;background:linear-gradient(#ffffff09,#00000025);box-shadow:inset 0 -18px 22px #080c2544;}
-.recanto-battle-unit.enemy{border-color:#f6b6b640;background:linear-gradient(#ffb4b40b,#1d0a1c36);}
-.recanto-battle-unit img.recanto-pokemon-image{width:100%;height:clamp(62px,10vw,155px);max-height:unset;min-height:0;aspect-ratio:auto;object-fit:contain;filter:drop-shadow(0 12px 8px #0007);pointer-events:none;position:relative;z-index:2;}
-.recanto-battle-unit.is-boss img.recanto-pokemon-image{height:clamp(96px,15vw,215px);transform:scale(1.23);transform-origin:center bottom;}
-.recanto-battle-unit.is-boss{box-shadow:0 0 28px #dd9efc33,inset 0 -18px 22px #080c2544;border-color:#eeb2ef8c;}
-.recanto-battle-unit-info{z-index:4;display:flex;flex-direction:column;gap:4px;align-items:stretch;width:100%;background:#091327d9;padding:5px 6px;border-radius:10px;box-sizing:border-box;}
-.recanto-battle-unit-info strong{color:#fff;text-align:center;font-size:clamp(10px,1.1vw,14px);line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.recanto-battle-unit-info small{color:#d7e3f5;text-align:center;font-size:10px;}
-.recanto-battle-hp{height:10px;border-radius:99px;background:#3e2238;border:1px solid #ffffff32;overflow:hidden;}
-.recanto-battle-hp-fill{height:100%;width:100%;background:linear-gradient(90deg,#35b862,#93e17a);transition:width .4s ease-out;}
-.recanto-battle-unit.damaged{animation:recanto-battle-hit .52s ease-out;}
-.recanto-battle-unit.attacking{animation:recanto-battle-attack .58s ease-out;}
-.recanto-battle-unit.fainted img{opacity:.22;filter:grayscale(1);transition:opacity .7s,filter .7s;}
-@keyframes recanto-battle-attack{0%,100%{translate:0 0}45%{translate:18px -14px;filter:brightness(1.4)}70%{translate:4px 0}}
-@keyframes recanto-battle-hit{0%,100%{translate:0 0}25%{translate:-10px 0;filter:brightness(1.8)}50%{translate:8px 0}}
-.recanto-battle-footer{display:flex;flex-direction:column;gap:10px;width:min(1300px,100%);margin:0 auto;background:#0a1830d8;border:1px solid #ffffff38;border-radius:16px;padding:16px;box-sizing:border-box;}
-.recanto-battle-event{margin:0;min-height:24px;color:#f3f6ff;line-height:1.5;text-align:center;font-size:clamp(12px,1vw,15px);}
-.recanto-battle-progress{height:8px;overflow:hidden;border-radius:99px;background:#354969;}
-.recanto-battle-progress>div{height:100%;width:0%;background:#90b8fa;transition:width .45s ease;}
-.recanto-battle-controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
-.recanto-pokemon-boss-advanced,.recanto-pokemon-media-editor{margin:16px 0;padding:15px;border:1px solid #aebce7;border-radius:15px;display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr));background:#dce4ff22;}
-.recanto-pokemon-boss-advanced h4,.recanto-pokemon-media-editor h4,.recanto-pokemon-boss-advanced p,.recanto-pokemon-media-editor p{grid-column:1/-1;margin:0;}
-.recanto-pokemon-boss-advanced label{display:flex;flex-direction:column;gap:6px;min-width:0;font-size:12px;font-weight:700;}
-.recanto-pokemon-boss-advanced textarea{min-height:90px;resize:vertical;}
-.recanto-pokemon-media-preview{max-height:130px;max-width:200px;width:auto;object-fit:contain;}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 .recanto-shop-item-art{width:100%;max-height:95px;object-fit:contain;margin:0 auto 8px;}
-.recanto-joy-avatar{overflow:hidden;}
-.recanto-joy-avatar>img{width:100%;height:100%;object-fit:cover;}
-@media(max-width:760px){
-  .recanto-battle-fullscreen{padding:9px;gap:9px;}
-  .recanto-battle-arena{gap:8px;min-height:360px;}
-  .recanto-battle-grid{gap:5px;grid-template-rows:repeat(2,minmax(110px,1fr));}
-  .recanto-battle-unit{min-height:105px;border-radius:12px;padding:5px 2px 4px;}
-  .recanto-battle-unit img.recanto-pokemon-image{height:clamp(54px,14vw,100px);}
-  .recanto-battle-unit.is-boss img.recanto-pokemon-image{height:clamp(70px,18vw,140px);}
-  .recanto-battle-unit-info{padding:3px;gap:3px;}
-  .recanto-battle-unit-info strong{font-size:9px;}
-  .recanto-battle-unit-info small{font-size:8px;}
-  .recanto-battle-hp{height:7px;}
-  .recanto-battle-footer{padding:10px;}
-  .recanto-pokemon-boss-advanced,.recanto-pokemon-media-editor{grid-template-columns:1fr;}
-}
-@media(max-width:420px){
-  .recanto-battle-heading{padding:9px;}
-  .recanto-battle-heading h2{font-size:16px;}
-  .recanto-battle-heading button{font-size:11px;padding:7px;}
-  .recanto-battle-unit-info strong{font-size:8px;}
-}
-@media(prefers-reduced-motion:reduce){.recanto-battle-unit.attacking,.recanto-battle-unit.damaged{animation:none;}}
+
+
+
+
+
 
 /* Recanto 0.4.15 — batalha estilo TFT + captura mais viva */
-.recanto-battle-fullscreen.recanto-battle-tft{background-size:cover;background-position:center;}
-.recanto-battle-arena.recanto-battle-arena-tft{display:grid;grid-template-columns:1fr;grid-template-rows:auto auto auto;gap:14px;align-items:center;min-height:420px;}
-.recanto-battle-middle{display:flex;justify-content:center;align-items:center;pointer-events:none;}
-.recanto-battle-versus{width:70px;height:70px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:24px;color:#fff;background:radial-gradient(circle at 30% 30%,#9bbcff,#5e7ddb 58%,#1c2b58 100%);box-shadow:0 10px 22px rgba(0,0,0,.28);}
-.recanto-battle-grid.tft{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(120px,1fr));width:min(960px,100%);margin:0 auto;}
-.recanto-battle-unit{justify-content:space-between;padding-top:10px;}
-.recanto-battle-unit.ally{background:linear-gradient(180deg,rgba(110,146,255,.16),rgba(6,18,42,.34));}
-.recanto-battle-unit.enemy{background:linear-gradient(180deg,rgba(220,145,145,.14),rgba(32,8,28,.38));}
-.recanto-battle-topbar{width:100%;padding:0 4px 4px;box-sizing:border-box;z-index:4;}
-.recanto-battle-unit img.recanto-pokemon-image{height:clamp(74px,10vw,150px);}
-.recanto-battle-unit.is-boss img.recanto-pokemon-image{height:clamp(110px,15vw,228px);transform:scale(1.18);transform-origin:center bottom;}
-.recanto-battle-unit-info{background:rgba(7,18,40,.78);backdrop-filter:blur(6px);}
-.recanto-battle-hp{height:12px;background:#402536;}
-.recanto-battle-hp-fill{background:linear-gradient(90deg,#4fc96b,#b9f57c);}
-.recanto-battle-unit.capture-bounce,.capture-bounce{animation:recanto-capture-bounce .75s ease-in-out infinite alternate;}
-@keyframes recanto-capture-bounce{0%{transform:translateY(0)}100%{transform:translateY(-8px)}}
-.recanto-capture-throw{position:absolute;left:8%;bottom:20%;width:34px;height:34px;border-radius:50%;z-index:5;box-shadow:0 4px 10px rgba(0,0,0,.22);animation:recanto-throw-arc .78s ease-in forwards;}
-.recanto-capture-throw.recanto-pokebola{background:radial-gradient(circle at 50% 35%,#fff 0 25%,#e53935 26% 52%,#fff 53% 76%,#222 77% 85%,#fff 86% 100%);}
-.recanto-capture-throw.recanto-superbola{background:radial-gradient(circle at 50% 35%,#fff 0 24%,#3b82f6 25% 50%,#fff 51% 75%,#222 76% 84%,#fff 85% 100%);}
-.recanto-capture-throw.recanto-ultrabola{background:radial-gradient(circle at 50% 35%,#ffe066 0 22%,#f4c430 23% 50%,#1b1b1b 51% 75%,#222 76% 84%,#fff 85% 100%);}
-.recanto-capture-impact{position:absolute;left:50%;top:42%;width:28px;height:28px;border-radius:50%;transform:translate(-50%,-50%) scale(.2);opacity:0;z-index:4;background:radial-gradient(circle,rgba(255,255,255,.95),rgba(255,255,255,0));}
-.recanto-capture-impact.show{animation:recanto-impact .36s ease-out forwards;}
-@keyframes recanto-throw-arc{0%{transform:translate(0,0) scale(.8)}55%{transform:translate(220px,-130px) scale(1)}100%{transform:translate(300px,-170px) scale(1.02)}}
-@keyframes recanto-impact{0%{opacity:.2;transform:translate(-50%,-50%) scale(.2)}100%{opacity:1;transform:translate(-50%,-50%) scale(2.4)}}
-#petPane .recanto-wild-scene{position:relative;overflow:hidden;}
-#petPane .recanto-wild-scene .recanto-pokemon-image{animation:recanto-capture-bounce 1.25s ease-in-out infinite alternate;}
-#petPane .recanto-wild-scene-details{align-items:flex-start;text-align:left;}
-#petPane .recanto-wild-scene-footer{align-items:flex-start;}
-#petPane .recanto-pokemon-capture-columns .game-box:last-child{display:flex;flex-direction:column;}
-#petPane .recanto-pokemon-bag{gap:10px;align-content:start;}
-#petPane .recanto-bag-item{min-height:120px;justify-content:space-between;}
-#petPane .recanto-bag-item strong{font-size:15px;}
-#petPane .recanto-bag-item button{width:100%;}
-.recanto-pokemon-moves-editor{display:grid;gap:12px;padding:16px;border:1px solid #cbd5ee;border-radius:16px;margin-top:18px;}
-.recanto-pokemon-moves-editor>h4,.recanto-pokemon-moves-editor>p{margin:0;}
-body.dark-mode .recanto-pokemon-moves-editor{border-color:#46577c;}
-@media(max-width:900px){
-  .recanto-battle-grid.tft{grid-template-rows:repeat(2,minmax(100px,1fr));}
-  .recanto-battle-unit img.recanto-pokemon-image{height:clamp(64px,18vw,110px);}
-  .recanto-battle-unit.is-boss img.recanto-pokemon-image{height:clamp(92px,24vw,144px);}
-  .recanto-battle-versus{width:52px;height:52px;font-size:18px;}
-  @keyframes recanto-throw-arc{0%{transform:translate(0,0) scale(.8)}55%{transform:translate(140px,-82px) scale(1)}100%{transform:translate(185px,-110px) scale(1.02)}}
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* Recanto v0.4.17: Encontro Surpresa e expedição integrada aos combates */
-.recanto-surprise-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(260px,.65fr);gap:18px;align-items:start}
-.recanto-surprise-card{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:10px 0 20px}
-.recanto-surprise-preview{width:100%;min-height:350px;max-height:500px;border-radius:22px;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 50% 45%,#bce7d3 0%,#89b6a2 34%,transparent 70%),linear-gradient(160deg,#88bac8,#678f67 55%,#305c4f)}
-.recanto-surprise-mystery{display:grid;place-items:center;width:160px;height:195px;border-radius:60% 50% 45% 40%;font-weight:900;font-size:124px;color:rgba(255,255,255,.85);filter:drop-shadow(0 15px 9px #28443785);animation:recanto-mystery-float 2.1s ease-in-out infinite}
-.recanto-surprise-card h3,.recanto-surprise-card p{margin:0}
-.recanto-surprise-card >button{min-height:50px;width:min(420px,100%);font-weight:800;font-size:15px}
-.recanto-surprise-countdown{font-weight:700;color:#475ea5}
-.recanto-surprise-hint{font-size:12px;color:#687bb0}
-.recanto-surprise-inventory{display:grid;gap:10px;margin:14px 0}
-.recanto-surprise-inventory-item{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#eef2ff;border:1px solid #c4cfee;border-radius:12px;padding:14px 16px}
-.recanto-surprise-inventory-item span{font-size:18px;font-weight:900;color:#3a559d}
-body.dark-mode .recanto-surprise-inventory-item{background:#25375f;border-color:#465c8d;color:#eef2ff}
-body.dark-mode .recanto-surprise-inventory-item span{color:#d9e7ff}
-.recanto-capture-overlay{position:fixed;inset:0;z-index:15000;display:flex;align-items:center;justify-content:center;padding:16px;background:#09102beb;overflow:auto;box-sizing:border-box}
-.recanto-capture-panel{width:min(920px,100%);max-height:calc(100dvh - 24px);display:flex;flex-direction:column;gap:10px;overflow:auto;padding:clamp(12px,2vw,24px);border:1px solid #5870ac66;border-radius:24px;background:#eef2ff;color:#223b7b;box-shadow:0 28px 75px #0007;box-sizing:border-box}
-.recanto-capture-head{display:flex;justify-content:space-between;align-items:center;gap:15px}
-.recanto-capture-head h2{margin:0 0 3px;font-size:clamp(17px,2.2vw,24px);color:#1c377d}
-.recanto-capture-head p{margin:0;font-size:12px;color:#6474a1}
-.recanto-capture-head>button{min-width:40px;flex-shrink:0}
-.recanto-capture-stage{position:relative;width:100%;min-height:clamp(250px,43vh,450px);border-radius:18px;overflow:hidden;display:grid;place-items:center;background-size:cover;background-position:center;background-color:#60976e;background-image:radial-gradient(ellipse at 55% 50%,#c8e7af77 2%,transparent 63%),linear-gradient(#78bcba,#85ad76 58%,#3c774b);box-shadow:inset 0 -30px 45px #143d4061}
-.recanto-capture-stage::after{content:'';position:absolute;inset:auto 0 0;height:23%;background:linear-gradient(transparent,#123d3660);pointer-events:none}
-.recanto-capture-silhouette{width:min(50%,280px);height:75%;display:grid;place-items:center;z-index:2;animation:recanto-mystery-float 1.5s ease-in-out infinite}
-.recanto-capture-silhouette img.recanto-pokemon-image{display:block;width:100%;height:100%;max-height:320px;object-fit:contain;filter:brightness(0) drop-shadow(0 13px 7px #1e3d3580);transform:scale(.85);transition:filter .75s,transform .75s;aspect-ratio:auto}
-.recanto-capture-stage.revealed .recanto-capture-silhouette img.recanto-pokemon-image{filter:drop-shadow(0 12px 10px #0006);transform:scale(1)}
-.recanto-capture-stage.shiny{box-shadow:inset 0 0 120px #ffe87b90,0 0 20px #ffcc6480}
-.recanto-capture-magic{position:absolute;z-index:3;top:12%;text-align:center;font-size:34px;color:#ffe28e;animation:recanto-mystery-float 2s infinite;pointer-events:none}
-.recanto-capture-details{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
-.recanto-capture-details h3{margin:0;color:#273b82;font-size:21px}
-.recanto-capture-details p{margin:0}
-.recanto-capture-status{text-align:center;font-weight:750;margin:0;min-height:22px}
-.recanto-capture-time{text-align:center;font-size:13px;font-weight:800;color:#62719b}
-.recanto-capture-actions{display:flex;flex-direction:column;align-items:center;gap:10px}
-.recanto-capture-actions>button{min-height:40px}
-.recanto-capture-ball-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;width:min(670px,100%)}
-.recanto-capture-ball-row button{width:100%;min-height:46px;font-weight:800;border-radius:14px;background:#e1e7ff;color:#273c8c;border:1px solid #c7d4f8}
-.recanto-capture-ball-row button:disabled{opacity:.5;cursor:not-allowed}
-.recanto-capture-thrown-ball{position:absolute;z-index:6;width:48px;height:48px;border-radius:50%;left:9%;bottom:5%;box-shadow:0 8px 15px #0005;background:linear-gradient(#d62838 0 46%,#181823 47% 54%,#fff 55% 100%);animation:recanto-capture-throw .9s cubic-bezier(.3,.12,.62,.9) forwards}
-.recanto-capture-thrown-ball.ball-superbola{background:linear-gradient(#2873ed 0 46%,#161b3b 47% 54%,#fff 55% 100%)}
-.recanto-capture-thrown-ball.ball-ultrabola{background:linear-gradient(#262329 0 46%,#eece32 47% 54%,#fff 55% 100%)}
-.recanto-capture-thrown-ball::after{content:'';position:absolute;width:15px;height:15px;left:calc(50% - 7.5px);top:calc(50% - 7.5px);border-radius:50%;background:white;border:3px solid #1a2138;box-sizing:border-box}
-.recanto-capture-thrown-ball.shaking{animation:recanto-capture-shake .55s ease-in-out infinite;left:calc(50% - 24px);bottom:18%;}
-.recanto-capture-stage.throwing .recanto-capture-silhouette{opacity:.25;transition:opacity .6s}
-.recanto-capture-stage.caught .recanto-capture-silhouette{opacity:0;transition:opacity .7s}
-.recanto-capture-stage.expired{filter:grayscale(.6)}
-body.dark-mode .recanto-capture-panel{background:#17254b;color:#e8ecff;border-color:#4c6099}
-body.dark-mode .recanto-capture-head h2,body.dark-mode .recanto-capture-details h3{color:#fff}
-body.dark-mode .recanto-capture-head p,body.dark-mode .recanto-capture-time{color:#cfdbff}
-body.dark-mode .recanto-capture-ball-row button{background:#2e4379;color:#eaf0ff;border-color:#5271ae}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 .recanto-expedition-active{display:flex;flex-direction:column;gap:14px;padding:14px;border-radius:14px;border:1px solid #bccbed;background:#edf2ff}
 body.dark-mode .recanto-expedition-active{background:#26375e;border-color:#526389}
 .recanto-expedition-party{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .recanto-expedition-party img{width:60px;height:60px;object-fit:contain}
-@keyframes recanto-mystery-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-@keyframes recanto-capture-throw{0%{left:9%;bottom:5%;transform:scale(.9) rotate(0deg)}55%{left:40%;bottom:63%;transform:scale(1.12) rotate(210deg)}100%{left:calc(50% - 24px);bottom:18%;transform:scale(1) rotate(420deg)}}
-@keyframes recanto-capture-shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-22deg)}75%{transform:rotate(22deg)}}
-@media(max-width:850px){.recanto-surprise-layout{grid-template-columns:1fr}.recanto-surprise-preview{min-height:270px}.recanto-capture-overlay{padding:0}.recanto-capture-panel{border-radius:0;width:100%;height:100dvh;max-height:none;padding:14px}.recanto-capture-stage{min-height:35vh;max-height:46vh}}
-@media(max-width:430px){.recanto-capture-ball-row{gap:5px}.recanto-capture-ball-row button{font-size:11px;padding:6px 4px}.recanto-surprise-preview{min-height:230px}.recanto-capture-stage{min-height:30vh}.recanto-capture-silhouette{width:60%}}
-@media(prefers-reduced-motion:reduce){.recanto-capture-silhouette,.recanto-surprise-mystery{animation:none}}
+
+
+
+
+
+
 
 
 /* Recanto 0.4.18 — molduras animadas por cima da arte, sem reiniciar GIF */
