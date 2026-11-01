@@ -4526,3 +4526,18 @@ body.dark-mode .recanto-expedition-active{background:#26375e;border-color:#52638
   user-select:none!important;background:transparent!important;
 }
 .recanto-framed-art.no-card-frame>.recanto-card-frame-overlay{display:none!important;}
+
+
+/* Recanto 0.4.21 — arte transparente do card não recebe fundo azul.
+   Se a imagem do card tiver transparência (PNG/WebP/GIF), o centro usa o
+   fundo da própria moldura/arte-base do card, em vez de um preenchimento azul. */
+.recanto-framed-art>.recanto-card-photo,
+.recanto-framed-art.custom-collection-frame>.recanto-card-photo,
+.recanto-framed-art.no-card-frame>.recanto-card-photo{
+  background:transparent!important;
+}
+
+/* Mantém a arte visível sem pintar fundo sólido por trás. */
+.recanto-framed-art .recanto-card-photo-image{
+  background:transparent!important;
+}
