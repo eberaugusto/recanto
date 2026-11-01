@@ -4541,3 +4541,21 @@ body.dark-mode .recanto-expedition-active{background:#26375e;border-color:#52638
 .recanto-framed-art .recanto-card-photo-image{
   background:transparent!important;
 }
+
+
+/* Recanto 0.4.22 — transparência real no centro dos cards com moldura personalizada.
+   O interior do card não recebe mais o degradê/base da raridade.
+   Quando a arte tiver transparência, ela deixa aparecer a PRÓPRIA imagem da moldura
+   por baixo, como duas imagens sobrepostas: base + arte + overlay. */
+.recanto-framed-art.custom-collection-frame{
+  background-image:var(--recanto-custom-frame, var(--recanto-frame-base))!important;
+  background-position:center!important;
+  background-repeat:no-repeat!important;
+  background-size:100% 100%!important;
+}
+
+/* Em cards com moldura personalizada, o miolo não deve pintar caixa/fundo. */
+.recanto-framed-art.custom-collection-frame>.recanto-card-photo{
+  background:none!important;
+  box-shadow:none!important;
+}
