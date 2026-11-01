@@ -4768,3 +4768,15 @@ body.dark-mode .recanto-expedition-active{background:#26375e;border-color:#52638
 @media(max-width:850px){.recanto-surprise-layout{grid-template-columns:1fr}.recanto-surprise-preview{min-height:270px}.recanto-capture-overlay{padding:0}.recanto-capture-panel{border-radius:0;width:100%;height:100dvh;max-height:none;padding:14px}.recanto-capture-stage{min-height:35vh;max-height:46vh}}
 @media(max-width:430px){.recanto-capture-ball-row{gap:5px}.recanto-capture-ball-row button{font-size:11px;padding:6px 4px}.recanto-surprise-preview{min-height:230px}.recanto-capture-stage{min-height:30vh}.recanto-capture-silhouette{width:60%}}
 @media(prefers-reduced-motion:reduce){.recanto-capture-silhouette,.recanto-surprise-mystery{animation:none}}
+
+
+/* Recanto 0.4.18 — molduras animadas por cima da arte, sem reiniciar GIF */
+.recanto-framed-art.custom-collection-frame::after{content:none!important;display:none!important;}
+.recanto-framed-art>.recanto-card-frame-overlay{
+  position:absolute!important;inset:0!important;display:block!important;
+  width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;
+  padding:0!important;margin:0!important;border:0!important;
+  z-index:3!important;object-fit:fill!important;pointer-events:none!important;
+  user-select:none!important;background:transparent!important;
+}
+.recanto-framed-art.no-card-frame>.recanto-card-frame-overlay{display:none!important;}

@@ -420,7 +420,12 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       task.catch(()=>{if(getCache.get(url)?.promise===task)getCache.delete(url);});
       return task;
     }
+    const started=(data!==undefined && /^\/api\/daily\/(coins|card)$/.test(url))?performance.now():null;
     const result=await fetchJson(url,data);
+    if(started!==null){
+      const elapsed=Math.round(performance.now()-started);
+      console.info('[Recanto resgate]',url,'total:',elapsed+'ms','servidor:',Number(result.processing_ms||0)+'ms');
+    }
     if(data!==undefined){
       if(!url.startsWith('/api/recanto/alerts/'))invalidateAfterMutation(url);
       if(!url.startsWith('/api/recanto/alerts/')&&!url.startsWith('/api/notifications/')&&!url.startsWith('/api/push/'))
@@ -433,7 +438,10 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     if (data !== undefined) {options.method='POST';options.headers['Content-Type']='application/json';options.body=JSON.stringify(data);}
     const controller=new AbortController();
     const isLargeCatalog=url.startsWith('/api/admin/catalog-management');
-    const timeout=setTimeout(()=>controller.abort(),isLargeCatalog?45000:18000);
+    // Render pode acordar de um cold start antes de confirmar um resgate.
+    // Nunca reenviar automaticamente um POST de economia: evitar duplicidade.
+    const economyClaim=/^\/api\/daily\/(coins|card)$/.test(url) && data!==undefined;
+    const timeout=setTimeout(()=>controller.abort(),isLargeCatalog?45000:economyClaim?40000:18000);
     let response;
     try{response=await fetch(url,{...options,signal:controller.signal});}finally{clearTimeout(timeout);}
     let result;try{result=await response.json();}catch(_){result={detail:response.status>=500?`Erro interno do servidor (HTTP ${response.status}). Consulte os logs do Render.`:'O servidor retornou uma resposta inválida.'};}
@@ -496,24 +504,46 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     select.value=[...select.options].some(o=>o.value===current)?current:'0';
     return select;
   }
+  // Uma camada IMG real é necessária para GIF: permite a animação da moldura
+  // sem trocar/reiniciar o arquivo quando a tela sincroniza os estilos.
   function updateOneCardFrame(art){
     if(!art?.classList?.contains('recanto-framed-art'))return;
     const collection=art.dataset.collection||'Recanto Original';
     const rarity=art.dataset.rarity||'comum';
-    const cardId = art.dataset.cardId;
-    const isFrameless = art.dataset.frameEnabled==='false' || (cardId && cardFrameFlags[cardId]===false);
-    art.classList.toggle('no-card-frame', Boolean(isFrameless));
+    const cardId=art.dataset.cardId;
+    const isFrameless=art.dataset.frameEnabled==='false' || (cardId && cardFrameFlags[cardId]===false);
+    art.classList.toggle('no-card-frame',Boolean(isFrameless));
+    let frame=art.querySelector(':scope > .recanto-card-frame-overlay');
     if(isFrameless){
+      if(frame)frame.remove();
       art.style.removeProperty('--recanto-custom-frame');
       art.classList.remove('custom-collection-frame');
       return;
     }
-    const visual=cardVisualStyle(collection, rarity);
-    const variantId=Number(art.dataset.frameVariantId || cardVariantChoices[cardId] || 0);
-    const variant=collectionFrameVariants.find(v=>v.id===variantId&&v.collection===collection);
-    const frameUrl=variant?.frame_url||visual.frame_url;
-    if(frameUrl){art.style.setProperty('--recanto-custom-frame',`url(${JSON.stringify(frameUrl)})`);art.classList.add('custom-collection-frame');}
-    else{art.style.removeProperty('--recanto-custom-frame');art.classList.remove('custom-collection-frame');}
+    const visual=cardVisualStyle(collection,rarity);
+    const variantId=Number(art.dataset.frameVariantId||cardVariantChoices[cardId]||0);
+    const variant=collectionFrameVariants.find(v=>Number(v.id)===variantId&&v.collection===collection);
+    const frameUrl=String(variant?.frame_url||visual.frame_url||'').trim();
+    if(!frameUrl){
+      if(frame)frame.remove();
+      art.style.removeProperty('--recanto-custom-frame');
+      art.classList.remove('custom-collection-frame');
+      return;
+    }
+    art.classList.add('custom-collection-frame');
+    art.style.removeProperty('--recanto-custom-frame');
+    if(!frame){
+      frame=h('img','recanto-card-frame-overlay');frame.alt='';
+      frame.setAttribute('aria-hidden','true');frame.draggable=false;
+      frame.loading='eager';frame.decoding='async';
+      frame.onerror=()=>{
+        // Se a imagem foi removida do Cloudinary/hosting, manter moldura por raridade.
+        frame.remove();art.classList.remove('custom-collection-frame');
+        art.style.removeProperty('--recanto-custom-frame');
+      };
+      art.append(frame);
+    }
+    if(frame.dataset.source!==frameUrl){frame.dataset.source=frameUrl;frame.src=frameUrl;}
   }
   function updateAllCardFrames(){document.querySelectorAll('.recanto-framed-art').forEach(updateOneCardFrame);}
   async function loadCollectionCardStyles(force=false){
@@ -1672,6 +1702,8 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
     const p=$('cardsPane');p.replaceChildren();p.dataset.mode=tab;$('cardFilters').hidden=tab==='trocas';
     if(tab==='colecao'){
       const [data,fav]=await Promise.all([API('/api/cards'),API('/api/cards/favorite')]);
+      if(requestId!==currentCardPaneRequest||state.cardTab!==tab)return;
+      p.replaceChildren();
       const counts={};for(const c of data.items)counts[c.card_id]=(counts[c.card_id]||0)+1;
       for(const c of data.items){c.is_favorite=c.owned_id===fav.card?.owned_id;c.duplicate_count=counts[c.card_id];}
       $('cardsCount').textContent=`${data.total} card(s)`;
@@ -1680,18 +1712,21 @@ window.RecantoPalette=[{"token":"d14f901611","base":"#fff","n":105,"hint":"color
       p.append(button('Ir para Loja →',()=>chooseTab('loja','pack3'),'soft-action'));
     }
     if(tab==='catalogo'){
-      const [data,mine]=await Promise.all([API('/api/catalog'),API('/api/cards')]);
-      $('cardsCount').textContent=`${data.items.length} cards no catálogo`;
+      const [data,mine,featured]=await Promise.all([API('/api/catalog'),API('/api/cards'),API('/api/collections/featured')]);
+      // Respostas de consultas antigas jamais podem anexar outra grade ao mesmo painel.
+      if(requestId!==currentCardPaneRequest||state.cardTab!==tab)return;
+      p.replaceChildren();
+      const catalogItems=[...new Map((data.items||[]).map(c=>[c.id,c])).values()];
+      $('cardsCount').textContent=`${catalogItems.length} cards no catálogo`;
       const catalogIntro=h('div','catalog-highlights');
       const catalogSummary=block('Todos os cards','Cópias Globais: Comum 3 • Raro 2 • Lendário 1 • Prismático 1.');
       catalogSummary.classList.add('catalog-summary');catalogIntro.append(catalogSummary);
-      const featured=await API('/api/collections/featured');
       const banner=h('button','featured-collection-banner');banner.type='button';
       if(featured.image_url){banner.style.backgroundImage=`linear-gradient(90deg,rgba(19,24,88,.78),rgba(19,24,88,.12)),url("${featured.image_url.replaceAll('"','%22')}")`;}
       banner.append(h('small','','✦ COLEÇÃO EM DESTAQUE'),h('strong','',featured.name),h('span','','Ver os cards desta coleção →'));
       banner.onclick=()=>{state.cardFilters.collection=featured.name;state.cardPage=1;cardPane('catalogo').catch(e=>toast(e.message));};
       catalogIntro.append(banner);p.append(catalogIntro);
-      const results=h('div','filtered-cards');p.append(results);renderCardFilters(data.items,new Set(mine.items.map(c=>c.card_id)),'catalogo',results);
+      const results=h('div','filtered-cards');p.append(results);renderCardFilters(catalogItems,new Set(mine.items.map(c=>c.card_id)),'catalogo',results);
     }
     if(tab==='trocas'){
       const [community,trades,mine]=await Promise.all([API('/api/community'),API('/api/trades'),API('/api/cards')]);if(requestId!==currentCardPaneRequest||state.cardTab!==tab)return;$('cardsCount').textContent='Negociações';

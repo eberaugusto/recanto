@@ -2045,6 +2045,7 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
 
     @app.post('/api/daily/coins')
     def daily_coins(request: Request):
+        started=time.perf_counter()
         uid = me(request)
         with writing() as db:
             record_claim(db, uid, 'coins')
@@ -2053,10 +2054,14 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             balance.coins += gain
             progress(db, uid, 'daily_coins')
             balance_after=balance.coins
-        return {'ok': True, 'coins_gained': gain, 'coins_balance': balance_after}
+        # Diagnóstico sem PII: diferencia atraso de banco e atraso de rede/Render.
+        elapsed=round((time.perf_counter()-started)*1000)
+        if elapsed>2000:logging.getLogger('recanto.performance').warning('Resgate moedas lento: %d ms',elapsed)
+        return {'ok': True, 'coins_gained': gain, 'coins_balance': balance_after,'processing_ms':elapsed}
 
     @app.post('/api/daily/card')
     def daily_card(request: Request):
+        started=time.perf_counter()
         uid = me(request)
         with writing() as db:
             # Evita consultar os mesmos eventos duas vezes nesta solicitação.
@@ -2089,9 +2094,12 @@ def register_game(*, app, Base, engine, SessionLocal, User, Wallet, Card, OwnedC
             if cooldown: cooldown.last_claimed=now
             else: db.add(CardCooldown(user_id=uid,last_claimed=now))
             progress(db, uid, 'daily_card')
+        elapsed=round((time.perf_counter()-started)*1000)
+        if elapsed>2000:logging.getLogger('recanto.performance').warning('Resgate card lento: %d ms',elapsed)
         return {'ok': True, 'card': obtained[0], 'cards':obtained,
                 'coins_balance':balance.coins, 'bonus_coins':reward,
-                'next_at':(now+timedelta(minutes=effects['card_cooldown'])).isoformat()}
+                'next_at':(now+timedelta(minutes=effects['card_cooldown'])).isoformat(),
+                'processing_ms':elapsed}
 
     @app.get('/api/catalog')
     def catalog(request: Request):
