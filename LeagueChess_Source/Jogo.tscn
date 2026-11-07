@@ -1,0 +1,32 @@
+[gd_scene load_steps=6 format=3 uid="uid://c8x1y2z3a4b5c"]
+[ext_resource type="Script" path="res://Tabuleiro.gd" id="1_abcde"]
+[ext_resource type="Script" path="res://CameraOrbit.gd" id="2_camba"]
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_xyz"]
+sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
+ground_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
+[sub_resource type="Sky" id="Sky_abc"]
+sky_material = SubResource("ProceduralSkyMaterial_xyz")
+[sub_resource type="Environment" id="Environment_def"]
+background_mode = 2
+sky = SubResource("Sky_abc")
+tonemap_mode = 2
+glow_enabled = true
+[node name="Jogo" type="Node3D"]
+script = ExtResource("1_abcde")
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_def")
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, 0.75, -0.433013, 0, 5, 0)
+shadow_enabled = true
+[node name="CameraPivot" type="Node3D" parent="."]
+script = ExtResource("2_camba")
+[node name="Camera3D" type="Camera3D" parent="CameraPivot"]
+[node name="UI" type="CanvasLayer" parent="."]
+[node name="Tooltip" type="Label" parent="UI"]
+visible = false
+offset_right = 40.0
+offset_bottom = 23.0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 22
+text = "Nome - Função"
